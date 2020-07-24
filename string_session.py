@@ -13,18 +13,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import asyncio
+
 from pyrogram import Client
 
 
-print("Getting information...")
-with Client(
-    "bishproject",
-    api_id=int(input("Enter API ID: ")),
-    api_hash=input("Enter API HASH: ")
-) as bishproject:
-    print()
-    print("Sending and pulling information...")
-    bishproject.send_message(
-        "me", ("**StringSession**:\n\n"
-               f"```{bishproject.export_session_string()}```"))
-    print("Information saved into your saved messages.")
+async def generateStringSession():
+    print("Getting information...")
+    async with Client(
+        "bishproject",
+        api_id=int(input("Enter API ID: ")),
+        api_hash=input("Enter API HASH: ")
+    ) as bishproject:
+        print()
+        print("Sending and pulling information...")
+        await bishproject.send_message(
+            "me", ("#SESSION:\n\n"
+                   f"```{bishproject.export_session_string()}```"))
+        print("Sent!, into your saved messages.")
+
+if __name__ == "__main__":
+    asyncio.get_event_loop().run_until_complete(generateStringSession())

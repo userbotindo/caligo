@@ -3,3 +3,4 @@
 # file
 *.pyc
 *.log
+*.session

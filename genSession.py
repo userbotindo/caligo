@@ -38,11 +38,11 @@ if __name__ == "__main__":
         "--mode",
         metavar="STDOUT",
         type=str,
-        choices=('stdout', 'message'),
-        default='stdout',
-        help=('choices: {%(choices)s}\n'
-              'stdout: output session string into stdout\n'
-              'message: output session string into saved message'
+        choices=("stdout", "message"),
+        default="stdout",
+        help=("choices: {%(choices)s}\n"
+              "stdout: output session string into stdout\n"
+              "message: output session string into saved message"
               )
     )
 

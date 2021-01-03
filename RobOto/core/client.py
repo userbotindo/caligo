@@ -13,12 +13,13 @@ LOG = logging.getLogger(__name__)
 class Roboto(Client):
     "RobOto, client"
 
-    def __init__(self, **kawrgs) -> None:
+    def __init__(self, **kwargs) -> None:
         LOG.info("Setting up RobOto...")
         kwargs = {
             "api_id": Config.API_ID,
             "api_hash": Config.API_HASH,
-            "session_name": Config.STRING_SESSION or ":memory:"
+            "session_name": Config.STRING_SESSION or ":memory:",
+            "plugins": dict(root="RobOto/modules")
         }
         super().__init__(**kwargs)
 

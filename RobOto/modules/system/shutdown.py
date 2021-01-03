@@ -8,7 +8,7 @@ from RobOto import roboto
 
 @roboto.on_command(
     command("shutdown", ".", case_sensitive=True) &
-    edited &
+    ~edited &
     me
 )
 async def _shutdown_(client: pyrogram.Client, message: pyrogram.types.Message) -> None:

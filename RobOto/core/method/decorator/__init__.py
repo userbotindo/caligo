@@ -1,4 +1,4 @@
-from . import Command
+from .command import Command
 
 
 class Decorator(Command):

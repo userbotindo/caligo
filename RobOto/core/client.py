@@ -1,16 +1,18 @@
 import logging
 import signal
 
-from pyrogram import Client, asyncio, idle
+from pyrogram import asyncio, idle
 from typing import Optional, Any, Awaitable, List
 from . import pool
+from .raw_client import RawClient
+from .method import Method
 from ..util import Config
 
 
 LOG = logging.getLogger(__name__)
 
 
-class Roboto(Client):
+class Roboto(Method, RawClient):
     "RobOto, client"
 
     def __init__(self, **kwargs) -> None:

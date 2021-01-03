@@ -9,8 +9,6 @@ from ..util import Config
 
 LOG = logging.getLogger(__name__)
 
-INIT_TASKS: List[asyncio.Task] = []
-
 
 class Roboto(Client):
     "RobOto, client"
@@ -63,8 +61,6 @@ class Roboto(Client):
 
         self.loop.run_until_complete(self.start())
 
-#        for task in self._tasks:
-#            tasks.append(self.loop.create_task(task()))
         try:
             if coro:
                 LOG.info("Running Coroutine")

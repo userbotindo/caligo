@@ -12,7 +12,7 @@ async def ping(roboto, message: pyrogram.types.Message):
     start = datetime.now()
     end = datetime.now()
     ms = (end - start).microseconds / 1000
-    await message.edit_text(f"**PONG!**\n{ms} ms")
+    return await message.edit_text(f"**PONG!**\n{ms} ms")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from RobOto import roboto
 
 @roboto.on_message(
     pyrogram.filters.command("ping", ".", case_sensitive=True) &
+    ~pyrogram.filters.edited &
     pyrogram.filters.me
 )
 async def ping(roboto, message: pyrogram.types.Message):

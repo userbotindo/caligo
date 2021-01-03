@@ -6,7 +6,7 @@ from pyrogram.filters import command, edited, me
 from RobOto import roboto
 
 
-@roboto.on_command(
+@roboto.command(
     command("shutdown", ".", case_sensitive=True) &
     ~edited &
     me

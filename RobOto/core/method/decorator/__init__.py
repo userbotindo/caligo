@@ -1,5 +1,5 @@
-from .on_command import OnCommand
+from . import Command
 
 
-class Decorator(OnCommand):
+class Decorator(Command):
     pass

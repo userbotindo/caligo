@@ -6,8 +6,8 @@ from typing import Callable
 from RobOto.core.extention import RawClient
 
 
-class OnCommand(RawClient):
-    def on_command(
+class Command(RawClient):
+    def command(
         self=None,
         filters=None,
         group: int = 0,

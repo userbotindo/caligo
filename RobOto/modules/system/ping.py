@@ -5,7 +5,7 @@ from datetime import datetime
 from RobOto import roboto
 
 
-@roboto.on_command(
+@roboto.command(
     command("ping", ".", case_sensitive=True) &
     ~edited &
     me

@@ -3,7 +3,7 @@ import sys
 import logging
 import psutil
 
-from RobOto.core.raw_client import RawClient
+from RobOto.core.extention import RawClient
 
 LOG = logging.getLogger(__name__)
 

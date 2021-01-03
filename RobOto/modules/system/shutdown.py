@@ -2,13 +2,14 @@ import os
 import signal
 import pyrogram
 
+from pyrogram.filters import command, edited, me
 from RobOto import roboto
 
 
-@roboto.on_message(
-    pyrogram.filters.command("shutdown", ".", case_sensitive=True) &
-    ~pyrogram.filters.edited &
-    pyrogram.filters.me
+@roboto.on_command(
+    command("shutdown", ".", case_sensitive=True) &
+    edited &
+    me
 )
 async def _shutdown_(client: pyrogram.Client, message: pyrogram.types.Message) -> None:
     await message.edit("`Shutdown`")

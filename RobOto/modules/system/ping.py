@@ -1,13 +1,14 @@
 import pyrogram
 
+from pyrogram.filters import command, edited, me
 from datetime import datetime
 from RobOto import roboto
 
 
-@roboto.on_message(
-    pyrogram.filters.command("ping", ".", case_sensitive=True) &
-    ~pyrogram.filters.edited &
-    pyrogram.filters.me
+@roboto.on_command(
+    command("ping", ".", case_sensitive=True) &
+    ~edited &
+    me
 )
 async def ping(client: pyrogram.Client, message: pyrogram.types.Message) -> None:
     start = datetime.now()

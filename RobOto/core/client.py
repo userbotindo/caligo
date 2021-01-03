@@ -3,8 +3,8 @@ import signal
 
 from pyrogram import asyncio, idle
 from typing import Optional, Any, Awaitable, List
-from . import pool
-from .raw_client import RawClient
+
+from .extention import pool, RawClient
 from .method import Method
 from ..util import Config
 

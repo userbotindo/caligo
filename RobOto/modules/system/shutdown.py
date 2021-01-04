@@ -11,6 +11,8 @@ from RobOto import roboto
     ~edited &
     me
 )
+@roboto.command_desc("Shutdown the current session")
+@roboto.command_usage(".shutdown into any chats")
 async def _shutdown_(client: pyrogram.Client, message: pyrogram.types.Message) -> None:
     await message.edit("`Shutdown`")
     d = "."

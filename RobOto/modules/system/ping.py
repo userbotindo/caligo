@@ -10,6 +10,8 @@ from RobOto import roboto
     ~edited &
     me
 )
+@roboto.command_desc("Check Userbot respond time")
+@roboto.command_usage(".ping into any chats")
 async def ping(client: pyrogram.Client, message: pyrogram.types.Message) -> None:
     start = datetime.now()
     end = datetime.now()

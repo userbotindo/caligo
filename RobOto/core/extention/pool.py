@@ -6,7 +6,7 @@ from typing import Any, Callable, List
 from concurrent.futures import ThreadPoolExecutor, Future
 from functools import wraps, partial
 
-WORKERS = os.cpu_count()
+WORKERS = min(32, os.cpu_count() + 4)
 THREAD_POOL: ThreadPoolExecutor
 ASYNC_Q = asyncio.Queue()
 TASKS: List[asyncio.Task] = []

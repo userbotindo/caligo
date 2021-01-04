@@ -2,7 +2,7 @@ import pyrogram
 import logging
 
 from .system import System
-from pyrogram.filters import me, edited, command as cmd
+from pyrogram.filters import me, edited, command as cmd, channel
 from RobOto import roboto, command
 
 LOG = logging.getLogger("RobOto.Modules")
@@ -14,6 +14,7 @@ class Module(System):
 
 @roboto.command(
     cmd("help", ".", case_sensitive=True) &
+    ~channel &
     ~edited &
     me
 )

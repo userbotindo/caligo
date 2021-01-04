@@ -2,7 +2,7 @@ import os
 import signal
 import pyrogram
 
-from pyrogram.filters import command as cmd, edited, me
+from pyrogram.filters import command as cmd, edited, me, channel
 from RobOto import roboto, command
 
 
@@ -10,6 +10,7 @@ class Shutdown:
 
     @roboto.command(
         cmd("shutdown", ".", case_sensitive=True) &
+        ~channel &
         ~edited &
         me
     )

@@ -1,3 +1,3 @@
-from RobOto.core import Roboto
+from RobOto.core import Roboto, command
 
 roboto = Roboto()

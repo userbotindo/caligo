@@ -1,6 +1,6 @@
 from .command import Command
-from .command_ext import CommandExt
+from . import command
 
 
-class Decorator(Command, CommandExt):
+class Decorator(Command):
     pass

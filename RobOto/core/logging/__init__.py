@@ -11,7 +11,7 @@ def setup_log() -> None:
     logging.root.setLevel(level)
 
     # Logging into file
-    format = "  %(asctime)s: %(levelname)s  |  %(name)s  |  %(message)s"
+    format = "%(asctime)s:  %(levelname)s  |  %(name)s  |  %(message)s"
     logfile_name = f"RobOto-{datetime.now().strftime('%Y-%m-%d')}.log"
     logfile = logging.FileHandler(f"RobOto/core/logging/{logfile_name}")
     formatter = logging.Formatter(format, datefmt="%H:%M:%S")

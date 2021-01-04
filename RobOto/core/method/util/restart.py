@@ -5,7 +5,7 @@ import psutil
 
 from RobOto.core.extention import RawClient
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger("RobOto")
 
 
 class Restart(RawClient):

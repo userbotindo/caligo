@@ -10,7 +10,7 @@ WORKERS = min(32, os.cpu_count() + 4)
 THREAD_POOL: ThreadPoolExecutor
 ASYNC_Q = asyncio.Queue()
 TASKS: List[asyncio.Task] = []
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger("RobOto")
 
 
 def submit_task(task: asyncio.coroutines.CoroWrapper) -> None:

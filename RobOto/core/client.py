@@ -9,7 +9,7 @@ from .method import Method
 from ..util import Config
 
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger("RobOto")
 
 
 class Roboto(Method, RawClient):
@@ -63,6 +63,7 @@ class Roboto(Method, RawClient):
                 sig, lambda sig=sig: self.loop.create_task(shutdown(sig)))
 
         self.loop.run_until_complete(self.start())
+        LOG.info("RobOto successfully running")
 
         try:
             if coro:

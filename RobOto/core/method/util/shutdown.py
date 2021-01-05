@@ -1,6 +1,6 @@
 import asyncio
 
-from RobOto.core.extention import RawClient
+from ...extention import RawClient
 
 
 class Terminate(RawClient):

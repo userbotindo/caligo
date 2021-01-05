@@ -2,7 +2,7 @@ import pyrogram
 
 from pyrogram.filters import command as cmd, edited, me, channel
 from datetime import datetime
-from RobOto import roboto, command
+from ... import roboto, command
 
 
 class Ping:

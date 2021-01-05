@@ -3,7 +3,7 @@ import pyrogram
 from pyrogram.filters import Filter
 from typing import Callable
 
-from RobOto.core.extention import RawClient
+from ...extention import RawClient
 
 
 class Command(RawClient):

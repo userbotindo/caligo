@@ -1,8 +1,8 @@
 import logging
 
 
-from RobOto import roboto
-from RobOto.core.logging import setup_log
+from . import roboto
+from .core.logging import setup_log
 
 
 if __name__ == "__main__":

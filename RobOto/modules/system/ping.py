@@ -15,7 +15,7 @@ class Ping:
     )
     @command.desc("Check Userbot respond time")
     @command.usage(".ping into any chats")
-    async def cmd_ping(client: pyrogram.Client, message: pyrogram.types.Message) -> None:
+    async def cmd_ping(self, message: pyrogram.types.Message) -> None:
         start = datetime.now()
         end = datetime.now()
         ms = (end - start).microseconds / 1000

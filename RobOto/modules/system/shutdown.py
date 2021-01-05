@@ -16,7 +16,7 @@ class Shutdown:
     )
     @command.desc("Shutdown the current session")
     @command.usage(".shutdown into any chats")
-    async def cmd_shutdown(client: pyrogram.Client, message: pyrogram.types.Message) -> None:
+    async def cmd_shutdown(self, message: pyrogram.types.Message) -> None:
         await message.edit("`Shutdown`")
         d = "."
         for i in range(3):

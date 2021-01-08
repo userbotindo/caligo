@@ -1,9 +1,9 @@
 import asyncio
 
-from ...extention import RawClient
+from ..core.base import Base
 
 
-class Terminate(RawClient):
+class Terminate(Base):
     async def terminate(self) -> None:
         if not self.no_updates:
             for _ in range(self.workers):

@@ -3,12 +3,12 @@ import sys
 import logging
 import psutil
 
-from ...extention import RawClient
+from ..core.base import Base
 
 LOG = logging.getLogger("RobOto")
 
 
-class Restart(RawClient):
+class Restart(Base):
     async def restart(self, update_req: bool = False) -> None:
         LOG.info("Restarting RobOto")
         await self.stop()

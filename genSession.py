@@ -17,7 +17,7 @@ async def genSession(mode: str) -> None:
         "RobOto",
         api_id=input("Please enter Telegram API ID: "),
         api_hash=input("Please enter Telegram API HASH: "),
-        workdir='RobOto/core/logging'
+        workdir='roboto'
     ) as roboto:
         print("Generating...")
         print()

@@ -2,20 +2,22 @@ import os
 import signal
 import pyrogram
 
-from pyrogram.filters import command as cmd, edited, me, channel
-from ... import roboto, command
+from typing import ClassVar
+
+from ..launch import roboto
+from ..module import Module
 
 
-class Shutdown:
+class Shutdown(Module):
 
-    @roboto.command(
-        cmd("shutdown", ".", case_sensitive=True) &
-        ~channel &
-        ~edited &
-        me
+    name: ClassVar[str] = "Shutdown"
+
+    @roboto.register(
+        cmd="shutdown",
+        prefix=".",
+        desc="test",
+        usage="test"
     )
-    @command.desc("Shutdown the current session")
-    @command.usage(".shutdown into any chats")
     async def cmd_shutdown(self, message: pyrogram.types.Message) -> None:
         await message.edit("`Shutdown`")
         d = "."

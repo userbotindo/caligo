@@ -1,10 +1,11 @@
 import inspect
 import logging
 import os.path
-from typing import TYPE_CHECKING, ClassVar, Optional, Type
 
-if TYPE_CHECKING:
-    from .core import Bot
+from typing import (
+    ClassVar,
+    Optional,
+)
 
 
 class Module:
@@ -13,11 +14,10 @@ class Module:
     disabled: ClassVar[bool] = False
 
     # Instance variables
-    bot: "Bot"
     log: logging.Logger
     comment: Optional[str]
 
-    def __init__(self, bot: "Bot") -> None:
+    def __init__(self, bot) -> None:
         self.bot = bot
         self.log = logging.getLogger(type(self).name.lower().replace(" ", "_"))
         self.comment = None
@@ -29,3 +29,7 @@ class Module:
 
     def __repr__(self):
         return "<" + self.format_desc(self.comment) + ">"
+
+
+class ModuleLoadError(Exception):
+    pass

@@ -1,16 +1,18 @@
 import logging
 import signal
+import importlib
+import pkgutil
 
 from pyrogram import asyncio, idle
 from typing import List, Optional, Any, Awaitable
 
 from . import pool
-from .base import Base
 from .command import Command
-from ..util import Config
+from .module_extender import ModuleExtender
+from .. import util
 
 
-class RobOto(Base, Command):
+class RobOto(Command, ModuleExtender):
     "RobOto, client"
     log: logging.Logger
 
@@ -18,16 +20,21 @@ class RobOto(Base, Command):
         self.log = logging.getLogger("roboto")
 
         kwargs = {
-            "api_id": Config.API_ID,
-            "api_hash": Config.API_HASH,
-            "session_name": Config.STRING_SESSION or ":memory:",
-            "plugins": dict(root="roboto/modules")
+            "api_id": util.config.API_ID,
+            "api_hash": util.config.API_HASH,
+            "session_name": util.config.STRING_SESSION or ":memory:",
+            "workdir": "roboto"
         }
         super().__init__(**kwargs)
 
     async def start(self) -> None:
         """ Start client """
         pool.start()
+        self.submodules = [
+            importlib.import_module("roboto.modules." + info.name, __name__)
+            for info in pkgutil.iter_modules(["roboto/modules"])
+        ]
+        self.load_all_modules()
         self.log.info("Starting roboto")
         await super().start()
 

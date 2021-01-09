@@ -1,9 +1,8 @@
 import logging
 
-from .core import RobOto
+from .core import roboto
 
 log = logging.getLogger("launch")
-roboto = RobOto()
 
 
 def main():

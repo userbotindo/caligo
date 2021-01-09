@@ -18,7 +18,7 @@ class CustomCommandFilter:
     ):
         command_re = re.compile(r"([\"'])(.*?)(?<!\\)\1|(\S+)")
 
-        async def func(flt, _, message: Message):
+        async def func(flt, self, message: Message):
             text = message.text or message.caption
             self.cmd = None
             self.cmd_desc = flt.desc
@@ -54,9 +54,6 @@ class CustomCommandFilter:
         prefixes = [] if prefixes is None else prefixes
         prefixes = prefixes if isinstance(prefixes, list) else [prefixes]
         prefixes = set(prefixes) if prefixes else {""}
-
-        desc = desc
-        usage = usage
 
         return create(
             func,

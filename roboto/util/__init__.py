@@ -1,6 +1,7 @@
 from . import (
     config,
-    async_helpers
+    async_helpers,
+    misc
 )
 
 run_sync = async_helpers.run_sync

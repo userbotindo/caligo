@@ -4,7 +4,8 @@ import importlib
 import pkgutil
 
 from pyrogram import asyncio, idle
-from typing import List, Optional, Any, Awaitable
+from types import ModuleType
+from typing import List, Optional, Any, Awaitable, Iterable
 
 from . import pool
 from .command import Command
@@ -15,6 +16,7 @@ from .. import util
 class RobOto(Command, ModuleExtender):
     "RobOto, client"
     log: logging.Logger
+    submodules: Iterable[ModuleType]
 
     def __init__(self, **kwargs) -> None:
         self.log = logging.getLogger("roboto")

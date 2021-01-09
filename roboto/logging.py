@@ -12,7 +12,7 @@ def setup_log() -> None:
 
     # Logging into file
     format = "[ %(asctime)s:  %(levelname)s ]  %(name)s  |  %(message)s"
-    logfile_name = f"RobOto-{datetime.now().strftime('%Y-%m-%d')}.log"
+    logfile_name = f"roboto-{datetime.now().strftime('%Y-%m-%d')}.log"
     logfile = logging.FileHandler(f"roboto/{logfile_name}")
     formatter = logging.Formatter(format, datefmt="%H:%M:%S")
     logfile.setFormatter(formatter)

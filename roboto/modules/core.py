@@ -19,4 +19,4 @@ class CoreModule(module.Module):
         usage="help"
     )
     async def cmd_help(self, message: Message) -> None:
-        """ TO-DO """
+        await self._get_cmd()

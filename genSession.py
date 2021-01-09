@@ -14,7 +14,7 @@ from pyrogram import Client, asyncio
 
 async def genSession(mode: str) -> None:
     async with Client(
-        "RobOto",
+        "roboto",
         api_id=input("Please enter Telegram API ID: "),
         api_hash=input("Please enter Telegram API HASH: "),
         workdir='roboto'

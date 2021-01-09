@@ -1,11 +1,17 @@
 import inspect
 import logging
 import os.path
+import importlib
+import pkgutil
 
 from typing import (
     ClassVar,
-    Optional
+    Optional,
 )
+submodules = [
+    importlib.import_module("roboto.modules." + info.name, __name__)
+    for info in pkgutil.iter_modules(["roboto/modules"])
+]
 
 
 class Module:

@@ -69,3 +69,19 @@ class ModuleExtender(Base):
 
         self.log.info("Reloading master module...")
         await util.run_sync(importlib.reload, modules)
+
+    async def _get_cmd(self, *args, **kwargs) -> str:
+
+        for mod in self.submodules:
+            for sym in dir(mod):
+                cls = getattr(mod, sym)
+                if (
+                    inspect.isclass(cls)
+                    and issubclass(cls, module.Module)
+                    and not cls.disabled
+                ):
+                    for name, func in util.misc.find_prefixed_funcs(cls, "cmd_"):
+                        self.log.info(name)
+                        self.log.info(func._cmd)
+                        self.log.info(func._cmd_description)
+                        self.log.info(func._cmd_usage)

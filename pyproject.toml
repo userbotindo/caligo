@@ -1,0 +1,72 @@
+#
+# Packaging
+#
+
+[tool.poetry]
+name = "caligo"
+version = "0.0.0"
+description = "selfbot for Telegram."
+authors = ["Adek Maulana <adek@techdro.id>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/adekmaulana/caligo"
+documentation = "https://github.com/adekmaulana/caligo/blob/master/README.md"
+
+# Search info
+keywords = ["chat", "telegram", "selfbot", "telegram-bot", "pyrogram"]
+classifiers = [
+    "Development Status :: 0 - Init",
+    "Environment :: Console",
+    "Environment :: No Input/Output (Daemon)",
+    "Framework :: AsyncIO",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Topic :: Internet",
+    "Topic :: Communications",
+    "Topic :: Communications :: Chat"
+]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/adekmaulana/caligo/issues"
+"Community" = ""
+
+[tool.poetry.dependencies]
+python = "^3.9.1"
+
+# Core
+aiohttp = "^3.7.3"
+colorlog = "^4.7.2"
+pyrogram = "^1.1.13"
+
+[tool.poetry.extras]
+fast = ["tgcrypto"]
+
+[tool.poetry.dev-dependencies]
+black = "^20.8b1"
+isort = {version = "^5.7.0", extras = ["pyproject"]}
+mypy = "^0.800"
+pre-commit = "^2.1.1"
+
+[tool.poetry.scripts]
+pyrobud = "caligo.main:main"
+
+
+#
+# Code formatting
+#
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
+
+
+#
+# Build system (for pip)
+#
+
+[build-system]
+requires = ["poetry>=1.1.4"]
+build-backend = "poetry.masonry.api"

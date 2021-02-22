@@ -1,4 +1,5 @@
-# Copyright (C) 2020 Adek Maulana
+"""Standalone Session String generator"""
+# Copyright (C) 2021 Adek Maulana
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -12,21 +13,21 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 from pyrogram import Client, asyncio
 
 
-async def genSession(mode: str) -> None:
+async def Session(mode: str) -> None:
     async with Client(
-        "roboto",
+        "caligo",
         api_id=input("Please enter Telegram API ID: "),
         api_hash=input("Please enter Telegram API HASH: "),
-        workdir='roboto'
-    ) as roboto:
+        workdir='caligo'
+    ) as caligo:
         print("Generating...")
         print()
         if mode == "stdout":
-            print(await roboto.export_session_string())
+            print(await caligo.export_session_string())
             print()
         else:
-            await roboto.send_message(
-                "me", f"```{await roboto.export_sessiong_string()}```")
+            await caligo.send_message(
+                "me", f"```{await caligo.export_sessiong_string()}```")
         print("Generated")
 
 
@@ -47,4 +48,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    asyncio.get_event_loop().run_until_complete(genSession(mode=args.mode))
+    asyncio.get_event_loop().run_until_complete(Session(mode=args.mode))

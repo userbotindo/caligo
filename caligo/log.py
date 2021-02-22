@@ -10,7 +10,6 @@ def setup_log() -> None:
 
     logging.root.setLevel(level)
 
-    # Logging into file
     format = "[ %(asctime)s : %(levelname)-7s ] %(name)-7s | %(message)s"
     logfile_name = f"caligo-{datetime.now().strftime('%Y-%m-%d')}.log"
     logfile = logging.FileHandler(f"caligo/{logfile_name}")
@@ -18,7 +17,6 @@ def setup_log() -> None:
     logfile.setFormatter(formatter)
     logfile.setLevel(level)
 
-    # Logging into stdout with color
     format = ("  %(log_color)s%(levelname)-7s%(reset)s  |  %(name)-7s  |  "
               "%(log_color)s%(message)s%(reset)s")
     stream = logging.StreamHandler()
@@ -31,5 +29,4 @@ def setup_log() -> None:
     root.addHandler(logfile)
     root.addHandler(stream)
 
-    # only set level to WARNING
     logging.getLogger("pyrogram").setLevel(logging.WARNING)

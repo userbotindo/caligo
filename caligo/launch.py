@@ -13,7 +13,6 @@ aiorun.logger.disabled = True
 def main() -> None:
     """Main entry point for the default bot launcher."""
 
-    # Start bot
     log.info("Initializing bot")
 
     uvloop.install()

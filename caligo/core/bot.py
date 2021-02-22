@@ -10,7 +10,6 @@ from .telegram_bot import TelegramBot
 
 
 class Bot(TelegramBot):
-    # Initialized during instantiation
     client: pyrogram.Client
     http: aiohttp.ClientSession
     lock: asyncio.locks.Lock
@@ -23,10 +22,8 @@ class Bot(TelegramBot):
         self.loop = asyncio.get_event_loop()
         self.stopping = False
 
-        # Initialize base
         super().__init__()
 
-        # Initialize aiohttp session in case fails
         self.http = aiohttp.ClientSession()
 
     @classmethod

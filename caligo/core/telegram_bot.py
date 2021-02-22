@@ -1,43 +1,38 @@
 from typing import TYPE_CHECKING, Any
 
+import pyrogram
+
 from .base import Base
+from ..util import BotConfig
 
 if TYPE_CHECKING:
     from .bot import Bot
 
-import os
-
-import pyrogram
-
 
 class TelegramBot(Base):
-    # Initialized during instantiation
-    loaded: bool
-
-    # Initialized during startup
     client: pyrogram.Client
+    getConfig: BotConfig
     prefix: str
     user: pyrogram.types.User
     uid: int
     start_time_us: int
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
-        self.loaded = False
+        self.getConfig = BotConfig()
 
         super().__init__(**kwargs)
 
     async def init_client(self: "Bot") -> None:
-        api_id = self.getConfig("api_id")
+        api_id = self.getConfig.api_id
         if api_id == 0:
-            raise ValueError("API ID is empty")
+            raise ValueError("API ID is invalid nor empty.")
 
-        api_hash = self.getConfig("api_hash")
+        api_hash = self.getConfig.api_hash
         if not isinstance(api_hash, str):
             raise TypeError("API HASH must be a string")
 
-        string_session = self.getConfig("string_session")
+        string_session = self.getConfig.string_session
 
-        # Initialize TelegramClient with gathered parameters
         if isinstance(string_session, str):
             mode = string_session
         else:
@@ -52,10 +47,8 @@ class TelegramBot(Base):
         self.log.info("Starting")
         await self.init_client()
 
-        # Start TelegramClient
         await self.client.start()
 
-        # Parse User info
         user = await self.client.get_me()
         if not isinstance(user, pyrogram.types.User):
             raise TypeError("Missing full self user information")
@@ -64,22 +57,12 @@ class TelegramBot(Base):
 
     async def run(self: "Bot") -> None:
         try:
-            # Start Client
             await self.start()
 
-            # Idling client until disconnected
             self.log.info("Idling...")
             await pyrogram.idle()
         finally:
             await self.stop()
-
-    def getConfig(self, name: str):
-        config = {
-            "api_id": os.environ.get("API_ID", 0),
-            "api_hash": os.environ.get("API_HASH", None),
-            "string_session": os.environ.get("STRING_SESSION", None)
-        }
-        return config.get(name)
 
     def redact_message(self, text: str) -> str:
         api_id = self.getConfig("api_hash")

@@ -9,18 +9,16 @@ if TYPE_CHECKING:
 
 
 class Module:
-    # Class variables
     name: ClassVar[str] = "Unnamed"
     disabled: ClassVar[bool] = False
 
-    # Instance variables
     bot: "Bot"
     log: logging.Logger
     comment: Optional[str]
 
     def __init__(self, bot: "Bot") -> None:
         self.bot = bot
-        self.log = logging.getLogger(type(self).name.lower().replace(" ", "_"))
+        self.log = logging.getLogger(type(self).name)
         self.comment = None
 
     @classmethod

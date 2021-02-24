@@ -1,8 +1,6 @@
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Sequence, Union
 
 import pyrogram
-
-from . import util
 
 if TYPE_CHECKING:
     from .core import Bot
@@ -82,13 +80,14 @@ class Context:
         self.msg = msg
         self.cmd_len = cmd_len
 
+        self.response = None
+        self.response_mode = None
+
     async def respond(
         self,
         text: Optional[str] = None,
         *,
         mode: Optional[str] = None,
-        overflow: Optional[str] = None,
-        max_pages: Optional[int] = None,
         redact: Optional[bool] = None,
         msg: Optional[pyrogram.types.Message] = None,
         reuse_response: bool = False,

@@ -10,17 +10,17 @@ def setup_log() -> None:
 
     logging.root.setLevel(level)
 
-    format = "[ %(asctime)s : %(levelname)-7s ] %(name)-7s | %(message)s"
+    logfile_format = "[ %(asctime)s : %(levelname)-7s ] %(name)-7s | %(message)s"
     logfile_name = f"caligo-{datetime.now().strftime('%Y-%m-%d')}.log"
     logfile = logging.FileHandler(f"caligo/{logfile_name}")
-    formatter = logging.Formatter(format, datefmt="%H:%M:%S")
+    formatter = logging.Formatter(logfile_format, datefmt="%H:%M:%S")
     logfile.setFormatter(formatter)
     logfile.setLevel(level)
 
-    format = ("  %(log_color)s%(levelname)-7s%(reset)s  |  %(name)-7s  |  "
+    stderr_format = ("  %(log_color)s%(levelname)-7s%(reset)s  |  %(name)-7s  |  "
               "%(log_color)s%(message)s%(reset)s")
     stream = logging.StreamHandler()
-    formatter = colorlog.ColoredFormatter(format)
+    formatter = colorlog.ColoredFormatter(stderr_format)
     stream.setLevel(level)
     stream.setFormatter(formatter)
 

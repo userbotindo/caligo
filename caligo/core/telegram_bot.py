@@ -99,7 +99,7 @@ class TelegramBot(Base):
             if name not in self._mevent_handlers:
 
                 async def update_handler(client, event) -> None:
-                    if not issubclass(event, pyrogram.types.list.List) and event.command:
+                    if type(event) is not pyrogram.types.list.List and event.command:
                         self.log.info("Not processing from command event")
                         return
                     await self.dispatch_event(name, event)

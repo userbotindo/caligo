@@ -1,4 +1,4 @@
-from . import config
+from . import config, misc
 
 
 BotConfig = config.BotConfig

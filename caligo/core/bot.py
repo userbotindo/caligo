@@ -6,10 +6,13 @@ import pyrogram
 
 from typing import Optional
 
+from .command_dispatcher import CommandDispatcher
+from .event_dispatcher import EventDispatcher
+from .module_extender import ModuleExtender
 from .telegram_bot import TelegramBot
 
 
-class Bot(TelegramBot):
+class Bot(TelegramBot, CommandDispatcher, EventDispatcher, ModuleExtender):
     client: pyrogram.Client
     http: aiohttp.ClientSession
     lock: asyncio.locks.Lock
@@ -48,7 +51,6 @@ class Bot(TelegramBot):
 
         self.log.info("Stopping")
         await self.http.close()
-        self.log.info("Running post-stop hooks")
 
         async def finalize() -> None:
             lock = asyncio.Lock()
@@ -57,8 +59,12 @@ class Bot(TelegramBot):
                 if self.client.is_initialized:
                     await self.client.stop()
                 for task in asyncio.all_tasks():
-                    if not asyncio.current_task():
+                    if task is not asyncio.current_task():
                         task.cancel()
                 await self.loop.shutdown_asyncgens()
                 self.loop.stop()
-        await finalize()
+
+        self.log.info("Running post-stop hooks")
+        if self.loaded:
+            await self.dispatch_event("stopped")
+            await finalize()

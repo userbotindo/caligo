@@ -1,6 +1,6 @@
-from typing import Any, Callable, TypeVar
 import asyncio
 import functools
+from typing import Any, Callable, TypeVar
 
 from pyrogram import Client
 

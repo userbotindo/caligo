@@ -10,6 +10,7 @@
 #
 # This script only to generate your Session not running the bot.
 from argparse import ArgumentParser, RawTextHelpFormatter
+
 from pyrogram import Client, asyncio
 
 

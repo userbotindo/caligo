@@ -1,7 +1,7 @@
-import aiorun
 import asyncio
 import logging
 
+import aiorun
 import uvloop
 
 from .core import Bot

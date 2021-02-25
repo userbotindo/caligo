@@ -4,8 +4,8 @@ import os.path
 from typing import TYPE_CHECKING, ClassVar, Optional, Type
 
 if TYPE_CHECKING:
-    from .core import Bot
     from .command import Command
+    from .core import Bot
 
 
 class Module:

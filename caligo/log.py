@@ -1,7 +1,7 @@
 import logging
-import colorlog
-
 from datetime import datetime
+
+import colorlog
 
 
 def setup_log() -> None:

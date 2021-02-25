@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Any, Optional
 import aria2p
 import pyrogram
 from pyrogram.filters import Filter
-from pyrogram.handlers import MessageHandler, DeletedMessagesHandler, UserStatusHandler
+from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
-from .base import Base
 from ..util import BotConfig, aria, silent
+from .base import Base
 
 if TYPE_CHECKING:
     from .bot import Bot

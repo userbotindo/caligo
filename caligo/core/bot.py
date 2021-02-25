@@ -8,12 +8,13 @@ import pyrogram
 
 from ..util import aria
 from .command_dispatcher import CommandDispatcher
+from .database import DataBase
 from .event_dispatcher import EventDispatcher
 from .module_extender import ModuleExtender
 from .telegram_bot import TelegramBot
 
 
-class Bot(TelegramBot, CommandDispatcher, EventDispatcher, ModuleExtender):
+class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher, ModuleExtender):
     client: pyrogram.Client
     http: aiohttp.ClientSession
     lock: asyncio.locks.Lock
@@ -61,6 +62,7 @@ class Bot(TelegramBot, CommandDispatcher, EventDispatcher, ModuleExtender):
             lock = asyncio.Lock()
 
             async with lock:
+                self.disconnect_db()
                 if self.client.is_initialized:
                     await self.client.stop()
                 for task in asyncio.all_tasks():

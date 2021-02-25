@@ -120,12 +120,15 @@ class TelegramBot(Base):
     def redact_message(self, text: str) -> str:
         api_id = self.getConfig.api_hash
         api_hash = self.getConfig.api_hash
+        db_uri = self.getConfig.db_uri
         string_session = self.getConfig.string_session
 
         if api_id in text:
             text = text.replace(api_id, "[REDACTED]")
         if api_hash in text:
             text = text.replace(api_hash, "[REDACTED]")
+        if db_uri in text:
+            text = text.replace(db_uri, "[REDACTED]")
         if string_session in text:
             text = text.replace(string_session, "[REDACTED]")
 

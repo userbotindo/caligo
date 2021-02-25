@@ -18,4 +18,5 @@ class BotConfig:
         # Core config
         self.api_id = int(os.environ.get("API_ID", 0))
         self.api_hash = os.environ.get("API_HASH")
+        self.db_uri = os.environ.get("DB_URI")
         self.string_session = os.environ.get("STRING_SESSION")

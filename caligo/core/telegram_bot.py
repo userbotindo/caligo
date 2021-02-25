@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Any, Optional
 
+import aria2p
 import pyrogram
 from pyrogram.filters import Filter
 from pyrogram.handlers import MessageHandler, DeletedMessagesHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
 from .base import Base
-from ..util import BotConfig
+from ..util import BotConfig, aria
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -79,6 +80,16 @@ class TelegramBot(Base):
             raise TypeError("Missing full self user information")
         self.user = user
         self.uid = user.id
+
+        await self.dispatch_event("start")
+
+        self.log.info("Bot is ready")
+
+        await self.dispatch_event("aria", await aria.initialize(self.http), wait=True)
+        self.aria = aria2p.API(
+            aria2p.Client(host="http://localhost", port=6800, secret=""))
+
+        await self.dispatch_event("started")
 
     async def run(self: "Bot") -> None:
         try:

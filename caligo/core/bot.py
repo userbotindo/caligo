@@ -3,10 +3,8 @@ import asyncio
 import logging
 
 import aiohttp
-import aria2p
 import pyrogram
 
-from ..util import aria
 from .command_dispatcher import CommandDispatcher
 from .database import DataBase
 from .event_dispatcher import EventDispatcher
@@ -31,10 +29,6 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher, ModuleExten
 
         self.http = aiohttp.ClientSession()
 
-        self.loop.create_task(aria.initialize(self.http))
-        self.aria = aria2p.API(
-            aria2p.Client(host="http://localhost", port=6800, secret=""))
-
     @classmethod
     async def create_and_run(
         cls, *, loop: Optional[asyncio.AbstractEventLoop] = None
@@ -54,6 +48,8 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher, ModuleExten
 
     async def stop(self) -> None:
         self.stopping = True
+
+        await self.dispatch_event("stop")
 
         self.log.info("Stopping")
         await self.http.close()

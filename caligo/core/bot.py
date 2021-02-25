@@ -1,11 +1,12 @@
-import aiohttp
+from typing import Optional
 import asyncio
 import logging
 
+import aiohttp
+import aria2p
 import pyrogram
 
-from typing import Optional
-
+from ..util import aria
 from .command_dispatcher import CommandDispatcher
 from .event_dispatcher import EventDispatcher
 from .module_extender import ModuleExtender
@@ -28,6 +29,10 @@ class Bot(TelegramBot, CommandDispatcher, EventDispatcher, ModuleExtender):
         super().__init__()
 
         self.http = aiohttp.ClientSession()
+
+        self.loop.create_task(aria.initialize(self.http))
+        self.aria = aria2p.API(
+            aria2p.Client(host="http://localhost", port=6800, secret=""))
 
     @classmethod
     async def create_and_run(

@@ -7,7 +7,7 @@ from pyrogram.handlers import MessageHandler, DeletedMessagesHandler, UserStatus
 from pyrogram.handlers.handler import Handler
 
 from .base import Base
-from ..util import BotConfig, aria
+from ..util import BotConfig, aria, silent
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -73,7 +73,8 @@ class TelegramBot(Base):
                     )
                 ), 0)
 
-        await self.client.start()
+        async with silent():
+            await self.client.start()
 
         user = await self.client.get_me()
         if not isinstance(user, pyrogram.types.User):
@@ -85,7 +86,7 @@ class TelegramBot(Base):
 
         self.log.info("Bot is ready")
 
-        await self.dispatch_event("aria", await aria.initialize(self.http), wait=True)
+        await self.dispatch_event("aria", await aria.initialize(self.http))
         self.aria = aria2p.API(
             aria2p.Client(host="http://localhost", port=6800, secret=""))
 
@@ -110,8 +111,8 @@ class TelegramBot(Base):
             if name not in self._mevent_handlers:
 
                 async def update_handler(client, event) -> None:
-                    if type(event) is not pyrogram.types.list.List and event.command:
-                        self.log.info("Not processing from command event")
+                    if (type(event) is not pyrogram.types.list.List
+                            and event.command and event.from_user.id == self.uid):
                         return
                     await self.dispatch_event(name, event)
 

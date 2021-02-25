@@ -69,5 +69,5 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher, ModuleExten
 
         self.log.info("Running post-stop hooks")
         if self.loaded:
-            await self.dispatch_event("stopped")
             await finalize()
+            await self.dispatch_event("stopped")

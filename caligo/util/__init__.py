@@ -2,6 +2,7 @@ from . import (
     aria,
     async_helpers,
     config,
+    error,
     misc,
     system
 )

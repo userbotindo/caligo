@@ -76,24 +76,37 @@ class CommandDispatcher(Base):
         cmd = None
 
         try:
-            cmd = self.commands[message.command[0]]
-        except KeyError:
-            return
+            try:
+                cmd = self.commands[message.command[0]]
+            except KeyError:
+                return
 
-        # Construct invocation context
-        ctx = command.Context(
-            self,
-            message,
-            len(message.command)
-        )
+            ctx = command.Context(
+                self,
+                message,
+                len(message.command)
+            )
 
-        # Invoke command function
-        try:
-            ret = await cmd.func(ctx)
+            try:
+                ret = await cmd.func(ctx)
 
-            # Response shortcut
-            if ret is not None:
-                await ctx.respond(ret)
-        except pyrogram.errors.MessageNotModified:
-            cmd.module.log.warning(
-                f"Command '{cmd.name}' triggered a message edit with no changes")
+                if ret is not None:
+                    await ctx.respond(ret)
+            except pyrogram.errors.MessageNotModified:
+                cmd.module.log.warning(
+                    f"Command '{cmd.name}' triggered a message edit with no changes")
+            except Exception as E:
+                cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=E)
+                await ctx.respond(
+                    f"⚠️ Error executing command:\n```{util.error.format_exception(E)}```"
+                )
+
+            await self.dispatch_event("command", cmd, message)
+        except Exception as E:
+            if cmd is not None:
+                cmd.module.log.error("Error in command handler", exc_info=E)
+
+            await self.respond(
+                message,
+                f"⚠️ Error in command handler:\n```{util.error.format_exception(E)}```",
+            )

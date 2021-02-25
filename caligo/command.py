@@ -5,10 +5,8 @@ import pyrogram
 if TYPE_CHECKING:
     from .core import Bot
 
-CommandFunc = Union[
-    Callable[..., Coroutine[Any, Any, None]],
-    Callable[..., Coroutine[Any, Any, Optional[str]]],
-]
+CommandFunc = Union[Callable[..., Coroutine[Any, Any, None]],
+                    Callable[..., Coroutine[Any, Any, Optional[str]]],]
 Decorator = Callable[[CommandFunc], CommandFunc]
 
 
@@ -22,7 +20,9 @@ def desc(_desc: str) -> Decorator:
     return desc_decorator
 
 
-def usage(_usage: str, optional: bool = False, reply: bool = False) -> Decorator:
+def usage(_usage: str,
+          optional: bool = False,
+          reply: bool = False) -> Decorator:
     """Sets argument usage help on a command function."""
 
     def usage_decorator(func: CommandFunc) -> CommandFunc:
@@ -70,12 +70,8 @@ class Context:
     msg: pyrogram.types.Message
     cmd_length: int
 
-    def __init__(
-        self,
-        bot: "Bot",
-        msg: pyrogram.types.Message,
-        cmd_len: int
-    ) -> None:
+    def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
+                 cmd_len: int) -> None:
         self.bot = bot
         self.msg = msg
         self.cmd_len = cmd_len
@@ -100,8 +96,7 @@ class Context:
             mode=mode,
             redact=redact,
             response=self.response
-            if reuse_response and mode == self.response_mode
-            else None,
+            if reuse_response and mode == self.response_mode else None,
             **kwargs,
         )
         self.response_mode = mode

@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING, Any, Optional
 import aria2p
 import pyrogram
 from pyrogram.filters import Filter
-from pyrogram.handlers import MessageHandler, DeletedMessagesHandler, UserStatusHandler
+from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
-from .base import Base
 from ..util import BotConfig, aria, silent
+from .base import Base
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -44,11 +44,9 @@ class TelegramBot(Base):
             mode = string_session
         else:
             mode = ":memory:"
-        self.client = pyrogram.Client(
-            api_id=api_id,
-            api_hash=api_hash,
-            session_name=mode
-        )
+        self.client = pyrogram.Client(api_id=api_id,
+                                      api_hash=api_hash,
+                                      session_name=mode)
 
     async def start(self: "Bot") -> None:
         self.log.info("Starting")
@@ -66,12 +64,10 @@ class TelegramBot(Base):
 
         self.client.add_handler(
             MessageHandler(
-                self.on_command, filters=(
-                    pyrogram.filters.command(commands, prefixes=".", case_sensitive=True) &
-                    pyrogram.filters.me &
-                    pyrogram.filters.outgoing
-                    )
-                ), 0)
+                self.on_command,
+                filters=(pyrogram.filters.command(
+                    commands, prefixes=".", case_sensitive=True) &
+                         pyrogram.filters.me & pyrogram.filters.outgoing)), 0)
 
         async with silent():
             await self.client.start()
@@ -101,18 +97,18 @@ class TelegramBot(Base):
         finally:
             await self.stop()
 
-    def update_module_event(
-        self: "Bot", name: str, handler_type: Handler,
-        filters: Optional[Filter] = None,
-        group: int = 0
-    ) -> None:
+    def update_module_event(self: "Bot",
+                            name: str,
+                            handler_type: Handler,
+                            filters: Optional[Filter] = None,
+                            group: int = 0) -> None:
         if name in self.listeners:
             # Add if there ARE listeners and it's NOT already registered
             if name not in self._mevent_handlers:
 
                 async def update_handler(client, event) -> None:
-                    if (type(event) is not pyrogram.types.list.List
-                            and event.command and event.from_user.id == self.uid):
+                    if (type(event) is not pyrogram.types.list.List and
+                            event.command and event.from_user.id == self.uid):
                         return
                     await self.dispatch_event(name, event)
 
@@ -125,8 +121,10 @@ class TelegramBot(Base):
             del self._mevent_handlers[name]
 
     def update_module_events(self: "Bot") -> None:
-        self.update_module_event("message", MessageHandler, pyrogram.filters.all, 1)
-        self.update_module_event("message_delete", DeletedMessagesHandler, pyrogram.filters.all, 2)
+        self.update_module_event("message", MessageHandler,
+                                 pyrogram.filters.all, 1)
+        self.update_module_event("message_delete", DeletedMessagesHandler,
+                                 pyrogram.filters.all, 2)
         self.update_module_event("user_update", UserStatusHandler, 3)
 
     def redact_message(self, text: str) -> str:
@@ -184,7 +182,9 @@ class TelegramBot(Base):
                 return await response.edit(text=text, **kwargs)
 
             # Repost since we haven't done so yet
-            response = await msg.reply(text, reply_to=msg.reply_to_msg_id, **kwargs)
+            response = await msg.reply(text,
+                                       reply_to=msg.reply_to_msg_id,
+                                       **kwargs)
             await msg.delete()
             return response
 

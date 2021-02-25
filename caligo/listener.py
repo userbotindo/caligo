@@ -20,7 +20,8 @@ class Listener:
     module: Any
     priority: int
 
-    def __init__(self, event: str, func: ListenerFunc, mod: Any, prio: int) -> None:
+    def __init__(self, event: str, func: ListenerFunc, mod: Any,
+                 prio: int) -> None:
         self.event = event
         self.func = func
         self.module = mod

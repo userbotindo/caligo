@@ -1,7 +1,7 @@
 import os
-
-from typing import Union
 from dataclasses import dataclass
+from typing import Union
+
 from dotenv import load_dotenv
 
 

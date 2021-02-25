@@ -1,6 +1,6 @@
-from typing import Optional
 import asyncio
 import logging
+from typing import Optional
 
 import aiohttp
 import pyrogram
@@ -12,7 +12,8 @@ from .module_extender import ModuleExtender
 from .telegram_bot import TelegramBot
 
 
-class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher, ModuleExtender):
+class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
+          ModuleExtender):
     client: pyrogram.Client
     http: aiohttp.ClientSession
     lock: asyncio.locks.Lock
@@ -30,9 +31,10 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher, ModuleExten
         self.http = aiohttp.ClientSession()
 
     @classmethod
-    async def create_and_run(
-        cls, *, loop: Optional[asyncio.AbstractEventLoop] = None
-    ) -> "Bot":
+    async def create_and_run(cls,
+                             *,
+                             loop: Optional[asyncio.AbstractEventLoop] = None
+                            ) -> "Bot":
         bot = None
 
         if loop:

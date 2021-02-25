@@ -15,12 +15,10 @@ from pyrogram import Client, asyncio
 
 
 async def Session(mode: str) -> None:
-    async with Client(
-        "caligo",
-        api_id=input("Please enter Telegram API ID: "),
-        api_hash=input("Please enter Telegram API HASH: "),
-        workdir='caligo'
-    ) as caligo:
+    async with Client("caligo",
+                      api_id=input("Please enter Telegram API ID: "),
+                      api_hash=input("Please enter Telegram API HASH: "),
+                      workdir='caligo') as caligo:
         print("Generating...")
         print()
         if mode == "stdout":
@@ -44,9 +42,7 @@ if __name__ == "__main__":
         default="stdout",
         help=("choices: {%(choices)s}\n"
               "stdout: output session string into stdout\n"
-              "message: output session string into saved message"
-              )
-    )
+              "message: output session string into saved message"))
 
     args = parser.parse_args()
     asyncio.get_event_loop().run_until_complete(Session(mode=args.mode))

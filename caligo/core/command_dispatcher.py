@@ -17,9 +17,8 @@ class CommandDispatcher(Base):
 
         super().__init__(**kwargs)
 
-    def register_command(
-        self: "Bot", mod: module.Module, name: str, func: command.CommandFunc
-    ) -> None:
+    def register_command(self: "Bot", mod: module.Module, name: str,
+                         func: command.CommandFunc) -> None:
         cmd = command.Command(name, mod, func)
 
         if name in self.commands:
@@ -68,11 +67,8 @@ class CommandDispatcher(Base):
         for cmd in to_unreg:
             self.unregister_command(cmd)
 
-    async def on_command(
-        self: "Bot",
-        client: pyrogram.Client,
-        message: pyrogram.types.Message
-    ) -> None:
+    async def on_command(self: "Bot", client: pyrogram.Client,
+                         message: pyrogram.types.Message) -> None:
         cmd = None
 
         try:
@@ -81,11 +77,7 @@ class CommandDispatcher(Base):
             except KeyError:
                 return
 
-            ctx = command.Context(
-                self,
-                message,
-                len(message.command)
-            )
+            ctx = command.Context(self, message, len(message.command))
 
             try:
                 ret = await cmd.func(ctx)
@@ -94,9 +86,11 @@ class CommandDispatcher(Base):
                     await ctx.respond(ret)
             except pyrogram.errors.MessageNotModified:
                 cmd.module.log.warning(
-                    f"Command '{cmd.name}' triggered a message edit with no changes")
+                    f"Command '{cmd.name}' triggered a message edit with no changes"
+                )
             except Exception as E:
-                cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=E)
+                cmd.module.log.error(f"Error in command '{cmd.name}'",
+                                     exc_info=E)
                 await ctx.respond(
                     f"⚠️ Error executing command:\n```{util.error.format_exception(E)}```"
                 )

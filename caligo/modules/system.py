@@ -9,12 +9,15 @@ from typing import Any, ClassVar, Dict, Optional, Union, Tuple
 
 import pyrogram
 from meval import meval
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from .. import command, module, util
 
 
 class SystemModule(module.Module):
     name: ClassVar[str] = "System"
+
+    db: AsyncIOMotorDatabase
     lock: asyncio.Lock
     restart_pending: bool
 
@@ -124,7 +127,7 @@ class SystemModule(module.Module):
 
             try:
                 return "", await meval(code, globals(), **eval_vars)
-            except Exception as e:
+            except Exception as e:  # skipcq: PYL-W0703
                 # Find first traceback frame involving the snippet
                 first_snip_idx = -1
                 tb = traceback.extract_tb(e.__traceback__)
@@ -207,7 +210,7 @@ Time: {el_str}"""
         self.log.info("Preparing to restart...")
         await self.bot.stop()
 
-    async def on_start(self, time_us: int) -> None:
+    async def on_start(self, time_us: int) -> None:  # skipcq: PYL-W0613
         # Update restart status message if applicable
         data: Optional[Dict[Union[str, int]]] = await self.db.find_one({"_id": self.bot.uid})
         if data is not None:

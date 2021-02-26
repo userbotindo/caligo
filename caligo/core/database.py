@@ -23,7 +23,7 @@ class DataBase(Base):
     def _init_db(self) -> None:
         self._db = AsyncIOMotorClient(self.getConfig.db_uri, connect=False)
 
-    def disconnect_db(self) -> None:
+    async def close_db(self) -> None:
         self._db.close()
 
     def get_db(self: "Bot", name: str) -> AgnosticCollection:

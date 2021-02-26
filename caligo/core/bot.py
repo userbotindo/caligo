@@ -57,12 +57,12 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
         if self.loaded:
             await self.dispatch_event("stop")
         await self.http.close()
+        await self.close_db()
 
         async def finalize() -> None:
             lock = asyncio.Lock()
 
             async with lock:
-                self.disconnect_db()
                 if self.client.is_initialized:
                     await self.client.stop()
                 for task in asyncio.all_tasks():

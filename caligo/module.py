@@ -24,7 +24,7 @@ class Module:
     @classmethod
     def format_desc(cls, comment: Optional[str] = None):
         _comment = comment + " " if comment else ""
-        return f"{_comment}module '{cls.name}' ({cls.__name__}) from '{os.path.relpath(inspect.getfile(cls))}'"
+        return f"{_comment}module '{cls.name}' from '{os.path.relpath(inspect.getfile(cls))}'"
 
     def __repr__(self):
         return "<" + self.format_desc(self.comment) + ">"

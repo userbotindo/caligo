@@ -16,7 +16,7 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
           ModuleExtender):
     client: pyrogram.Client
     http: aiohttp.ClientSession
-    lock: asyncio.locks.Lock
+    lock: asyncio.Lock
     log: logging.Logger
     loop: asyncio.AbstractEventLoop
     stopping: bool

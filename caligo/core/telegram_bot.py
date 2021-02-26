@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 class TelegramBot(Base):
+    aria: aria2p.Client
     client: pyrogram.Client
     getConfig: BotConfig
     prefix: str

@@ -207,6 +207,14 @@ dev = ["codecov (>=2.0.15)", "colorama (>=0.3.4)", "flake8 (>=3.7.7)", "tox (>=3
 
 [[package]]
 category = "main"
+description = "Performs async evaluations of strings"
+name = "meval"
+optional = false
+python-versions = ">=3.5"
+version = "2.5"
+
+[[package]]
+category = "main"
 description = "Non-blocking MongoDB driver for Tornado or asyncio"
 name = "motor"
 optional = false
@@ -483,7 +491,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "aac1abbf3bac52f319f90880c4529492fb5b7b65fcf4f5b009047ac096e0fafa"
+content-hash = "7c6ddb1c4f4b454a0165110afbdc7aef8fac786efea7bd63dda0ef9c1f9f71ec"
 lock-version = "1.1"
 python-versions = "^3.9"
 
@@ -597,6 +605,10 @@ isort = [
 loguru = [
     {file = "loguru-0.5.3-py3-none-any.whl", hash = "sha256:f8087ac396b5ee5f67c963b495d615ebbceac2796379599820e324419d53667c"},
     {file = "loguru-0.5.3.tar.gz", hash = "sha256:b28e72ac7a98be3d28ad28570299a393dfcd32e5e3f6a353dec94675767b6319"},
+]
+meval = [
+    {file = "meval-2.5-py3-none-any.whl", hash = "sha256:24430865001b5596864a7c28f423294edadaac57af9ab6964dda3eabc8762577"},
+    {file = "meval-2.5.tar.gz", hash = "sha256:a5aa481617f1fd07a5972076cd3aa14e38515ac84b3ff028efdf76371a856765"},
 ]
 motor = [
     {file = "motor-2.3.1-py3-none-any.whl", hash = "sha256:ea5a8f5c7cbb08b7c301d7c66746fc96333d634182df236dff0f814f802fe232"},

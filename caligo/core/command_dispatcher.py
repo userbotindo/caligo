@@ -77,7 +77,7 @@ class CommandDispatcher(Base):
             except KeyError:
                 return
 
-            ctx = command.Context(self, message, len(message.command))
+            ctx = command.Context(self, message, message.command[1:])
 
             try:
                 ret = await cmd.func(ctx)

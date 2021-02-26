@@ -1,4 +1,4 @@
-from . import aria, async_helpers, config, error, misc, silent, system
+from . import aria, async_helpers, config, error, misc, silent, system, time
 
 BotConfig = config.BotConfig
 

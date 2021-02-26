@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, List, Optional, Sequence, Union
 
 import pyrogram
 
@@ -68,13 +68,13 @@ class Command:
 class Context:
     bot: "Bot"
     msg: pyrogram.types.Message
-    cmd_length: int
+    cmd: List[str]
 
     def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
-                 cmd_len: int) -> None:
+                 cmd: List[str]) -> None:
         self.bot = bot
         self.msg = msg
-        self.cmd_len = cmd_len
+        self.cmd = cmd
 
         self.response = None
         self.response_mode = None

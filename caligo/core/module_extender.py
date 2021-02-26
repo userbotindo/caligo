@@ -15,10 +15,8 @@ class ModuleExtender(Base):
     modules: MutableMapping[str, module.Module]
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
-        # Initialize module map
         self.modules = {}
 
-        # Propagate initialization to other mixins
         super().__init__(**kwargs)
 
     def load_module(self: "Bot",
@@ -56,7 +54,6 @@ class ModuleExtender(Base):
                         not cls.disabled):
                     self.load_module(cls, comment=comment)
 
-    # noinspection PyTypeChecker,PyTypeChecker
     def load_all_modules(self: "Bot") -> None:
         self.log.info("Loading modules")
         self._load_all_from_metamod(modules.submodules)
@@ -65,21 +62,14 @@ class ModuleExtender(Base):
     def unload_all_modules(self: "Bot") -> None:
         self.log.info("Unloading modules...")
 
-        # Can't modify while iterating, so collect a list first
         for mod in list(self.modules.values()):
             self.unload_module(mod)
 
         self.log.info("All modules unloaded.")
 
-
-"""
     async def reload_module_pkg(self: "Bot") -> None:
         self.log.info("Reloading base module class...")
         await util.run_sync(importlib.reload, module)
 
         self.log.info("Reloading master module...")
         await util.run_sync(importlib.reload, modules)
-
-        self.log.info("Reloading custom master module...")
-        await util.run_sync(importlib.reload, custom_modules)
-"""

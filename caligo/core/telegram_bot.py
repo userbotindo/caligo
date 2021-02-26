@@ -1,3 +1,4 @@
+import asyncio
 from typing import TYPE_CHECKING, Any, Optional
 
 import aria2p
@@ -6,7 +7,7 @@ from pyrogram.filters import Filter
 from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
-from ..util import BotConfig, aria, silent
+from ..util import BotConfig, aria, silent, time
 from .base import Base
 
 if TYPE_CHECKING:
@@ -58,17 +59,19 @@ class TelegramBot(Base):
         await self.dispatch_event("load")
         self.loaded = True
 
-        # iter first because can't use *.keys()
-        commands = []
-        for cmd in self.commands.keys():
-            commands.append(cmd)
-
         self.client.add_handler(
             MessageHandler(
                 self.on_command,
-                filters=(pyrogram.filters.command(
-                    commands, prefixes=".", case_sensitive=True) &
-                         pyrogram.filters.me & pyrogram.filters.outgoing)), 0)
+                filters=(
+                    pyrogram.filters.command(
+                        commands=list(self.commands.keys()),
+                        prefixes=".",  # TO-DO
+                        case_sensitive=True
+                    ) &
+                    pyrogram.filters.me &
+                    pyrogram.filters.outgoing
+                )
+            ), 0)
 
         async with silent():
             await self.client.start()
@@ -79,7 +82,8 @@ class TelegramBot(Base):
         self.user = user
         self.uid = user.id
 
-        await self.dispatch_event("start")
+        self.start_time_us = time.usec()
+        await self.dispatch_event("start", time.usec())
 
         self.log.info("Bot is ready")
 
@@ -96,7 +100,8 @@ class TelegramBot(Base):
             self.log.info("Idling...")
             await pyrogram.idle()
         finally:
-            await self.stop()
+            if not self.stop_manual:
+                await self.stop()
 
     def update_module_event(self: "Bot",
                             name: str,

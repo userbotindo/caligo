@@ -2,8 +2,6 @@ import logging
 import os
 from datetime import datetime
 
-import colorlog
-
 
 def setup_log() -> None:
     """Configures logging"""
@@ -22,11 +20,9 @@ def setup_log() -> None:
     logfile.setFormatter(formatter)
     logfile.setLevel(level)
 
-    stderr_format = (
-        "  %(log_color)s%(levelname)-7s%(reset)s  |  %(name)-7s  |  "
-        "%(log_color)s%(message)s%(reset)s")
+    stderr_format = "  %(levelname)-7s  |  %(name)-7s  |  %(message)s"
     stream = logging.StreamHandler()
-    formatter = colorlog.ColoredFormatter(stderr_format)
+    formatter = logging.Formatter(stderr_format)
     stream.setLevel(level)
     stream.setFormatter(formatter)
 

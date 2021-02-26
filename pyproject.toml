@@ -45,6 +45,7 @@ uvloop = "^0.15.2"
 
 # Core Extra
 aria2p = "^0.10.4"
+dnspython = "^2.1.0"
 
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}

@@ -54,6 +54,8 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
         await self.dispatch_event("stop")
 
         self.log.info("Stopping")
+        if self.loaded:
+            await self.dispatch_event("stop")
         await self.http.close()
 
         async def finalize() -> None:
@@ -73,3 +75,5 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
         if self.loaded:
             await finalize()
             await self.dispatch_event("stopped")
+        else:
+            self.loop.stop()

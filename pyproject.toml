@@ -52,6 +52,8 @@ meval = "^2.5"
 
 # GoogleDrive
 google-api-python-client = "^1.12.8"
+google-auth-httplib2 = "^0.0.4"
+google-auth-oauthlib = "^0.4.2"
 
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}

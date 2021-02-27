@@ -79,7 +79,7 @@ class SystemModule(module.Module):
     async def cmd_eval(self, ctx: command.Context) -> str:
         if not ctx.cmd:
             return "Give me code to evaluate."
-        code = " ".join(ctx.cmd)
+        code = ctx.msg.text.split(" ", 1)[1]
         out_buf = io.StringIO()
 
         async def _eval() -> Tuple[str, str]:

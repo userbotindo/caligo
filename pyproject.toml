@@ -50,6 +50,9 @@ dnspython = "^2.1.0"
 # System
 meval = "^2.5"
 
+# GoogleDrive
+google-api-python-client = "^1.12.8"
+
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}
 mypy = "^0.812"

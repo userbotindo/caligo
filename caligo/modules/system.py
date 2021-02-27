@@ -207,6 +207,7 @@ Time: {el_str}"""
             )
         # Initiate the restart
         self.restart_pending = True
+        self.bot.stop_manual = True
         self.log.info("Preparing to restart...")
         await self.bot.stop()
 

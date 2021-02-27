@@ -1,4 +1,3 @@
-import asyncio
 from typing import TYPE_CHECKING, Any, Optional
 
 import aria2p
@@ -132,6 +131,13 @@ class TelegramBot(Base):
         self.update_module_event("message_delete", DeletedMessagesHandler,
                                  pyrogram.filters.all, 2)
         self.update_module_event("user_update", UserStatusHandler, 3)
+        if self.getConfig.log != 0:
+            self.update_module_event(
+                "token", MessageHandler,
+                pyrogram.filters.me & pyrogram.filters.outgoing &
+                pyrogram.filters.chat(self.getConfig.log)
+                & ~pyrogram.filters.edited,
+                7)
 
     def redact_message(self, text: str) -> str:
         api_id = self.getConfig.api_hash

@@ -79,6 +79,12 @@ class CommandDispatcher(Base):
 
             ctx = command.Context(self, message, message.command[1:])
 
+            if hasattr(cmd.module, "creds"):
+                await util.google_drive.check_credential(cmd.module, ctx)
+
+                if cmd.module.creds is None:  # sanity check again in case fail
+                    return
+
             try:
                 ret = await cmd.func(ctx)
 

@@ -23,10 +23,6 @@ class ModuleExtender(Base):
                     cls: Type[module.Module],
                     *,
                     comment: Optional[str] = None) -> None:
-        if self.getConfig.log == 0 and cls.name == "GDrive":
-            self.log.warning("Log group is empty, gdrive module not loaded.")
-            return
-
         self.log.info(f"Loading {cls.format_desc(comment)}")
 
         if cls.name in self.modules:

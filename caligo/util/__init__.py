@@ -7,6 +7,7 @@ from . import (
     misc,
     silent,
     system,
+    tg,
     time
 )
 

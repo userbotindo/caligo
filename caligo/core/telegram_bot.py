@@ -6,7 +6,7 @@ from pyrogram.filters import Filter
 from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
-from ..util import BotConfig, aria, silent, time
+from ..util import BotConfig, aria, silent, time, tg
 from .base import Base
 
 if TYPE_CHECKING:
@@ -161,6 +161,8 @@ class TelegramBot(Base):
     ) -> pyrogram.types.Message:
         if text is not None:
             text = self.redact_message(text)
+
+            text = tg.truncate(text)
 
         # Default to disabling link previews in responses
         if "disable_web_page_preview" not in kwargs:

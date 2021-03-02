@@ -1,5 +1,4 @@
 import asyncio
-import json
 import pickle
 from typing import ClassVar, Dict
 
@@ -21,7 +20,7 @@ class GoogleDrive(module.Module):
     service: Resource
 
     async def on_load(self) -> None:
-        self.configs = json.loads(self.bot.getConfig.gdrive_data)
+        self.configs = self.bot.getConfig.gdrive_data
         self.creds = None
         self.lock = asyncio.Lock()
 

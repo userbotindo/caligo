@@ -92,7 +92,9 @@ class CommandDispatcher(Base):
                     await ctx.respond(ret)
                 elif ret is not None and len(ret) > util.tg.MESSAGE_CHAR_LIMIT:
                     await util.tg.send_document(
-                        ret, ctx.msg, f"❯ ```{ctx.msg.text.split(' ', 1)[1]}```"
+                        self.redact_message(ret),
+                        ctx.msg,
+                        f"❯ ```{ctx.msg.text.split(' ', 1)[1]}```"
                     )
                     await ctx.msg.delete()
             except pyrogram.errors.MessageNotModified:

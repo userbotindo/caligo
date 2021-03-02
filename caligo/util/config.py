@@ -1,6 +1,7 @@
+import json
+import logging
 import os
 from dataclasses import dataclass
-from typing import Union
 
 from dotenv import load_dotenv
 
@@ -11,7 +12,7 @@ class BotConfig:
     Bot configuration
     """
 
-    def __init__(self) -> Union[str, int]:
+    def __init__(self, log: logging.Logger) -> "BotConfig":
         if os.path.isfile("config.env"):
             load_dotenv("config.env")
 
@@ -25,5 +26,11 @@ class BotConfig:
         self.log = int(os.environ.get("LOG_GROUP", 0))
 
         # GoogleDrive
-        self.gdrive_data = os.environ.get("G_DRIVE_DATA")
+        try:
+            self.gdrive_data = json.loads(os.environ.get("G_DRIVE_DATA"))
+        except TypeError:
+            log.warning("Google Drive client secret is empty.")
+        except json.decoder.JSONDecodeError:
+            self.gdrive_data = None
+            log.warning("Google Drive client secret is invalid.")
         self.gdrive_folder_id = os.environ.get("G_DRIVE_FOLDER_ID")

@@ -1,3 +1,5 @@
+import asyncio
+import signal
 from typing import TYPE_CHECKING, Any, Optional
 
 import aria2p
@@ -17,6 +19,7 @@ class TelegramBot(Base):
     aria: aria2p.Client
     client: pyrogram.Client
     getConfig: BotConfig
+    is_running: bool
     prefix: str
     user: pyrogram.types.User
     uid: int
@@ -24,7 +27,7 @@ class TelegramBot(Base):
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
         self.loaded = False
-        self.getConfig = BotConfig()
+        self.getConfig = BotConfig(self.log)
 
         self._mevent_handlers = {}
 
@@ -92,12 +95,26 @@ class TelegramBot(Base):
 
         await self.dispatch_event("started")
 
+    async def idle(self: "Bot"):
+        def signal_handler(_, __):
+
+            self.log.info(f"Stop signal received ({_}).")
+            self.is_running = False
+
+        for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
+            signal.signal(name, signal_handler)
+
+        self.is_running = True
+
+        while self.is_running:
+            await asyncio.sleep(1)
+
     async def run(self: "Bot") -> None:
         try:
             await self.start()
 
             self.log.info("Idling...")
-            await pyrogram.idle()
+            await self.idle()
         finally:
             if not self.stop_manual:
                 await self.stop()
@@ -132,20 +149,32 @@ class TelegramBot(Base):
                                  pyrogram.filters.all, 2)
         self.update_module_event("user_update", UserStatusHandler, 3)
 
-    def redact_message(self, text: str) -> str:
+    def redact_message(self: "Bot", text: str) -> str:
+        redacted = "[REDACTED]"
+
         api_id = self.getConfig.api_hash
         api_hash = self.getConfig.api_hash
         db_uri = self.getConfig.db_uri
+        gdrive_data = self.getConfig.gdrive_data
         string_session = self.getConfig.string_session
 
         if api_id in text:
-            text = text.replace(api_id, "[REDACTED]")
+            text = text.replace(api_id, redacted)
         if api_hash in text:
-            text = text.replace(api_hash, "[REDACTED]")
+            text = text.replace(api_hash, redacted)
         if db_uri in text:
-            text = text.replace(db_uri, "[REDACTED]")
+            text = text.replace(db_uri, redacted)
+        if gdrive_data is not None:
+            client = gdrive_data.get("installed")
+            client_id = client.get("client_id")
+            client_secret = client.get("client_secret")
+
+            if client_id in text:
+                text = text.replace(client_id, redacted)
+            if client_secret in text:
+                text = text.replace(client_secret, redacted)
         if string_session in text:
-            text = text.replace(string_session, "[REDACTED]")
+            text = text.replace(string_session, redacted)
 
         return text
 

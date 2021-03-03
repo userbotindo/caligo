@@ -4,8 +4,8 @@ from typing import ClassVar
 from .. import command, module
 
 
-class Ping(module.Module):
-    name: ClassVar[str] = "Ping"
+class DebugModule(module.Module):
+    name: ClassVar[str] = "Debug"
 
     @command.desc("Pong")
     async def cmd_ping(self, ctx: command.Context):

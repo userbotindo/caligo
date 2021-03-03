@@ -52,30 +52,34 @@ class GoogleDrive(module.Module):
         await self.bot.respond(message, "Check your **Saved Messages**.")
         link_msg = await self.bot.client.send_message(
             "me",
-            f"Please visit the link:\n{auth_url}\nAnd reply the token here."
+            f"Please visit the link:\n{auth_url}\nAnd reply the token here.\n"
+            "**You have 60 seconds**."
         )
 
         count = 0  # limit time 1 minute
-        while True:
+        waiting = True
+        while waiting:
             if count > 60:
-                break
+                waiting = False
 
-            try:
-                token = (
-                    await self.bot.client.get_dialogs(pinned_only=True)
-                )[0].top_message
-            except IndexError:  # Workaround if don't have any saved message
-                count += 3
-                await asyncio.sleep(3)
-                continue
+            if count >= 7:  # starts searching on count=7
 
-            if not token.text.startswith("4/"):
-                count += 3
-                await asyncio.sleep(3)
-                continue
+                async for dialog in self.bot.client.iter_dialogs(limit=11):
+                    text = dialog.top_message.text
 
-            await self.bot.respond(message, "Token received...")
-            break
+                    # accept messages only from saved message
+                    if (dialog.chat.id != link_msg.chat.id and
+                            text.startswith("4/")):
+                        continue
+
+                    if text.startswith("4/"):
+                        token = dialog.top_message
+                        waiting = False
+
+            count += 1
+            await asyncio.sleep(1)
+
+        await self.bot.respond(message, "Token received...")
 
         try:
             await util.run_sync(flow.fetch_token, code=token.text)

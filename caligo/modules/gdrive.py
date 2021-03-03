@@ -65,6 +65,7 @@ class GoogleDrive(module.Module):
         )
 
         count = 0  # limit time 1 minute
+        token = None
         waiting = True
         while waiting:
             if count > 60:
@@ -77,17 +78,21 @@ class GoogleDrive(module.Module):
 
                     # accept messages only from saved message
                     if (dialog.chat.id != link_msg.chat.id and
-                            text.startswith("4/")):
+                            text is not None and text.startswith("4/")):
                         continue
 
-                    if text.startswith("4/"):
+                    if text is not None and text.startswith("4/"):
                         token = dialog.top_message
                         waiting = False
 
             count += 1
             await asyncio.sleep(1)
 
-        await self.bot.respond(message, "Token received...")
+        if token is not None:
+            await self.bot.respond(message, "Token received...")
+        else:
+            await link_msg.delete()
+            return ("⚠️ Error no token receive")
 
         try:
             await util.run_sync(flow.fetch_token, code=token.text)

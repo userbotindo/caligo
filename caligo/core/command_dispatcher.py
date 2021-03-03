@@ -79,8 +79,7 @@ class CommandDispatcher(Base):
 
             ctx = command.Context(
                 self,
-                msg=message,
-                cmd=message.command[1:]
+                msg=message
             )
 
             if hasattr(cmd.module, "creds"):
@@ -102,9 +101,9 @@ class CommandDispatcher(Base):
                 cmd.module.log.error(f"Error in command '{cmd.name}'",
                                      exc_info=E)
                 await ctx.respond(
-                    "**In**:\n\n"
-                    f"{ctx.input_arg if ctx.input_arg is not None else message.text}\n\n"
-                    "**Out**:\n\n⚠️ Error executing command:\n"
+                    "**In**:\n"
+                    f"{ctx.input if ctx.input is not None else message.text}\n\n"
+                    "**Out**:\n⚠️ Error executing command:\n"
                     f"```{util.error.format_exception(E)}```"
                 )
 
@@ -115,8 +114,8 @@ class CommandDispatcher(Base):
 
             await self.respond(
                 message,
-                "**In**:\n\n"
-                f"{ctx.input_arg if ctx.input_arg is not None else message.text}\n\n"
-                "**Out**:\n\n⚠️ Error in command handler:\n"
+                "**In**:\n"
+                f"{ctx.input if ctx.input is not None else message.text}\n\n"
+                "**Out**:\n⚠️ Error in command handler:\n"
                 f"```{util.error.format_exception(E)}```",
             )

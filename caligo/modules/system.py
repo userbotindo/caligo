@@ -47,7 +47,7 @@ class SystemModule(module.Module):
             after = util.time.usec()
             return (
                 f"**In:**\n```{text}```\n\n"
-                "**Out:**\n\n"
+                "**Out:**\n"
                 f"⚠️ Error executing command:\n```{util.error.format_exception(E)}```\n\n"
                 f"Time: {util.time.format_duration_us(after - before)}"
             )
@@ -55,7 +55,7 @@ class SystemModule(module.Module):
             after = util.time.usec()
             return (
                 f"**In:**\n```{text}```\n\n"
-                "**Out:**\n\n"
+                "**Out:**\n"
                 "🕑 Snippet failed to finish within 2 minutes.\n\n"
                 f"Time: {util.time.format_duration_us(after - before)}"
             )
@@ -71,7 +71,7 @@ class SystemModule(module.Module):
             stdout += "\n"
 
         err = f"⚠️ Return code: {ret}" if ret != 0 else ""
-        return f"**In:**\n```{text}```\n\n**Out:**\n\n```{stdout}```{err}{el_str}"
+        return f"**In:**\n```{text}```\n\n**Out:**\n```{stdout}```{err}{el_str}"
 
     @command.desc("Evaluate code")
     @command.usage("[code snippet]")

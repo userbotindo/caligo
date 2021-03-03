@@ -12,7 +12,6 @@ RUN apk add --no-cache \
         musl-dev \
         gcc \
         g++ \
-        leveldb-dev \
         make \
         zlib-dev \
         tiff-dev \
@@ -45,8 +44,8 @@ RUN apk add --no-cache neofetch
 RUN apk add --no-cache \
         aria2 \
         curl \
+        git \
         libffi \
-        leveldb \
         zlib \
         tiff \
         freetype \

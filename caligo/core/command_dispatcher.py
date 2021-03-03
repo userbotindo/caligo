@@ -84,7 +84,7 @@ class CommandDispatcher(Base):
             )
 
             if hasattr(cmd.module, "creds"):
-                await util.google_drive.check_credential(cmd.module, ctx)
+                await cmd.module.authorize(message)
 
                 if cmd.module.creds is None:
                     return

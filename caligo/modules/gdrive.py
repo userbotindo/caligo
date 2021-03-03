@@ -3,9 +3,12 @@ import pickle
 from typing import ClassVar, Dict
 
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
 from googleapiclient.discovery import Resource
 from google.oauth2.credentials import Credentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
+import pyrogram
 
 from .. import command, module, util
 
@@ -33,11 +36,11 @@ class GoogleDrive(module.Module):
 
         self.creds = await util.run_sync(pickle.loads, data.get("creds"))
 
-    async def cmd_gdcheck(self, ctx: command.Context):
+    async def cmd_gdcheck(self, ctx: command.Context) -> None:
         await ctx.respond("You are all set.")
         return
 
-    async def get_access_token(self, ctx: command.Context) -> str:
+    async def getAccessToken(self, message: pyrogram.types.Message) -> str:
         flow = InstalledAppFlow.from_client_config(
             self.configs, ["https://www.googleapis.com/auth/drive"],
             redirect_uri=self.configs["installed"].get("redirect_uris")[0]
@@ -46,8 +49,8 @@ class GoogleDrive(module.Module):
             access_type="offline", prompt="consent"
         )
 
-        await ctx.respond("Check your **Saved Messages**.")
-        link_msg = await ctx.bot.client.send_message(
+        await self.bot.respond(message, "Check your **Saved Messages**.")
+        link_msg = await self.bot.client.send_message(
             "me",
             f"Please visit the link:\n{auth_url}\nAnd reply the token here."
         )
@@ -57,13 +60,21 @@ class GoogleDrive(module.Module):
             if count > 60:
                 break
 
-            token = (await self.bot.client.get_dialogs(pinned_only=True))[0].top_message
+            try:
+                token = (
+                    await self.bot.client.get_dialogs(pinned_only=True)
+                )[0].top_message
+            except IndexError:  # Workaround if don't have any saved message
+                count += 3
+                await asyncio.sleep(3)
+                continue
+
             if not token.text.startswith("4/"):
                 count += 3
                 await asyncio.sleep(3)
                 continue
 
-            await ctx.respond("Token received...")
+            await self.bot.respond(message, "Token received...")
             break
 
         try:
@@ -88,3 +99,35 @@ class GoogleDrive(module.Module):
             )
 
         return "Credentials created."
+
+    async def authorize(self, message: pyrogram.types.Message) -> None:
+        if not self.creds or not self.creds.valid:
+            if self.creds and self.creds.expired and self.creds.refresh_token:
+                self.log.info("Refreshing credentials")
+                await util.run_sync(self.creds.refresh, Request())
+
+                credential = await util.run_sync(pickle.dumps, self.creds)
+                async with self.lock:
+                    await self.db.update_one(
+                        {"_id": self.bot.uid},
+                        {
+                            "$set": {"creds": credential}
+                        }
+                    )
+            else:
+                await self.bot.respond(
+                    message,
+                    "Credential is empty, generating..."
+                )
+                await asyncio.sleep(1.5)  # give people time to read
+
+                ret = await self.getAccessToken(message)
+
+                await self.bot.respond(message, ret)
+
+        self.service = build(
+            "drive",
+            "v3",
+            credentials=self.creds,
+            cache_discovery=False
+        )

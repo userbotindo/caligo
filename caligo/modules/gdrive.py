@@ -34,7 +34,8 @@ class GoogleDrive(module.Module):
         self.creds = await util.run_sync(pickle.loads, data.get("creds"))
 
     async def cmd_gdcheck(self, ctx: command.Context):
-        return "You are all set."
+        await ctx.respond("You are all set.")
+        return
 
     async def get_access_token(self, ctx: command.Context) -> str:
         flow = InstalledAppFlow.from_client_config(

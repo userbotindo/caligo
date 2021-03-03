@@ -13,14 +13,14 @@ def setup_log() -> None:
 
     logging.root.setLevel(level)
 
-    logfile_format = "[ %(asctime)s : %(levelname)-7s ] %(name)-7s | %(message)s"
+    logfile_format = "[ %(asctime)s : %(levelname)-7s ] %(name)-11s | %(message)s"
     logfile_name = f"caligo-{datetime.now().strftime('%Y-%m-%d')}.log"
     logfile = logging.FileHandler(f"{cache_path}/{logfile_name}")
     formatter = logging.Formatter(logfile_format, datefmt="%H:%M:%S")
     logfile.setFormatter(formatter)
     logfile.setLevel(level)
 
-    stderr_format = "  %(levelname)-7s  |  %(name)-7s  |  %(message)s"
+    stderr_format = "  %(levelname)-7s  |  %(name)-11s  |  %(message)s"
     stream = logging.StreamHandler()
     formatter = logging.Formatter(stderr_format)
     stream.setLevel(level)

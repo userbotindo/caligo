@@ -183,6 +183,7 @@ class TelegramBot(Base):
         msg: pyrogram.types.Message,
         text: Optional[str] = None,
         *,
+        input_arg: Optional[str] = None,
         mode: Optional[str] = None,
         redact: Optional[bool] = True,
         response: Optional[pyrogram.types.Message] = None,
@@ -191,7 +192,17 @@ class TelegramBot(Base):
         if text is not None:
             text = self.redact_message(text)
 
-            text = tg.truncate(text)
+            # send as file if text > 4096
+            if len(text) > tg.MESSAGE_CHAR_LIMIT:
+                await msg.edit("Sending output as a file.")
+                response = await tg.send_as_document(
+                    text,
+                    msg,
+                    input_arg
+                )
+
+                await msg.delete()
+                return response
 
         # Default to disabling link previews in responses
         if "disable_web_page_preview" not in kwargs:

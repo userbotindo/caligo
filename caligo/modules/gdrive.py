@@ -11,7 +11,7 @@ from .. import command, module, util
 
 
 class GoogleDrive(module.Module):
-    name: ClassVar[str] = "GDrive"
+    name: ClassVar[str] = "GoogleDrive"
 
     configs: Dict[str, str]
     creds: Credentials

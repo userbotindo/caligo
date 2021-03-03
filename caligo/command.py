@@ -67,8 +67,9 @@ class Command:
 
 class Context:
     bot: "Bot"
-    msg: pyrogram.types.Message
     cmd: List[str]
+    input_arg: Optional[Union[str, None]]
+    msg: pyrogram.types.Message
 
     def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
                  cmd: List[str]) -> None:
@@ -78,6 +79,11 @@ class Context:
 
         self.response = None
         self.response_mode = None
+
+        try:
+            self.input_arg = msg.text.split(' ', 1)[1]
+        except IndexError:
+            self.input_arg = None
 
     async def respond(
         self,
@@ -93,6 +99,7 @@ class Context:
         self.response = await self.bot.respond(
             msg or self.msg,
             text,
+            input_arg=self.input_arg,
             mode=mode,
             redact=redact,
             response=self.response

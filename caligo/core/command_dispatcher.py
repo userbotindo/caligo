@@ -77,26 +77,23 @@ class CommandDispatcher(Base):
             except KeyError:
                 return
 
-            ctx = command.Context(self, message, message.command[1:])
+            ctx = command.Context(
+                self,
+                msg=message,
+                cmd=message.command[1:]
+            )
 
             if hasattr(cmd.module, "creds"):
                 await util.google_drive.check_credential(cmd.module, ctx)
 
-                if cmd.module.creds is None:  # sanity check again in case fail
+                if cmd.module.creds is None:
                     return
 
             try:
                 ret = await cmd.func(ctx)
 
-                if ret is not None and len(ret) <= util.tg.MESSAGE_CHAR_LIMIT:
+                if ret is not None:
                     await ctx.respond(ret)
-                elif ret is not None and len(ret) > util.tg.MESSAGE_CHAR_LIMIT:
-                    await util.tg.send_document(
-                        self.redact_message(ret),
-                        ctx.msg,
-                        f"❯ ```{ctx.msg.text.split(' ', 1)[1]}```"
-                    )
-                    await ctx.msg.delete()
             except pyrogram.errors.MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
@@ -105,7 +102,10 @@ class CommandDispatcher(Base):
                 cmd.module.log.error(f"Error in command '{cmd.name}'",
                                      exc_info=E)
                 await ctx.respond(
-                    f"⚠️ Error executing command:\n```{util.error.format_exception(E)}```"
+                    "**In**:\n\n"
+                    f"{ctx.input_arg if ctx.input_arg is not None else message.text}\n\n"
+                    "**Out**:\n\n⚠️ Error executing command:\n"
+                    f"```{util.error.format_exception(E)}```"
                 )
 
             await self.dispatch_event("command", cmd, message)
@@ -115,5 +115,8 @@ class CommandDispatcher(Base):
 
             await self.respond(
                 message,
-                f"⚠️ Error in command handler:\n```{util.error.format_exception(E)}```",
+                "**In**:\n\n"
+                f"{ctx.input_arg if ctx.input_arg is not None else message.text}\n\n"
+                "**Out**:\n\n⚠️ Error in command handler:\n"
+                f"```{util.error.format_exception(E)}```",
             )

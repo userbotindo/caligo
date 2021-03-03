@@ -99,18 +99,17 @@ def truncate(text: str) -> str:
     return text
 
 
-async def send_document(
+async def send_as_document(
     content: Union[bytes, str],
     msg: pyrogram.types.Message,
     caption: str
 ) -> pyrogram.types.Message:
     with io.BytesIO(str.encode(content)) as o:
         o.name = uuid.uuid4().hex
-        response = await msg.reply_document(
+        return await msg.reply_document(
             document=o,
-            caption=caption,
+            caption="❯ ```" + caption + "```",
         )
-    return response
 
 
 async def get_text_input(

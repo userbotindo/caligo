@@ -105,7 +105,7 @@ async def send_as_document(
     caption: str
 ) -> pyrogram.types.Message:
     with io.BytesIO(str.encode(content)) as o:
-        o.name = uuid.uuid4().hex
+        o.name = str(uuid.uuid4()).split("-")[0].upper() + ".TXT"
         return await msg.reply_document(
             document=o,
             caption="❯ ```" + caption + "```",

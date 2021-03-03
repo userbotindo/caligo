@@ -1,5 +1,25 @@
 [[package]]
 category = "main"
+description = "Support Aria2 rpc client and manage server with async/await"
+name = "aioaria2"
+optional = false
+python-versions = ">=3.6"
+version = "1.3.0"
+
+[package.dependencies]
+aiofiles = "*"
+aiohttp = "*"
+
+[[package]]
+category = "main"
+description = "File support for asyncio."
+name = "aiofiles"
+optional = false
+python-versions = "*"
+version = "0.6.0"
+
+[[package]]
+category = "main"
 description = "Async http client/server framework (asyncio)"
 name = "aiohttp"
 optional = false
@@ -29,30 +49,12 @@ version = "2020.12.1"
 dev = ["pytest", "pytest-cov"]
 
 [[package]]
-category = "main"
+category = "dev"
 description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 name = "appdirs"
 optional = false
 python-versions = "*"
 version = "1.4.4"
-
-[[package]]
-category = "main"
-description = "Command-line tool and library to interact with an aria2c daemon process with JSON-RPC."
-name = "aria2p"
-optional = false
-python-versions = ">=3.6,<4.0"
-version = "0.10.4"
-
-[package.dependencies]
-appdirs = ">=1.4.4,<2.0.0"
-loguru = "*"
-requests = ">2.19.1"
-toml = ">=0.10.2,<0.11.0"
-websocket_client = "*"
-
-[package.extras]
-tui = ["asciimatics (>=1.11.0,<2.0.0)", "pyperclip (>=1.8.0,<2.0.0)"]
 
 [[package]]
 category = "main"
@@ -336,21 +338,6 @@ version = "5.7.0"
 colors = ["colorama (>=0.4.3,<0.5.0)"]
 pipfile_deprecated_finder = ["pipreqs", "requirementslib"]
 requirements_deprecated_finder = ["pipreqs", "pip-api"]
-
-[[package]]
-category = "main"
-description = "Python logging made (stupidly) simple"
-name = "loguru"
-optional = false
-python-versions = ">=3.5"
-version = "0.5.3"
-
-[package.dependencies]
-colorama = {version = ">=0.3.4", markers = "sys_platform == \"win32\""}
-win32-setctime = {version = ">=1.0.0", markers = "sys_platform == \"win32\""}
-
-[package.extras]
-dev = ["codecov (>=2.0.15)", "colorama (>=0.3.4)", "flake8 (>=3.7.7)", "tox (>=3.9.0)", "tox-travis (>=0.12)", "pytest (>=4.6.2)", "pytest-cov (>=2.7.1)", "Sphinx (>=2.2.1)", "sphinx-autobuild (>=0.7.1)", "sphinx-rtd-theme (>=0.4.3)", "black (>=19.10b0)", "isort (>=5.1.1)"]
 
 [[package]]
 category = "main"
@@ -640,7 +627,7 @@ python-versions = "~=3.6"
 version = "1.2.2"
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Python Library for Tom's Obvious, Minimal Language"
 name = "toml"
 optional = false
@@ -716,28 +703,6 @@ docs = ["proselint (>=0.10.2)", "sphinx (>=3)", "sphinx-argparse (>=0.2.5)", "sp
 testing = ["coverage (>=4)", "coverage-enable-subprocess (>=1)", "flaky (>=3)", "pytest (>=4)", "pytest-env (>=0.6.2)", "pytest-freezegun (>=0.4.1)", "pytest-mock (>=2)", "pytest-randomly (>=1)", "pytest-timeout (>=1)", "packaging (>=20.0)", "xonsh (>=0.9.16)"]
 
 [[package]]
-category = "main"
-description = "WebSocket client for Python. hybi13 is supported."
-name = "websocket-client"
-optional = false
-python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "0.57.0"
-
-[package.dependencies]
-six = "*"
-
-[[package]]
-category = "main"
-description = "A small Python utility to set file creation time on Windows"
-name = "win32-setctime"
-optional = false
-python-versions = ">=3.5"
-version = "1.0.3"
-
-[package.extras]
-dev = ["pytest (>=4.6.2)", "black (>=19.3b0)"]
-
-[[package]]
 category = "dev"
 description = "A formatter for Python code."
 name = "yapf"
@@ -758,11 +723,19 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "482cfffbac19acdb42550ca4f4db5e4e8682b7580a58104d1779e4b30c57a114"
+content-hash = "4aae07a6824fbe9a9b1a89cf01af0f30527d5027091f9a532743a4cdc1017855"
 lock-version = "1.1"
 python-versions = "^3.8"
 
 [metadata.files]
+aioaria2 = [
+    {file = "aioaria2-1.3.0-py3-none-any.whl", hash = "sha256:5ae8e2ee2f65a938e945dce689131f2034e352df56e17199a991024aa3774ce3"},
+    {file = "aioaria2-1.3.0.tar.gz", hash = "sha256:5af755815bc22457637fd7a19629fdbc5dd7ba3482477799b65a3a4f4158c92f"},
+]
+aiofiles = [
+    {file = "aiofiles-0.6.0-py3-none-any.whl", hash = "sha256:bd3019af67f83b739f8e4053c6c0512a7f545b9a8d91aaeab55e6e0f9d123c27"},
+    {file = "aiofiles-0.6.0.tar.gz", hash = "sha256:e0281b157d3d5d59d803e3f4557dcc9a3dff28a4dd4829a9ff478adae50ca092"},
+]
 aiohttp = [
     {file = "aiohttp-3.7.4-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:6c8200abc9dc5f27203986100579fc19ccad7a832c07d2bc151ce4ff17190076"},
     {file = "aiohttp-3.7.4-cp36-cp36m-manylinux1_i686.whl", hash = "sha256:dd7936f2a6daa861143e376b3a1fb56e9b802f4980923594edd9ca5670974895"},
@@ -809,10 +782,6 @@ aiorun = [
 appdirs = [
     {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
     {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
-]
-aria2p = [
-    {file = "aria2p-0.10.4-py3-none-any.whl", hash = "sha256:3cba57e902685f24ead28179984b57710f8f35452026c12390c9469b02413216"},
-    {file = "aria2p-0.10.4.tar.gz", hash = "sha256:df5e0b56768d118d9dbdc103f37cb9dda0cd82e4f9221e061ebf4a2ed375680b"},
 ]
 async-lru = [
     {file = "async_lru-1.0.2.tar.gz", hash = "sha256:baa898027619f5cc31b7966f96f00e4fc0df43ba206a8940a5d1af5336a477cb"},
@@ -911,10 +880,6 @@ idna = [
 isort = [
     {file = "isort-5.7.0-py3-none-any.whl", hash = "sha256:fff4f0c04e1825522ce6949973e83110a6e907750cd92d128b0d14aaaadbffdc"},
     {file = "isort-5.7.0.tar.gz", hash = "sha256:c729845434366216d320e936b8ad6f9d681aab72dc7cbc2d51bedc3582f3ad1e"},
-]
-loguru = [
-    {file = "loguru-0.5.3-py3-none-any.whl", hash = "sha256:f8087ac396b5ee5f67c963b495d615ebbceac2796379599820e324419d53667c"},
-    {file = "loguru-0.5.3.tar.gz", hash = "sha256:b28e72ac7a98be3d28ad28570299a393dfcd32e5e3f6a353dec94675767b6319"},
 ]
 meval = [
     {file = "meval-2.5-py3-none-any.whl", hash = "sha256:24430865001b5596864a7c28f423294edadaac57af9ab6964dda3eabc8762577"},
@@ -1296,14 +1261,6 @@ uvloop = [
 virtualenv = [
     {file = "virtualenv-20.4.2-py2.py3-none-any.whl", hash = "sha256:2be72df684b74df0ea47679a7df93fd0e04e72520022c57b479d8f881485dbe3"},
     {file = "virtualenv-20.4.2.tar.gz", hash = "sha256:147b43894e51dd6bba882cf9c282447f780e2251cd35172403745fc381a0a80d"},
-]
-websocket-client = [
-    {file = "websocket_client-0.57.0-py2.py3-none-any.whl", hash = "sha256:0fc45c961324d79c781bab301359d5a1b00b13ad1b10415a4780229ef71a5549"},
-    {file = "websocket_client-0.57.0.tar.gz", hash = "sha256:d735b91d6d1692a6a181f2a8c9e0238e5f6373356f561bb9dc4c7af36f452010"},
-]
-win32-setctime = [
-    {file = "win32_setctime-1.0.3-py3-none-any.whl", hash = "sha256:dc925662de0a6eb987f0b01f599c01a8236cb8c62831c22d9cada09ad958243e"},
-    {file = "win32_setctime-1.0.3.tar.gz", hash = "sha256:4e88556c32fdf47f64165a2180ba4552f8bb32c1103a2fafd05723a0bd42bd4b"},
 ]
 yapf = [
     {file = "yapf-0.30.0-py2.py3-none-any.whl", hash = "sha256:3abf61ba67cf603069710d30acbc88cfe565d907e16ad81429ae90ce9651e0c9"},

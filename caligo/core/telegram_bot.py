@@ -1,6 +1,6 @@
 import asyncio
 import signal
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import aria2p
 import pyrogram
@@ -183,7 +183,7 @@ class TelegramBot(Base):
         msg: pyrogram.types.Message,
         text: Optional[str] = None,
         *,
-        input_arg: Optional[str] = None,
+        input_arg: Optional[Union[str, None]] = None,
         mode: Optional[str] = None,
         redact: Optional[bool] = True,
         response: Optional[pyrogram.types.Message] = None,

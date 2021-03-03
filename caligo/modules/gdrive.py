@@ -68,10 +68,10 @@ class GoogleDrive(module.Module):
         token = None
         waiting = True
         while waiting:
-            if count > 60:
+            if count >= 60:
                 waiting = False
 
-            if count >= 7:  # starts searching on count=7
+            if count >= 6:  # starts searching on count=6
 
                 async for dialog in self.bot.client.iter_dialogs(limit=11):
                     text = dialog.top_message.text
@@ -85,8 +85,8 @@ class GoogleDrive(module.Module):
                         token = dialog.top_message
                         waiting = False
 
-            count += 1
-            await asyncio.sleep(1)
+            count += 3
+            await asyncio.sleep(3)
 
         if token is not None:
             await self.bot.respond(message, "Token received...")
@@ -98,6 +98,10 @@ class GoogleDrive(module.Module):
             await util.run_sync(flow.fetch_token, code=token.text)
         except InvalidGrantError:
             await link_msg.delete()
+
+            if token is not None:
+                await token.delete()
+
             return (
                 "⚠️ Error fetching token\n\n"
                 "Refresh token is invalid, expired, revoked, "
@@ -145,6 +149,8 @@ class GoogleDrive(module.Module):
                 ret = await self.getAccessToken(message)
 
                 await self.bot.respond(message, ret)
+                if self.creds is None:
+                    return False
 
             self.service = build(
                 "drive",

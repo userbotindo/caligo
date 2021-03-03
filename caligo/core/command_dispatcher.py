@@ -83,9 +83,9 @@ class CommandDispatcher(Base):
             )
 
             if hasattr(cmd.module, "creds"):
-                await cmd.module.authorize(message)
+                ret = await cmd.module.authorize(message)
 
-                if cmd.module.creds is None:
+                if ret is False:
                     return
 
             try:

@@ -31,4 +31,4 @@ def setup_log() -> None:
     root.addHandler(logfile)
     root.addHandler(stream)
 
-    logging.getLogger("pyrogram").setLevel(logging.WARNING)
+    logging.getLogger("pyrogram").setLevel(logging.ERROR)

@@ -24,7 +24,7 @@ class GoogleDrive(module.Module):
     service: Resource
 
     async def on_load(self) -> None:
-        self.configs = self.bot.getConfig.gdrive_data
+        self.configs = self.bot.getConfig.gdrive_secret
         self.creds = None
         self.lock = asyncio.Lock()
 

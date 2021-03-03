@@ -155,7 +155,7 @@ class TelegramBot(Base):
         api_id = self.getConfig.api_hash
         api_hash = self.getConfig.api_hash
         db_uri = self.getConfig.db_uri
-        gdrive_data = self.getConfig.gdrive_data
+        gdrive_secret = self.getConfig.gdrive_secret
         string_session = self.getConfig.string_session
 
         if api_id in text:
@@ -164,10 +164,9 @@ class TelegramBot(Base):
             text = text.replace(api_hash, redacted)
         if db_uri in text:
             text = text.replace(db_uri, redacted)
-        if gdrive_data is not None:
-            client = gdrive_data.get("installed")
-            client_id = client.get("client_id")
-            client_secret = client.get("client_secret")
+        if gdrive_secret is not None:
+            client_id = gdrive_secret["installed"].get("client_id")
+            client_secret = gdrive_secret["installed"].get("client_secret")
 
             if client_id in text:
                 text = text.replace(client_id, redacted)

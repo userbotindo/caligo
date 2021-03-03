@@ -2,13 +2,12 @@ import asyncio
 import signal
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-import aria2p
 import pyrogram
 from pyrogram.filters import Filter
 from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
-from ..util import BotConfig, aria, silent, time, tg
+from ..util import BotConfig, silent, time, tg
 from .base import Base
 
 if TYPE_CHECKING:
@@ -16,7 +15,6 @@ if TYPE_CHECKING:
 
 
 class TelegramBot(Base):
-    aria: aria2p.Client
     client: pyrogram.Client
     getConfig: BotConfig
     is_running: bool
@@ -88,10 +86,6 @@ class TelegramBot(Base):
         await self.dispatch_event("start", time.usec())
 
         self.log.info("Bot is ready")
-
-        await self.dispatch_event("aria", await aria.initialize(self.http))
-        self.aria = aria2p.API(
-            aria2p.Client(host="http://localhost", port=6800, secret=""))
 
         await self.dispatch_event("started")
 

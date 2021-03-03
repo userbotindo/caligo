@@ -2,13 +2,14 @@ import asyncio
 import pickle
 from typing import ClassVar, Dict
 
+import pyrogram
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.discovery import Resource
 from google.oauth2.credentials import Credentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
-import pyrogram
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
 
@@ -83,9 +84,13 @@ class GoogleDrive(module.Module):
 
         try:
             await util.run_sync(flow.fetch_token, code=token.text)
-        except Exception:
+        except InvalidGrantError:
             await link_msg.delete()
-            return "**Invalid or empty token**"
+            return (
+                "⚠️ Error fetching token\n\n"
+                "Refresh token is invalid, expired, revoked, "
+                "or does not match the redirection URI."
+            )
 
         await token.delete()
         await link_msg.delete()

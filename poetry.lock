@@ -176,6 +176,28 @@ version = "3.0.12"
 
 [[package]]
 category = "main"
+description = "Git Object Database"
+name = "gitdb"
+optional = false
+python-versions = ">=3.4"
+version = "4.0.5"
+
+[package.dependencies]
+smmap = ">=3.0.1,<4"
+
+[[package]]
+category = "main"
+description = "Python Git Library"
+name = "gitpython"
+optional = false
+python-versions = ">=3.4"
+version = "3.1.14"
+
+[package.dependencies]
+gitdb = ">=4.0.1,<5"
+
+[[package]]
+category = "main"
 description = "Google API client core library"
 name = "google-api-core"
 optional = false
@@ -595,6 +617,22 @@ version = "1.15.0"
 
 [[package]]
 category = "main"
+description = "A pure Python implementation of a sliding window memory map manager"
+name = "smmap"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "3.0.5"
+
+[[package]]
+category = "main"
+description = "Command line interface for testing internet bandwidth using speedtest.net"
+name = "speedtest-cli"
+optional = false
+python-versions = "*"
+version = "2.1.2"
+
+[[package]]
+category = "main"
 description = "Fast Telegram Crypto Library for Python"
 name = "tgcrypto"
 optional = false
@@ -720,7 +758,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "709a793a70d833997eabdcdcdfea121531141740a08d8e9dbc9829378ec658bf"
+content-hash = "482cfffbac19acdb42550ca4f4db5e4e8682b7580a58104d1779e4b30c57a114"
 lock-version = "1.1"
 python-versions = "^3.8"
 
@@ -825,6 +863,14 @@ dnspython = [
 filelock = [
     {file = "filelock-3.0.12-py3-none-any.whl", hash = "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"},
     {file = "filelock-3.0.12.tar.gz", hash = "sha256:18d82244ee114f543149c66a6e0c14e9c4f8a1044b5cdaadd0f82159d6a6ff59"},
+]
+gitdb = [
+    {file = "gitdb-4.0.5-py3-none-any.whl", hash = "sha256:91f36bfb1ab7949b3b40e23736db18231bf7593edada2ba5c3a174a7b23657ac"},
+    {file = "gitdb-4.0.5.tar.gz", hash = "sha256:c9e1f2d0db7ddb9a704c2a0217be31214e91a4fe1dea1efad19ae42ba0c285c9"},
+]
+gitpython = [
+    {file = "GitPython-3.1.14-py3-none-any.whl", hash = "sha256:3283ae2fba31c913d857e12e5ba5f9a7772bbc064ae2bb09efafa71b0dd4939b"},
+    {file = "GitPython-3.1.14.tar.gz", hash = "sha256:be27633e7509e58391f10207cd32b2a6cf5b908f92d9cd30da2e514e1137af61"},
 ]
 google-api-core = [
     {file = "google-api-core-1.26.0.tar.gz", hash = "sha256:4230ec764d48ca934fe69b85cc217e31e844e176f68df93e252acd55350e730b"},
@@ -1142,6 +1188,14 @@ rsa = [
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
     {file = "six-1.15.0.tar.gz", hash = "sha256:30639c035cdb23534cd4aa2dd52c3bf48f06e5f4a941509c8bafd8ce11080259"},
+]
+smmap = [
+    {file = "smmap-3.0.5-py2.py3-none-any.whl", hash = "sha256:7bfcf367828031dc893530a29cb35eb8c8f2d7c8f2d0989354d75d24c8573714"},
+    {file = "smmap-3.0.5.tar.gz", hash = "sha256:84c2751ef3072d4f6b2785ec7ee40244c6f45eb934d9e543e2c51f1bd3d54c50"},
+]
+speedtest-cli = [
+    {file = "speedtest-cli-2.1.2.tar.gz", hash = "sha256:cf1d386222f94c324e3125ba9a0d187e46d4a13dca08c023bdb9a23096be2e54"},
+    {file = "speedtest_cli-2.1.2-py2.py3-none-any.whl", hash = "sha256:2335306da12014c2da750db3befa3ddf424a303ddbaa399fbfb6a1bf870a5532"},
 ]
 tgcrypto = [
     {file = "TgCrypto-1.2.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:2073aa6bbc809a56ae3d54e0f496cacaee6e5cb7c08682153c992eae72b4fbb8"},

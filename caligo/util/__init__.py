@@ -3,6 +3,7 @@ from . import (
     async_helpers,
     config,
     error,
+    git,
     misc,
     silent,
     system,

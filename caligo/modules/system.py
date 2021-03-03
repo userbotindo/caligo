@@ -5,9 +5,11 @@ import re
 import io
 import sys
 import traceback
+from pathlib import Path
 from typing import Any, ClassVar, Dict, Optional, Union, Tuple
 
 import pyrogram
+import speedtest
 from meval import meval
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -26,6 +28,57 @@ class SystemModule(module.Module):
         self.lock = asyncio.Lock()
 
         self.db = self.bot.get_db("system")
+
+    @command.desc("Get information about the host system")
+    @command.alias("si")
+    async def cmd_sysinfo(self, ctx: command.Context) -> str:
+        await ctx.respond("Collecting system information...")
+
+        try:
+            stdout, _, ret = await util.system.run_command(
+                "neofetch", "--stdout", timeout=60
+            )
+        except asyncio.TimeoutError:
+            return "🕑 `neofetch` failed to finish within 1 minute."
+        except FileNotFoundError:
+            return (
+                "❌ [neofetch](https://github.com/dylanaraps/neofetch) "
+                "must be installed on the host system."
+            )
+
+        err = f"⚠️ Return code: {ret}" if ret != 0 else ""
+        sysinfo = "\n".join(stdout.split("\n")[2:]) if ret == 0 else stdout
+        return f"```{sysinfo}```{err}"
+
+    @command.desc("Test Internet speed")
+    @command.alias("stest", "st")
+    async def cmd_speedtest(self, ctx: command.Context) -> str:
+        before = util.time.usec()
+
+        st = await util.run_sync(speedtest.Speedtest)
+        status = "Selecting server..."
+
+        await ctx.respond(status)
+        server = await util.run_sync(st.get_best_server)
+        status += f" {server['sponsor']} ({server['name']})\n"
+        status += f"Ping: {server['latency']:.2f} ms\n"
+
+        status += "Performing download test..."
+        await ctx.respond(status)
+        dl_bits = await util.run_sync(st.download)
+        dl_mbit = dl_bits / 1000 / 1000
+        status += f" {dl_mbit:.2f} Mbps\n"
+
+        status += "Performing upload test..."
+        await ctx.respond(status)
+        ul_bits = await util.run_sync(st.upload)
+        ul_mbit = ul_bits / 1000 / 1000
+        status += f" {ul_mbit:.2f} Mbps\n"
+
+        delta = util.time.usec() - before
+        status += f"\nTime elapsed: {util.time.format_duration_us(delta)}"
+
+        return status
 
     @command.desc("Run a snippet in a shell")
     @command.usage("[shell snippet]")
@@ -243,3 +296,70 @@ Time: {el_str}"""
             # This is safe because original arguments are reused. skipcq: BAN-B606
             os.execv(sys.executable, (sys.executable, "-m", "caligo"))
             sys.exit()
+
+    @command.desc("Update this bot from Git and restart")
+    @command.usage("[remote name?]", optional=True)
+    @command.alias("up", "upd")
+    async def cmd_update(self, ctx: command.Context) -> Optional[str]:
+        remote_name = ctx.input
+
+        if not util.git.have_git:
+            return "__The__ `git` __command is required for self-updating.__"
+
+        # Attempt to get the Git repo
+        repo = await util.run_sync(util.git.get_repo)
+        if not repo:
+            return "__Unable to locate Git repository data.__"
+
+        if remote_name:
+            # Attempt to get requested remote
+            try:
+                remote = await util.run_sync(repo.remote, remote_name)
+            except ValueError:
+                return f"__Remote__ `{remote_name}` __not found.__"
+        else:
+            # Get current branch's tracking remote
+            remote = await util.run_sync(util.git.get_current_remote)
+            if remote is None:
+                return f"__Current branch__ `{repo.active_branch.name}` __is not tracking a remote.__"
+
+        # Save time and old commit for diffing
+        update_time = util.time.usec()
+        old_commit = await util.run_sync(repo.commit)
+
+        # Pull from remote
+        await ctx.respond(f"Pulling changes from `{remote}`...")
+        await util.run_sync(remote.pull)
+
+        # Return early if no changes were pulled
+        diff = old_commit.diff()
+        if not diff:
+            return "No updates found."
+
+        # Check for dependency changes
+        if any(change.a_path == "poetry.lock" for change in diff):
+            # Update dependencies automatically if running in venv
+            prefix = util.system.get_venv_path()
+            if prefix:
+                pip = str(Path(prefix) / "bin" / "pip")
+
+                await ctx.respond("Updating dependencies...")
+                stdout, _, ret = await util.system.run_command(
+                    pip, "install", repo.working_tree_dir
+                )
+                if ret != 0:
+                    return f"""⚠️ Error updating dependencies:
+
+```{stdout}```
+
+Fix the issue manually and then restart the bot."""
+            else:
+                return """Successfully pulled updates.
+
+**Update dependencies manually** to avoid errors, then restart the bot for the update to take effect.
+
+Dependency updates are automatic if you're running the bot in a virtualenv."""
+
+        # Restart after updating
+        await self.cmd_restart(ctx, restart_time=update_time, reason="update")
+        return None

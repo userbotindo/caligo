@@ -36,6 +36,13 @@ class GoogleDrive(module.Module):
             return
 
         self.creds = await util.run_sync(pickle.loads, data.get("creds"))
+        # service will be overwrite if credentials is expired
+        self.service = build(
+            "drive",
+            "v3",
+            credentials=self.creds,
+            cache_discovery=False
+        )
 
     async def cmd_gdcheck(self, ctx: command.Context) -> None:
         await ctx.respond("You are all set.")
@@ -134,9 +141,9 @@ class GoogleDrive(module.Module):
 
                 await self.bot.respond(message, ret)
 
-        self.service = build(
-            "drive",
-            "v3",
-            credentials=self.creds,
-            cache_discovery=False
-        )
+            self.service = build(
+                "drive",
+                "v3",
+                credentials=self.creds,
+                cache_discovery=False
+            )

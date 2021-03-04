@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import ClassVar, Dict, Union
+from typing import Any, ClassVar, Dict, Tuple, Union
 
 import aioaria2
 
@@ -13,11 +13,10 @@ class Aria2(module.Module):
     aria: aioaria2.Aria2WebsocketTrigger
     server: aioaria2.AsyncAria2Server
 
-    downloads: Dict[str, Union[str, int]]
+    downloads: Dict[str, Dict[str, Any]]
 
     async def on_load(self) -> None:
         self.downloads = {}
-        self.event_handler = {}
 
         DownloadPath = os.environ.get("HOME") + "/Downloads"
         if not os.path.exists(DownloadPath):
@@ -67,12 +66,12 @@ class Aria2(module.Module):
 
         async def func(
             trigger: aioaria2.Aria2WebsocketTrigger,
-            data: Dict[str, str]
-        ):
+            data: Union[Dict[str, str], Any]
+        ):  # skipcq: PYL-W0613
             method = data.get("method").strip("aria2.")
 
             update = getattr(self, method)
-            await update(data)
+            await update(data.get("params")[0]["gid"])
 
         self.aria.register(func, f"aria2.onDownload{name}")
 
@@ -85,20 +84,43 @@ class Aria2(module.Module):
             self.update_event("Error"),
         )
 
-    async def onDownloadStart(self, data) -> None:
-        self.log.info(data)
+    async def changeGID(self, oldGid: str, newGid: str) -> None:
+        self.log.info(f"Changing GID: {oldGid} -> {newGid}")
+        self.downloads[newGid] = self.downloads.pop(oldGid)
 
-    async def onDownloadPause(self, data) -> None:
-        self.log.info(data)
+    async def isDownloadMetaData(self, gid: str) -> Tuple[bool, str]:
+        res = await self.aria.tellStatus(gid, ["followedBy"])
+        if res:
+            return True, res["followedBy"][0]
 
-    async def onDownloadStop(self, data) -> None:
-        self.log.info(data)
+        return False, None
 
-    async def onDownloadComplete(self, data) -> None:
-        self.log.info(data)
+    async def onDownloadStart(self, gid: str) -> None:
+        res = await self.aria.tellStatus(
+            gid,
+            [
+                "status", "totalLength", "completedLength", "downloadSpeed",
+                "files", "numSeeders", "connections"
+            ]
+        )
+        self.downloads[gid] = res
 
-    async def onDownloadError(self, data) -> None:
-        self.log.info(data)
+    async def onDownloadPause(self, gid: str) -> None:
+        self.log.info("Paused")
+
+    async def onDownloadStop(self, gid: str) -> None:
+        self.log.info("Stopped")
+
+    async def onDownloadComplete(self, gid: str) -> None:
+        isMetaData, newGid = await self.isDownloadMetaData(gid)
+
+        if newGid is not None and isMetaData:
+            await self.changeGID(gid, newGid)
+
+    async def onDownloadError(self, gid: str) -> None:
+        res = await self.aria.tellStatus(gid, ["errorMessage"])
+        self.log.warning(res["errorMessage"])
 
     async def cmd_test(self, ctx: command.Context) -> None:
-        await self.aria.addUri([ctx.input])
+        gid = await self.aria.addUri([ctx.input])
+        self.log.info(gid)

@@ -54,13 +54,13 @@ class Aria2(module.Module):
         await self.server.wait()
 
     async def on_started(self) -> None:
-        self.aria = await aioaria2.Aria2WebsocketTrigger.new(
+        self.client = await aioaria2.Aria2WebsocketTrigger.new(
             url="http://localhost:8080/jsonrpc"
         )
         await self.update_events()
 
     async def on_stop(self) -> None:
-        await self.aria.close()
+        await self.client.close()
 
     async def update_event(self, name: str) -> None:
 
@@ -73,7 +73,7 @@ class Aria2(module.Module):
             update = getattr(self, method)
             await update(data.get("params")[0]["gid"])
 
-        self.aria.register(func, f"aria2.onDownload{name}")
+        self.client.register(func, f"aria2.onDownload{name}")
 
     async def update_events(self) -> None:
         await asyncio.gather(
@@ -89,14 +89,14 @@ class Aria2(module.Module):
         self.downloads[newGid] = self.downloads.pop(oldGid)
 
     async def isDownloadMetaData(self, gid: str) -> Tuple[bool, str]:
-        res = await self.aria.tellStatus(gid, ["followedBy"])
+        res = await self.client.tellStatus(gid, ["followedBy"])
         if res:
             return True, res["followedBy"][0]
 
         return False, None
 
     async def onDownloadStart(self, gid: str) -> None:
-        res = await self.aria.tellStatus(
+        res = await self.client.tellStatus(
             gid,
             [
                 "status", "totalLength", "completedLength", "downloadSpeed",
@@ -118,9 +118,9 @@ class Aria2(module.Module):
             await self.changeGID(gid, newGid)
 
     async def onDownloadError(self, gid: str) -> None:
-        res = await self.aria.tellStatus(gid, ["errorMessage"])
+        res = await self.client.tellStatus(gid, ["errorMessage"])
         self.log.warning(res["errorMessage"])
 
     async def cmd_test(self, ctx: command.Context) -> None:
-        gid = await self.aria.addUri([ctx.input])
+        gid = await self.client.addUri([ctx.input])
         self.log.info(gid)

@@ -10,6 +10,7 @@ from googleapiclient.discovery import Resource
 from google.oauth2.credentials import Credentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+from pyrogram import filters
 
 from .. import command, module, util
 
@@ -57,59 +58,33 @@ class GoogleDrive(module.Module):
             access_type="offline", prompt="consent"
         )
 
-        await self.bot.respond(message, "Check your **Saved Messages**.")
-        link_msg = await self.bot.client.send_message(
-            "me",
-            f"Please visit the link:\n{auth_url}\nAnd reply the token here.\n"
-            "**You have 60 seconds**."
-        )
+        await self.bot.respond(message, "Check your **Saved Message.**")
+        try:
+            res = await self.bot.client.ask(
+                chat_id="me",
+                text=f"Please visit the link:\n{auth_url}\n"
+                "And reply the token here.\n**You have 60 seconds**.",
+                filters=filters.me,
+                timeout=60
+            )
+        except asyncio.exceptions.TimeoutError:
+            await res.request.delete()
+            return "⚠️ Timeout no token receive"
 
-        count = 0  # limit time 1 minute
-        token = None
-        waiting = True
-        while waiting:
-            if count >= 60:
-                waiting = False
+        await self.bot.respond(message, "Token received...")
+        token = res.text
 
-            if count >= 6:  # starts searching on count=6
-
-                async for dialog in self.bot.client.iter_dialogs(limit=11):
-                    text = dialog.top_message.text
-
-                    # accept messages only from saved message
-                    if (dialog.chat.id != link_msg.chat.id and
-                            text is not None and text.startswith("4/")):
-                        continue
-
-                    if text is not None and text.startswith("4/"):
-                        token = dialog.top_message
-                        waiting = False
-
-            count += 3
-            await asyncio.sleep(3)
-
-        if token is not None:
-            await self.bot.respond(message, "Token received...")
-        else:
-            await link_msg.delete()
-            return ("⚠️ Error no token receive")
+        await res.request.delete()
+        await res.delete()
 
         try:
-            await util.run_sync(flow.fetch_token, code=token.text)
+            await util.run_sync(flow.fetch_token, code=token)
         except InvalidGrantError:
-            await link_msg.delete()
-
-            if token is not None:
-                await token.delete()
-
             return (
                 "⚠️ Error fetching token\n\n"
                 "Refresh token is invalid, expired, revoked, "
                 "or does not match the redirection URI."
             )
-
-        await token.delete()
-        await link_msg.delete()
 
         self.creds = flow.credentials
         credential = await util.run_sync(pickle.dumps, self.creds)

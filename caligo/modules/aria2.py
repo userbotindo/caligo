@@ -18,9 +18,9 @@ class Aria2(module.Module):
     async def on_load(self) -> None:
         self.downloads = {}
 
-        DownloadPath = os.environ.get("HOME") + "/Downloads"
-        if not os.path.exists(DownloadPath):
-            os.makedirs(DownloadPath)
+        downloadPath = os.environ.get("HOME") + "/downloads"
+        if not os.path.exists(downloadPath):
+            os.makedirs(downloadPath)
 
         link = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
         async with self.bot.http.get(link) as resp:
@@ -29,6 +29,7 @@ class Aria2(module.Module):
 
         cmd = [
             "aria2c",
+            f"--dir={downloadPath}",
             "--enable-rpc",
             "--rpc-listen-all=false",
             "--rpc-listen-port=8080",
@@ -44,7 +45,6 @@ class Aria2(module.Module):
             f"--bt-tracker={trackers}",
             "--daemon=true",
             "--allow-overwrite=true",
-            f"--dir={DownloadPath}"
         ]
 
         self.server = aioaria2.AsyncAria2Server(*cmd, daemon=True)

@@ -37,4 +37,4 @@ class BotConfig:
         self.gdrive_folder_id = os.environ.get("G_DRIVE_FOLDER_ID")
 
         # Checker
-        self.secret = True if os.environ.get("CONTAINER") == "True" else False
+        self.secret = bool(os.environ.get("CONTAINER") == "True")

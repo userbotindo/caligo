@@ -304,10 +304,10 @@ Time: {el_str}"""
             sys.exit()
 
     @command.desc("Update this bot from Git and restart")
-    @command.usage("[remote name?]", optional=True)
+    @command.usage("[force flag?]", optional=True)
     @command.alias("up", "upd")
     async def cmd_update(self, ctx: command.Context) -> Optional[str]:
-        remote_name = ctx.input
+        force = ctx.input
 
         if not util.git.have_git:
             return "__The__ `git` __command is required for self-updating.__"
@@ -317,21 +317,36 @@ Time: {el_str}"""
         if not repo:
             return "__Unable to locate Git repository data.__"
 
-        if remote_name:
-            # Attempt to get requested remote
-            try:
-                remote = await util.run_sync(repo.remote, remote_name)
-            except ValueError:
-                return f"__Remote__ `{remote_name}` __not found.__"
-        else:
-            # Get current branch's tracking remote
-            remote = await util.run_sync(util.git.get_current_remote)
-            if remote is None:
-                return f"__Current branch__ `{repo.active_branch.name}` __is not tracking a remote.__"
+        # Get current branch's tracking remote
+        remote = await util.run_sync(util.git.get_current_remote)
+        if remote is None:
+            return f"__Current branch__ `{repo.active_branch.name}` __is not tracking a remote.__"
 
         # Save time and old commit for diffing
         update_time = util.time.usec()
         old_commit = await util.run_sync(repo.commit)
+
+        await ctx.respond("Checking...")
+
+        # Container heroku handling
+        if self.bot.getConfig.secret:
+            local_actvbranch = repo.active_branch.name
+            fetch = await util.run_sync(remote.fetch)
+
+            for obj in fetch:
+                if (local_actvbranch in obj.name and
+                    any(change.a_path == "poetry.lock"
+                        for change in await util.run_sync(obj.commit.diff, old_commit)
+                        )):
+
+                    if force != "-f":
+                        return (
+                            "There is depency changes, you need to redeploy "
+                            "to avoid __RunTimeError__ when the server restarted.\n\n"
+                            "**Discourage**: You can pass the update with `-f` flag."
+                        )
+
+                    break
 
         # Pull from remote
         await ctx.respond(f"Pulling changes from `{remote}`...")

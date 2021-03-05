@@ -35,3 +35,6 @@ class BotConfig:
             self.gdrive_secret = None
             log.warning("Google Drive client secret is invalid.")
         self.gdrive_folder_id = os.environ.get("G_DRIVE_FOLDER_ID")
+
+        # Checker
+        self.secret = True if os.environ.get("CONTAINER") == "True" else False

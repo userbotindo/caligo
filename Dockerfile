@@ -64,6 +64,9 @@ COPY --from=go-build /go/bin/corrupter /usr/local/bin
 ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=python-build /opt/venv /opt/venv
 
+# Tell system that we run on container
+ENV CONTAINER="True"
+
 RUN curl -o /usr/local/bin/bot https://raw.githubusercontent.com/adekmaulana/caligo/staging/main.py
 RUN chmod +x /usr/local/bin/bot
 

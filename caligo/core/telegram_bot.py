@@ -3,6 +3,7 @@ import signal
 from typing import TYPE_CHECKING, Any, Optional
 
 import pyrogram
+from pyrogram import filters, Client
 from pyrogram.filters import Filter
 from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class TelegramBot(Base):
-    client: pyrogram.Client
+    client: Client
     getConfig: BotConfig
     is_running: bool
     prefix: str
@@ -46,9 +47,9 @@ class TelegramBot(Base):
             mode = string_session
         else:
             mode = ":memory:"
-        self.client = pyrogram.Client(api_id=api_id,
-                                      api_hash=api_hash,
-                                      session_name=mode)
+        self.client = Client(api_id=api_id,
+                             api_hash=api_hash,
+                             session_name=mode)
 
     async def start(self: "Bot") -> None:
         self.log.info("Starting")
@@ -70,8 +71,8 @@ class TelegramBot(Base):
                 self.on_command,
                 filters=(
                     self.command_predicate() &
-                    pyrogram.filters.me &
-                    pyrogram.filters.outgoing
+                    filters.me &
+                    filters.outgoing
                 )
             ), 0)
 
@@ -142,10 +143,14 @@ class TelegramBot(Base):
 
     def update_module_events(self: "Bot") -> None:
         self.update_module_event("message", MessageHandler,
-                                 pyrogram.filters.all, 1)
+                                 filters.all & ~filters.edited &
+                                 ~self.command_predicate(), 4)
+        self.update_module_event("message_edit", MessageHandler,
+                                 filters.edited, 4)
         self.update_module_event("message_delete", DeletedMessagesHandler,
-                                 pyrogram.filters.all, 2)
-        self.update_module_event("user_update", UserStatusHandler, 3)
+                                 filters.all, 4)
+        self.update_module_event("user_update", UserStatusHandler,
+                                 filters.all, 5)
 
     @property
     def events_activated(self: "Bot") -> int:

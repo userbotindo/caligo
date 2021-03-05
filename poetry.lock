@@ -169,6 +169,17 @@ idna = ["idna (>=2.1)"]
 trio = ["trio (>=0.14.0)", "sniffio (>=1.1)"]
 
 [[package]]
+category = "main"
+description = "Emoji for Python"
+name = "emoji"
+optional = false
+python-versions = "*"
+version = "1.2.0"
+
+[package.extras]
+dev = ["pytest", "coverage", "coveralls"]
+
+[[package]]
 category = "dev"
 description = "A platform independent file lock."
 name = "filelock"
@@ -723,7 +734,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "4aae07a6824fbe9a9b1a89cf01af0f30527d5027091f9a532743a4cdc1017855"
+content-hash = "60d11e7e55824458a6012a6084f964e204183f36bd4b453c78e5ebbf47f0a2f5"
 lock-version = "1.1"
 python-versions = "^3.8"
 
@@ -828,6 +839,10 @@ distlib = [
 dnspython = [
     {file = "dnspython-2.1.0-py3-none-any.whl", hash = "sha256:95d12f6ef0317118d2a1a6fc49aac65ffec7eb8087474158f42f26a639135216"},
     {file = "dnspython-2.1.0.zip", hash = "sha256:e4a87f0b573201a0f3727fa18a516b055fd1107e0e5477cded4a2de497df1dd4"},
+]
+emoji = [
+    {file = "emoji-1.2.0-py3-none-any.whl", hash = "sha256:6b19b65da8d6f30551eead1705539cc0eadcd9e33a6ecbc421a29b87f96287eb"},
+    {file = "emoji-1.2.0.tar.gz", hash = "sha256:496f432058567985838c13d67dde84ca081614a8286c0b9cdc7d63dfa89d51a3"},
 ]
 filelock = [
     {file = "filelock-3.0.12-py3-none-any.whl", hash = "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"},

@@ -98,7 +98,7 @@ class SystemModule(module.Module):
 
         try:
             stdout, _, ret = await util.system.run_command(
-                snip, timeout=120
+                *snip.split(), timeout=120
             )
         except FileNotFoundError as E:
             after = util.time.usec()

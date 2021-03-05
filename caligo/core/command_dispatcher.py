@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, MutableMapping
 
 import pyrogram
+from pyrogram.filters import Filter, create
 
 from .. import command, module, util
 from .base import Base
@@ -67,19 +68,33 @@ class CommandDispatcher(Base):
         for cmd in to_unreg:
             self.unregister_command(cmd)
 
+    def command_predicate(self: "Bot") -> Filter:
+        async def func(_, __, message):
+            if message.text is not None and message.text.startswith(self.prefix):
+                parts = message.text.split()
+                parts[0] = parts[0][len(self.prefix):]
+                message.segments = parts
+                return True
+
+            return False
+
+        return create(func)
+
     async def on_command(self: "Bot", client: pyrogram.Client,
                          message: pyrogram.types.Message) -> None:
         cmd = None
 
         try:
             try:
-                cmd = self.commands[message.command[0]]
+                cmd = self.commands[message.segments[0]]
             except KeyError:
                 return
 
             ctx = command.Context(
                 self,
-                msg=message
+                message,
+                message.segments,
+                len(self.prefix) + len(message.segments[0]) + 1,
             )
 
             if hasattr(cmd.module, "creds"):

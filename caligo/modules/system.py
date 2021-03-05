@@ -29,6 +29,11 @@ class SystemModule(module.Module):
 
         self.db = self.bot.get_db("system")
 
+    @command.desc("Get how long this bot has been up for")
+    async def cmd_uptime(self, ctx: command.Context) -> str:
+        delta_us = util.time.usec() - self.bot.start_time_us
+        return f"Uptime: {util.time.format_duration_us(delta_us)}"
+
     @command.desc("Get information about the host system")
     @command.alias("si")
     async def cmd_sysinfo(self, ctx: command.Context) -> str:
@@ -84,22 +89,21 @@ class SystemModule(module.Module):
     @command.usage("[shell snippet]")
     @command.alias("sh")
     async def cmd_shell(self, ctx: command.Context) -> str:
-        if not ctx.cmd:
-            return "Give me code to run"
-        snip = tuple(map(lambda x: (x), ctx.cmd))
-        text = " ".join(ctx.cmd)
+        snip = ctx.input
+        if not snip:
+            return "Give me command to run."
 
         await ctx.respond("Running snippet...")
         before = util.time.usec()
 
         try:
             stdout, _, ret = await util.system.run_command(
-                *snip, timeout=120
+                snip, timeout=120
             )
         except FileNotFoundError as E:
             after = util.time.usec()
             return (
-                f"**In:**\n```{text}```\n\n"
+                f"**In:**\n```{snip}```\n\n"
                 "**Out:**\n"
                 f"⚠️ Error executing command:\n```{util.error.format_exception(E)}```\n\n"
                 f"Time: {util.time.format_duration_us(after - before)}"
@@ -107,7 +111,7 @@ class SystemModule(module.Module):
         except asyncio.TimeoutError:
             after = util.time.usec()
             return (
-                f"**In:**\n```{text}```\n\n"
+                f"**In:**\n```{snip}```\n\n"
                 "**Out:**\n"
                 "🕑 Snippet failed to finish within 2 minutes.\n\n"
                 f"Time: {util.time.format_duration_us(after - before)}"
@@ -124,15 +128,16 @@ class SystemModule(module.Module):
             stdout += "\n"
 
         err = f"⚠️ Return code: {ret}" if ret != 0 else ""
-        return f"**In:**\n```{text}```\n\n**Out:**\n```{stdout}```{err}{el_str}"
+        return f"**In:**\n```{snip}```\n\n**Out:**\n```{stdout}```{err}{el_str}"
 
     @command.desc("Evaluate code")
     @command.usage("[code snippet]")
     @command.alias("ev", "exec")
     async def cmd_eval(self, ctx: command.Context) -> str:
-        if not ctx.cmd:
+        code = ctx.input
+        if not code:
             return "Give me code to evaluate."
-        code = ctx.msg.text.split(" ", 1)[1]
+
         out_buf = io.StringIO()
 
         async def _eval() -> Tuple[str, str]:

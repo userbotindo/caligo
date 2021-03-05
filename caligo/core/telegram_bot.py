@@ -1,6 +1,6 @@
 import asyncio
 import signal
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 import pyrogram
 from pyrogram.filters import Filter
@@ -54,24 +54,31 @@ class TelegramBot(Base):
         self.log.info("Starting")
         await self.init_client()
 
-        # Load modules
-        self.load_all_modules()
-        await self.dispatch_event("load")
-        self.loaded = True
+        # Load prefix
+        db = self.get_db("core")
+        try:
+            self.prefix = (await db.find_one({}))["prefix"]
+        except TypeError:
+            lock = asyncio.Lock()
+            self.prefix = "."  # Default is '.'-dot you can change later
+
+            async with lock:
+                await db.insert_one({"prefix": self.prefix})
 
         self.client.add_handler(
             MessageHandler(
                 self.on_command,
                 filters=(
-                    pyrogram.filters.command(
-                        commands=list(self.commands.keys()),
-                        prefixes=".",  # TO-DO
-                        case_sensitive=True
-                    ) &
+                    self.command_predicate() &
                     pyrogram.filters.me &
                     pyrogram.filters.outgoing
                 )
             ), 0)
+
+        # Load modules
+        self.load_all_modules()
+        await self.dispatch_event("load")
+        self.loaded = True
 
         async with silent():
             await self.client.start()
@@ -123,9 +130,6 @@ class TelegramBot(Base):
             if name not in self._mevent_handlers:
 
                 async def update_handler(client, event) -> None:
-                    if (type(event) is not pyrogram.types.list.List and
-                            event.command and event.from_user.id == self.uid):
-                        return
                     await self.dispatch_event(name, event)
 
                 handler_info = self.client.add_handler(
@@ -142,6 +146,10 @@ class TelegramBot(Base):
         self.update_module_event("message_delete", DeletedMessagesHandler,
                                  pyrogram.filters.all, 2)
         self.update_module_event("user_update", UserStatusHandler, 3)
+
+    @property
+    def events_activated(self: "Bot") -> int:
+        return len(self._mevent_handlers)
 
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"
@@ -176,7 +184,7 @@ class TelegramBot(Base):
         msg: pyrogram.types.Message,
         text: Optional[str] = None,
         *,
-        input_arg: Optional[Union[str, None]] = None,
+        input_arg: Optional[str] = None,
         mode: Optional[str] = None,
         redact: Optional[bool] = True,
         response: Optional[pyrogram.types.Message] = None,

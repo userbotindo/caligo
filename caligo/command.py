@@ -72,18 +72,36 @@ class Context:
     cmd: List[str]
     input: Optional[Union[str, None]]
 
-    def __init__(self, bot: "Bot", msg: pyrogram.types.Message) -> None:
+    def __init__(
+        self,
+        bot: "Bot",
+        msg: pyrogram.types.Message,
+        segments: Sequence[str],
+        cmd_len: int,
+    ) -> None:
         self.bot = bot
         self.msg = msg
+        self.segments = segments
+        self.cmd_len = cmd_len
+        self.invoker = segments[0]
 
         self.response = None
         self.response_mode = None
 
-        self.cmd = self.msg.command[1:]
-        try:
-            self.input = self.msg.text.split(' ', 1)[1]
-        except IndexError:
-            self.input = None
+        self.input = self.msg.text[self.cmd_len:]
+
+    def __getattr__(self, name: str) -> Any:
+        if name == "args":
+            return self._get_args()
+
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+
+    # Argument segments
+    def _get_args(self) -> Sequence[str]:
+        self.args = self.segments[1:]
+        return self.args
 
     async def respond(
         self,
@@ -108,3 +126,27 @@ class Context:
         )
         self.response_mode = mode
         return self.response
+
+    async def respond_multi(
+        self,
+        *args: Any,
+        mode: Optional[str] = None,
+        msg: Optional[pyrogram.types.Message] = None,
+        reuse_response: bool = False,
+        **kwargs: Any,
+    ) -> pyrogram.types.Message:
+        # First response is the same
+        if self.response:
+            # After that, force a reply to the previous response
+            if mode is None:
+                mode = "reply"
+
+            if msg is None:
+                msg = self.response
+
+            if reuse_response is None:
+                reuse_response = False
+
+        return await self.respond(
+            *args, mode=mode, msg=msg, reuse_response=reuse_response, **kwargs
+        )

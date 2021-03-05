@@ -8,7 +8,9 @@ from . import (
     silent,
     system,
     tg,
-    time
+    text,
+    time,
+    version
 )
 
 BotConfig = config.BotConfig

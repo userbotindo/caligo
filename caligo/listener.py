@@ -48,7 +48,7 @@ class Client:
 
     @util.mongkey.patchable
     async def listen(self, chat_id, filters=None, timeout=None):
-        if type(chat_id) != int:
+        if not isinstance(chat_id, int):
             chat = await self.get_chat(chat_id)
             chat_id = chat.id
 
@@ -63,18 +63,21 @@ class Client:
 
     @util.mongkey.patchable
     async def ask(
-        self,
-        chat_id,
-        text,
+        self, chat_id, text,
+        *args,
         filters=None,
         timeout=None,
-        *args,
         **kwargs
-    ):  # skipcq: PYL-W1113
+    ):
         request = await self.send_message(chat_id, text, *args, **kwargs)
-        response = await self.listen(chat_id, filters, timeout)
-        response.request = request
-        return response
+        try:
+            response = await self.listen(chat_id, filters, timeout)
+        except asyncio.exceptions.TimeoutError:
+            request.response = None
+            return request
+
+        request.response = response
+        return request
 
     @util.mongkey.patchable
     def clear_listener(self, chat_id, future):

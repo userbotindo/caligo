@@ -10,7 +10,7 @@ from .. import command, module
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
-    aria: aioaria2.Aria2WebsocketTrigger
+    client: aioaria2.Aria2WebsocketTrigger
     server: aioaria2.AsyncAria2Server
 
     cache: Dict[str, str]
@@ -64,7 +64,7 @@ class Aria2(module.Module):
     async def on_stop(self) -> None:
         await self.client.close()
 
-    def update_event(self, name: str) -> None:
+    def update_events(self) -> None:
 
         async def func(
             trigger: aioaria2.Aria2WebsocketTrigger,  # skipcq: PYL-W0613
@@ -75,15 +75,8 @@ class Aria2(module.Module):
             update = getattr(self, method)
             await update(data.get("params")[0]["gid"])
 
-        self.client.register(func, f"aria2.onDownload{name}")
-
-    def update_events(self) -> None:
-        # skipcq: PYL-W0106
-        self.update_event("Start"),
-        self.update_event("Pause"),
-        self.update_event("Stop"),
-        self.update_event("Complete"),
-        self.update_event("Error"),
+        for handler_name in ["Start", "Pause", "Stop", "Complete", "Error"]:
+            self.client.register(func, f"aria2.onDownload{handler_name}")
 
     async def get_file(self, gid: str) -> Dict[str, Any]:
         res = await self.client.tellStatus(

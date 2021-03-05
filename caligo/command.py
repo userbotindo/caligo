@@ -68,9 +68,15 @@ class Command:
 class Context:
     bot: "Bot"
     msg: pyrogram.types.Message
+    segments: Sequence[str]
+    cmd_len: int
+    invoker: str
 
-    cmd: List[str]
+    response: Optional[pyrogram.types.Message]
+    response_mode: Optional[str]
+
     input: Optional[Union[str, None]]
+    args: Sequence[str]
 
     def __init__(
         self,

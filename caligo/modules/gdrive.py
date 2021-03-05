@@ -59,23 +59,23 @@ class GoogleDrive(module.Module):
         )
 
         await self.bot.respond(message, "Check your **Saved Message.**")
-        try:
-            res = await self.bot.client.ask(
-                chat_id="me",
-                text=f"Please visit the link:\n{auth_url}\n"
-                "And reply the token here.\n**You have 60 seconds**.",
-                filters=filters.me,
-                timeout=60
-            )
-        except asyncio.exceptions.TimeoutError:
-            await res.request.delete()
+        request = await self.bot.client.ask(
+            chat_id="me",
+            text=f"Please visit the link:\n{auth_url}\n"
+            "And reply the token here.\n**You have 60 seconds**.",
+            filters=filters.me,
+            timeout=60
+        )
+
+        if request.response is None:
+            await request.delete()
             return "⚠️ Timeout no token receive"
 
         await self.bot.respond(message, "Token received...")
-        token = res.text
+        token = request.response.text
 
-        await res.request.delete()
-        await res.delete()
+        await request.response.delete()
+        await request.delete()
 
         try:
             await util.run_sync(flow.fetch_token, code=token)

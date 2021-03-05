@@ -13,9 +13,11 @@ class Aria2(module.Module):
     aria: aioaria2.Aria2WebsocketTrigger
     server: aioaria2.AsyncAria2Server
 
+    cache: Dict[str, str]
     downloads: Dict[str, Dict[str, Any]]
 
     async def on_load(self) -> None:
+        self.cache = {}
         self.downloads = {}
 
         downloadPath = os.environ.get("HOME") + "/downloads"
@@ -57,12 +59,12 @@ class Aria2(module.Module):
         self.client = await aioaria2.Aria2WebsocketTrigger.new(
             url="http://localhost:8080/jsonrpc"
         )
-        await self.update_events()
+        self.update_events()
 
     async def on_stop(self) -> None:
         await self.client.close()
 
-    async def update_event(self, name: str) -> None:
+    def update_event(self, name: str) -> None:
 
         async def func(
             trigger: aioaria2.Aria2WebsocketTrigger,
@@ -75,18 +77,22 @@ class Aria2(module.Module):
 
         self.client.register(func, f"aria2.onDownload{name}")
 
-    async def update_events(self) -> None:
-        await asyncio.gather(
-            self.update_event("Start"),
-            self.update_event("Pause"),
-            self.update_event("Stop"),
-            self.update_event("Complete"),
-            self.update_event("Error"),
-        )
+    def update_events(self) -> None:
+        self.update_event("Start"),
+        self.update_event("Pause"),
+        self.update_event("Stop"),
+        self.update_event("Complete"),
+        self.update_event("Error"),
 
-    async def changeGID(self, oldGid: str, newGid: str) -> None:
-        self.log.info(f"Changing GID: {oldGid} -> {newGid}")
-        self.downloads[newGid] = self.downloads.pop(oldGid)
+    async def get_file(self, gid: str) -> Dict[str, Any]:
+        res = await self.client.tellStatus(
+            gid,
+            [
+                "status", "totalLength", "completedLength", "downloadSpeed",
+                "files", "numSeeders", "connections"
+            ]
+        )
+        return res
 
     async def isDownloadMetaData(self, gid: str) -> Tuple[bool, str]:
         res = await self.client.tellStatus(gid, ["followedBy"])
@@ -96,13 +102,9 @@ class Aria2(module.Module):
         return False, None
 
     async def onDownloadStart(self, gid: str) -> None:
-        res = await self.client.tellStatus(
-            gid,
-            [
-                "status", "totalLength", "completedLength", "downloadSpeed",
-                "files", "numSeeders", "connections"
-            ]
-        )
+        self.log.info(f"Starting download: gid['{gid}']")
+
+        res = await self.get_file(gid)
         self.downloads[gid] = res
 
     async def onDownloadPause(self, gid: str) -> None:
@@ -114,8 +116,16 @@ class Aria2(module.Module):
     async def onDownloadComplete(self, gid: str) -> None:
         isMetaData, newGid = await self.isDownloadMetaData(gid)
 
-        if newGid is not None and isMetaData:
-            await self.changeGID(gid, newGid)
+        if newGid is not None:
+            self.downloads.pop(gid)
+            self.cache.update({gid: [newGid, {"isMetaData": isMetaData}]})
+
+            res = await self.get_file(newGid)
+            self.downloads[newGid] = res
+            return
+
+        self.cache.update({gid: [None, {"isMetaData": isMetaData}]})
+        self.log.info(f"GID: {gid} download completed")
 
     async def onDownloadError(self, gid: str) -> None:
         res = await self.client.tellStatus(gid, ["errorMessage"])
@@ -123,4 +133,20 @@ class Aria2(module.Module):
 
     async def cmd_test(self, ctx: command.Context) -> None:
         gid = await self.client.addUri([ctx.input])
-        self.log.info(gid)
+
+        waiting = True
+        while waiting:
+            if self.cache.get(gid):
+                waiting = False
+
+            await asyncio.sleep(1)
+
+        newGid = self.cache.get(gid)
+        if newGid is not None:
+            self.log.info(f"new GID: {gid}")
+            # update progress
+            return  # when metadata download is complete
+
+        # handle if file is not metadata
+        # update progress
+        return  # when download is complete

@@ -64,6 +64,9 @@ COPY --from=go-build /go/bin/corrupter /usr/local/bin
 ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=python-build /opt/venv /opt/venv
 
+RUN curl -o /usr/local/bin/bot https://raw.githubusercontent.com/adekmaulana/caligo/staging/main.py
+RUN chmod +x /usr/local/bin/bot
+
 # Set runtime settings
 USER caligo
 WORKDIR /home/caligo

@@ -62,7 +62,15 @@ class Client:
         return await asyncio.wait_for(future, timeout)
 
     @util.mongkey.patchable
-    async def ask(self, chat_id, text, filters=None, timeout=None, *args, **kwargs):
+    async def ask(
+        self,
+        chat_id,
+        text,
+        filters=None,
+        timeout=None,
+        *args,
+        **kwargs
+    ):  # skipcq: PYL-W1113
         request = await self.send_message(chat_id, text, *args, **kwargs)
         response = await self.listen(chat_id, filters, timeout)
         response.request = request

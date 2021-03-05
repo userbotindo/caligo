@@ -11,4 +11,4 @@ if __name__ == '__main__':
     if not os.listdir(HOME):
         Repo.clone_from(f"https://github.com/{REPO}.git", HOME)
 
-    sys.exit(os.execv(sys.executable, (sys.executable, "-m", "caligo")))
+    sys.exit(os.execv(sys.executable, (sys.executable, "-m", "caligo")))  # skipcq: BAN-B606

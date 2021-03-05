@@ -67,9 +67,9 @@ class Aria2(module.Module):
     def update_event(self, name: str) -> None:
 
         async def func(
-            trigger: aioaria2.Aria2WebsocketTrigger,
+            trigger: aioaria2.Aria2WebsocketTrigger,  # skipcq: PYL-W0613
             data: Union[Dict[str, str], Any]
-        ):  # skipcq: PYL-W0613
+        ):
             method = data.get("method").strip("aria2.")
 
             update = getattr(self, method)
@@ -78,6 +78,7 @@ class Aria2(module.Module):
         self.client.register(func, f"aria2.onDownload{name}")
 
     def update_events(self) -> None:
+        # skipcq: PYL-W0106
         self.update_event("Start"),
         self.update_event("Pause"),
         self.update_event("Stop"),
@@ -108,10 +109,10 @@ class Aria2(module.Module):
         self.downloads[gid] = res
 
     async def onDownloadPause(self, gid: str) -> None:
-        self.log.info("Paused")
+        self.log.info(f"GID: {gid} paused")
 
     async def onDownloadStop(self, gid: str) -> None:
-        self.log.info("Stopped")
+        self.log.info(f"GID: {gid} stopped")
 
     async def onDownloadComplete(self, gid: str) -> None:
         isMetaData, newGid = await self.isDownloadMetaData(gid)

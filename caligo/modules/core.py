@@ -3,11 +3,16 @@ import platform
 from collections import defaultdict
 from typing import ClassVar, MutableMapping
 
+from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from .. import __version__, command, module, util
 
 
 class CoreModule(module.Module):
     name: ClassVar[str] = "Core"
+
+    db: AsyncIOMotorDatabase
+    lock: asyncio.Lock
 
     async def on_load(self):
         self.db = self.bot.get_db("core")

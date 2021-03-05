@@ -32,7 +32,7 @@ class SystemModule(module.Module):
     @command.desc("Get how long this bot has been up for")
     async def cmd_uptime(self, ctx: command.Context) -> str:
         delta_us = util.time.usec() - self.bot.start_time_us
-        return f"Uptime: {util.time.format_duration_us(delta_us)}"
+        await ctx.respond(f"Uptime: {util.time.format_duration_us(delta_us)}")
 
     @command.desc("Get information about the host system")
     @command.alias("si")

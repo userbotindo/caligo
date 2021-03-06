@@ -1,10 +1,9 @@
-import asyncio
 import io
 import os
 import uuid
-from datetime import datetime
 from typing import Any, Optional, Tuple, Type, Union
 
+import aiofile
 import bprint
 import pyrogram
 
@@ -63,28 +62,13 @@ async def download_file(
     dest: Union[pyrogram.types.Document, os.PathLike, Type[bytes]] = bytes,
     file_type: str = "file",
 ) -> Any:
-    """Downloads the file embedded in the given message with live progress updates."""
+    """Downloads the file embedded in the given message."""
+    path = await dest.download()
+    async with aiofile.async_open(path, "r") as file:
+        text = await file.read()
 
-    last_update_time = None
-
-    def prog_func(current_bytes: int, total_bytes: int) -> None:
-        nonlocal last_update_time
-
-        if not ctx:
-            return
-
-        # Only edit message once every 5 seconds to avoid ratelimits
-        percent = int((current_bytes / total_bytes) * 100)
-        now = datetime.now()
-        if last_update_time is None or (now - last_update_time).total_seconds() >= 5:
-            loop = asyncio.get_event_loop()
-            loop.create_task(
-                ctx.respond(f"Downloading {file_type}... {percent}% complete")
-            )
-
-            last_update_time = now
-
-    return await ctx.msg.download(file=dest, progress_callback=prog_func)
+    os.remove(path)
+    return text
 
 
 def truncate(text: str) -> str:
@@ -126,8 +110,7 @@ async def get_text_input(
         reply_msg = ctx.msg.reply_to_message
 
         if reply_msg.document:
-            bin_data = await download_file(ctx, reply_msg)
-            text = bin_data.decode(errors="replace")
+            text = await download_file(ctx, reply_msg)
         elif reply_msg.text:
             text = filter_code_block(reply_msg.text)
         else:

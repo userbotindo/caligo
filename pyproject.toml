@@ -63,6 +63,7 @@ google-auth-oauthlib = "^0.4.2"
 
 # Util
 emoji = "^1.2.0"
+aiofile = "^3.5.0"
 
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}

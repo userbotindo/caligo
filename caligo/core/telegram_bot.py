@@ -242,7 +242,7 @@ class TelegramBot(Base):
 
             # Repost since we haven't done so yet
             response = await msg.reply(text,
-                                       reply_to=msg.reply_to_msg_id,
+                                       reply_to_message_id=msg.message_id,
                                        **kwargs)
             await msg.delete()
             return response

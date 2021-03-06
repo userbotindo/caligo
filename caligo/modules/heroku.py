@@ -74,7 +74,7 @@ class HerokuManager(module.Module):
 
     @command.desc("Check your Free Dyno hours quota you've used this month.")
     @command.alias("dyno")
-    async def cmd_dynousage(self, ctx: command.Command) -> Optional[str]:
+    async def cmd_dynousage(self, ctx: command.Context) -> Optional[str]:
         await ctx.respond("Pulling information...")
 
         ret = await self.get_account_quota()

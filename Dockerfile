@@ -46,13 +46,18 @@ RUN apk add --no-cache \
         curl \
         git \
         libffi \
+        musl \
+        gcc \
+        g++ \
+        make \
         zlib \
         tiff \
         freetype \
         libpng \
         libjpeg-turbo \
         lcms2 \
-        libwebp
+        libwebp \
+        openssl
 
 # Create bot user
 RUN adduser -D caligo

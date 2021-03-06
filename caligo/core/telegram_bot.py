@@ -58,13 +58,19 @@ class TelegramBot(Base):
         # Load prefix
         db = self.get_db("core")
         try:
-            self.prefix = (await db.find_one({}))["prefix"]
+            self.prefix = (await db.find_one({"_id": "Core"}))["prefix"]
         except TypeError:
             lock = asyncio.Lock()
             self.prefix = "."  # Default is '.'-dot you can change later
 
             async with lock:
-                await db.insert_one({"prefix": self.prefix})
+                await db.find_one_and_update(
+                    {"_id": "Core"},
+                    {
+                        "$set": {"prefix": self.prefix}
+                    },
+                    upsert=True
+                )
 
         self.client.add_handler(
             MessageHandler(

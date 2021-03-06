@@ -99,7 +99,12 @@ Expected parameters: {args_desc}"""
 
         self.bot.prefix = new_prefix
         async with self.lock:
-            await self.db.find_one_and_replace({}, {"prefix": new_prefix})
+            await self.db.find_one_and_update(
+                {"_id": self.name},
+                {
+                    "$set": {"prefix": new_prefix}
+                }
+            )
 
         return f"Prefix set to `{self.bot.prefix}`."
 

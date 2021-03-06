@@ -32,7 +32,7 @@ class GoogleDrive(module.Module):
         self.db = self.bot.get_db("gdrive")
 
     async def on_started(self) -> None:
-        data = await self.db.find_one({"_id": self.bot.uid})
+        data = await self.db.find_one({"_id": self.name})
         if not data:
             return
 
@@ -90,8 +90,8 @@ class GoogleDrive(module.Module):
         credential = await util.run_sync(pickle.dumps, self.creds)
 
         async with self.lock:
-            await self.db.update_one(
-                {"_id": self.bot.uid},
+            await self.db.find_one_and_update(
+                {"_id": self.name},
                 {
                     "$set": {"creds": credential}
                 },
@@ -108,8 +108,8 @@ class GoogleDrive(module.Module):
 
                 credential = await util.run_sync(pickle.dumps, self.creds)
                 async with self.lock:
-                    await self.db.update_one(
-                        {"_id": self.bot.uid},
+                    await self.db.find_one_and_update(
+                        {"_id": self.name},
                         {
                             "$set": {"creds": credential}
                         }

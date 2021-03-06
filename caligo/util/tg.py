@@ -58,9 +58,7 @@ def pretty_print_entity(entity) -> str:
 
 
 async def download_file(
-    ctx: command.Context,
-    dest: Union[pyrogram.types.Document, os.PathLike, Type[bytes]] = bytes,
-    file_type: str = "file",
+    dest: Union[pyrogram.types.Document, os.PathLike, Type[bytes]] = bytes
 ) -> Any:
     """Downloads the file embedded in the given message."""
     path = await dest.download()
@@ -110,7 +108,7 @@ async def get_text_input(
         reply_msg = ctx.msg.reply_to_message
 
         if reply_msg.document:
-            text = await download_file(ctx, reply_msg)
+            text = await download_file(reply_msg)
         elif reply_msg.text:
             text = filter_code_block(reply_msg.text)
         else:

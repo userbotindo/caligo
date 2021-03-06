@@ -48,7 +48,7 @@ class GoogleDrive(module.Module):
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
     async def cmd_gdcheck(self, ctx: command.Context) -> None:
-        return "You are all set."
+        await ctx.respond("You are all set.")
 
     async def getAccessToken(self, message: pyrogram.types.Message) -> str:
         flow = InstalledAppFlow.from_client_config(

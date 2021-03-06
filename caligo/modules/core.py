@@ -95,7 +95,7 @@ Expected parameters: {args_desc}"""
         new_prefix = ctx.input
 
         if not new_prefix:
-            return f"The prefix is `{self.bot.prefix}`."
+            return f"The prefix is `{self.bot.prefix}`"
 
         self.bot.prefix = new_prefix
         async with self.lock:
@@ -106,10 +106,10 @@ Expected parameters: {args_desc}"""
                 }
             )
 
-        return f"Prefix set to `{self.bot.prefix}`."
+        return f"Prefix set to `{self.bot.prefix}`"
 
     @command.desc("Get information about this bot instance")
-    @command.alias("botinfo", "binfo", "bi", "i")
+    @command.alias("botinfo")
     async def cmd_info(self, ctx: command.Context) -> None:
         # Get tagged version and optionally the Git commit
         commit = await util.run_sync(util.version.get_commit)

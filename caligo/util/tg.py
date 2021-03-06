@@ -122,8 +122,8 @@ async def get_text_input(
         text = bin_data.decode(errors="replace")
     elif input_arg:
         text = filter_code_block(input_arg)
-    elif ctx.msg.is_reply:
-        reply_msg = await ctx.msg.get_reply_message()
+    elif ctx.msg.reply_to_message:
+        reply_msg = ctx.msg.reply_to_message
 
         if reply_msg.document:
             bin_data = await download_file(ctx, reply_msg)

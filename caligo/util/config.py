@@ -38,3 +38,7 @@ class BotConfig:
 
         # Checker
         self.secret = bool(os.environ.get("CONTAINER") == "True")
+
+        # Heroku
+        self.heroku_app_name = os.environ.get("HEROKU_APP")
+        self.heroku_api_key = os.environ.get("HEROKU_API_KEY")

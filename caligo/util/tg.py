@@ -100,8 +100,7 @@ async def get_text_input(
     """Returns input text from various sources in the given command context."""
 
     if ctx.msg.document:
-        bin_data = await download_file(ctx, ctx.msg)
-        text = bin_data.decode(errors="replace")
+        text = await download_file(ctx.msg)
     elif input_arg:
         text = filter_code_block(input_arg)
     elif ctx.msg.reply_to_message:

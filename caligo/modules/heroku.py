@@ -9,6 +9,9 @@ from .. import command, module, util
 class HerokuManager(module.Module):
     name: ClassVar[str] = "Heroku"
 
+    api_key: str
+    app_name: str
+
     apps: Dict[str, str]
     account: Dict[str, Any]
     http: aiohttp.ClientSession

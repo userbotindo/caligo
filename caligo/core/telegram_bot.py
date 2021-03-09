@@ -151,15 +151,15 @@ class TelegramBot(Base):
         self.update_module_event("message", MessageHandler,
                                  filters.all & ~filters.edited &
                                  ~self.command_predicate() &
-                                 ~self.chat_action(), 4)
+                                 ~self.chat_action(), 3)
         self.update_module_event("message_edit", MessageHandler,
-                                 filters.edited, 4)
+                                 filters.edited, 3)
         self.update_module_event("message_delete", DeletedMessagesHandler,
-                                 filters.all, 4)
+                                 filters.all, 3)
         self.update_module_event("chat_action", MessageHandler,
-                                 self.chat_action(), 5)
+                                 self.chat_action(), 3)
         self.update_module_event("user_update", UserStatusHandler,
-                                 filters.all, 6)
+                                 filters.all, 5)
 
     @property
     def events_activated(self: "Bot") -> int:

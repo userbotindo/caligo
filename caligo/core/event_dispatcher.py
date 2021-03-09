@@ -2,8 +2,6 @@ import asyncio
 import bisect
 from typing import TYPE_CHECKING, Any, MutableMapping, MutableSequence
 
-from pyrogram.filters import Filter, create
-
 from .. import module, util
 from ..listener import Listener, ListenerFunc
 from .base import Base
@@ -68,15 +66,6 @@ class EventDispatcher(Base):
 
         for listener in to_unreg:
             self.unregister_listener(listener)
-
-    def chat_action(self: "Bot") -> Filter:
-        async def func(_, __, chat):
-            if chat.new_chat_members or chat.left_chat_member:
-                return True
-
-            return False
-
-        return create(func)
 
     async def dispatch_event(self: "Bot",
                              event: str,

@@ -68,6 +68,15 @@ class CommandDispatcher(Base):
         for cmd in to_unreg:
             self.unregister_command(cmd)
 
+    def chat_action(self: "Bot") -> Filter:
+        async def func(_, __, chat):
+            if chat.new_chat_members or chat.left_chat_member:
+                return True
+
+            return False
+
+        return create(func)
+
     def command_predicate(self: "Bot") -> Filter:
         async def func(_, __, message):
             if message.text is not None and message.text.startswith(self.prefix):

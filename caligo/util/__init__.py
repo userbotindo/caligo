@@ -3,6 +3,7 @@ from . import (
     config,
     error,
     git,
+    image,
     misc,
     silent,
     system,

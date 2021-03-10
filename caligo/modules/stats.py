@@ -146,6 +146,7 @@ class StatsModule(module.Module):
         recv_stickers: int = await self.get("received_stickers") or 0
         recv_edits: int = await self.get("received_edits") or 0
         processed: int = await self.get("processed") or 0
+        stickers: int = await self.get("stickers_created") or 0
 
         return util.text.join_map(
             {
@@ -154,6 +155,7 @@ class StatsModule(module.Module):
                 "Messages sent": f"{sent} ({_calc_ph(sent, uptime)}/h) • {_calc_pct(sent_stickers, sent)}% are stickers • {_calc_pct(sent_edits, sent)}% were edited",
                 "Total messages sent": f"{_calc_pct(sent, sent + recv)}% of all accounted messages",
                 "Commands processed": f"{processed} ({_calc_ph(processed, uptime)}/h) • {_calc_pct(processed, sent)}% of sent messages",
+                "Stickers created": f"{stickers} ({_calc_pd(stickers, uptime)}/day)",
             },
             heading="Stats since last reset",
         )

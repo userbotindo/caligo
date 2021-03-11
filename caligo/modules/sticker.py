@@ -202,16 +202,16 @@ class StickerModule(module.Module):
             ret = await self.cmd_createpack(ctx)
 
             return ret
-        elif pack_name:  # if pack_name in db exists but haven't create it
-            try:
-                await self.bot.client.send(GetStickerSet(
-                    stickerset=InputStickerSetShortName(short_name=pack_name)
-                    )
-                )
-            except StickersetInvalid:
-                ret = await self.cmd_createpack(ctx)
 
-                return ret
+        try:
+            await self.bot.client.send(GetStickerSet(
+                stickerset=InputStickerSetShortName(short_name=pack_name)
+                )
+            )
+        except StickersetInvalid:
+            ret = await self.cmd_createpack(ctx)
+
+            return ret
 
         reply_msg = ctx.msg.reply_to_message
 

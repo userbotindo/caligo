@@ -106,7 +106,7 @@ class CommandDispatcher(Base):
                 len(self.prefix) + len(message.segments[0]) + 1,
             )
 
-            if hasattr(cmd.module, "creds"):
+            if hasattr(cmd.module, "creds") and not cmd.module.disabled:
                 ret = await cmd.module.authorize(message)
 
                 if ret is False:

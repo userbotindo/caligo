@@ -24,21 +24,17 @@ class GoogleDrive(module.Module):
     service: Resource
 
     async def on_load(self) -> None:
+        self.db = self.bot.get_db("gdrive")
+        self.creds = None
+        data = await self.db.find_one({"_id": self.name})
+
         self.configs = self.bot.getConfig.gdrive_secret
-        if self.configs is None:
+        if self.configs is None and data is None:
             self.log.warning("GoogleDrive module secret not satisfy.")
             self.bot.unload_module(self)
             return
 
-        self.creds = None
         self.lock = asyncio.Lock()
-
-        self.db = self.bot.get_db("gdrive")
-
-    async def on_started(self) -> None:
-        data = await self.db.find_one({"_id": self.name})
-        if not data:
-            return
 
         self.creds = await util.run_sync(pickle.loads, data.get("creds"))
         # service will be overwrite if credentials is expired

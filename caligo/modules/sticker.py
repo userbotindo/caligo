@@ -1,6 +1,7 @@
 import asyncio
 import io
 from datetime import datetime
+from pathlib import Path
 from typing import ClassVar, Optional, Set, Tuple, Union
 
 import pyrogram
@@ -332,5 +333,8 @@ class StickerModule(module.Module):
                 f"⚠️ `corrupter` failed with return code {ret}. Error: ```{stderr}```"
             )
 
-        await ctx.respond(file=stdout, mode="repost")
+        with io.BytesIO(stdout) as file:
+            file.name = "glitch.png"
+            await ctx.respond(document=file, mode="repost")
+
         return None

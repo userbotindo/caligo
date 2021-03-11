@@ -283,9 +283,13 @@ class TelegramBot(Base):
                 return await response.edit(text=text, **kwargs)
 
             # Repost since we haven't done so yet
-            response = await msg.reply(text,
-                                       reply_to_message_id=msg.message_id,
-                                       **kwargs)
+            if kwargs.get("document"):
+                del kwargs["disable_web_page_preview"]
+                response = await msg.reply_document(**kwargs)
+            else:
+                response = await msg.reply(text,
+                                           reply_to_message_id=msg.message_id,
+                                           **kwargs)
             await msg.delete()
             return response
 

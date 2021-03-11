@@ -2,7 +2,6 @@ import asyncio
 import logging
 
 import aiorun
-import uvloop
 
 from .core import Bot
 
@@ -15,8 +14,13 @@ def main() -> None:
 
     log.info("Initializing bot")
 
-    uvloop.install()
-    log.info("Using uvloop event loop")
+    try:
+        import uvloop
+    except ImportError:
+        pass
+    else:
+        uvloop.install()
+        log.info("Using uvloop event loop")
 
     loop = asyncio.new_event_loop()
     aiorun.run(Bot.create_and_run(loop=loop), loop=loop)

@@ -10,7 +10,6 @@ from googleapiclient.discovery import Resource
 from google.oauth2.credentials import Credentials
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
-from pyrogram import filters
 
 from .. import command, module, util
 
@@ -60,23 +59,23 @@ class GoogleDrive(module.Module):
         )
 
         await self.bot.respond(message, "Check your **Saved Message.**")
-        request = await self.bot.client.ask(
-            chat_id="me",
-            text=f"Please visit the link:\n{auth_url}\n"
-            "And reply the token here.\n**You have 60 seconds**.",
-            filters=filters.me,
-            timeout=60
-        )
+        async with self.bot.conversation("me", timeout=60) as conv:
+            request = await conv.send_message(
+                f"Please visit the link:\n{auth_url}\n"
+                "And reply the token here.\n**You have 60 seconds**."
+            )
 
-        if request.response is None:
-            await request.delete()
-            return "⚠️ Timeout no token receive"
+            try:
+                response = await conv.get_response(mark_read=True)
+            except asyncio.TimeoutError:
+                await request.delete()
+                return "⚠️ Timeout no token receive"
 
         await self.bot.respond(message, "Token received...")
-        token = request.response.text
+        token = response.text
 
-        await request.response.delete()
         await request.delete()
+        await response.delete()
 
         try:
             await util.run_sync(flow.fetch_token, code=token)

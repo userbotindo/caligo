@@ -98,9 +98,6 @@ class StatsModule(module.Module):
             await self.inc("start_time_usec", time_us)
 
     async def on_message(self, msg: pyrogram.types.Message) -> None:
-        if msg.new_chat_members or msg.left_chat_member:
-            return
-
         stat = "sent" if msg.outgoing else "received"
         await self.bot.log_stat(stat)
 

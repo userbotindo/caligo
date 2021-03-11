@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Any, ClassVar, Dict, Union
 
 import aioaria2
@@ -16,9 +16,8 @@ class Aria2WebSocket:
 
     @classmethod
     async def init(cls, mod: "Aria2"):
-        downloadPath = os.environ.get("HOME") + "/downloads"
-        if not os.path.exists(downloadPath):
-            os.makedirs(downloadPath)
+        path = Path.home() / "downloads"
+        path.mkdir(parents=True, exist_ok=True)
 
         link = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
         async with mod.bot.http.get(link) as resp:
@@ -27,7 +26,7 @@ class Aria2WebSocket:
 
         cmd = [
             "aria2c",
-            f"--dir={downloadPath}",
+            f"--dir={str(path)}",
             "--enable-rpc",
             "--rpc-listen-all=false",
             "--rpc-listen-port=8080",

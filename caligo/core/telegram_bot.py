@@ -27,7 +27,7 @@ class TelegramBot(Base):
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
         self.loaded = False
-        self.getConfig = BotConfig(self.log)
+        self.getConfig = BotConfig()
 
         self._mevent_handlers = {}
         self.conv = {}

@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from dataclasses import dataclass
 
@@ -12,7 +11,7 @@ class BotConfig:
     Bot configuration
     """
 
-    def __init__(self, log: logging.Logger) -> "BotConfig":
+    def __init__(self) -> "BotConfig":
         if os.path.isfile("config.env"):
             load_dotenv("config.env")
 

@@ -30,10 +30,8 @@ class BotConfig:
             self.gdrive_secret = json.loads(os.environ.get("G_DRIVE_SECRET"))
         except TypeError:
             self.gdrive_secret = None
-            log.warning("Google Drive client secret is empty.")
         except json.decoder.JSONDecodeError:
             self.gdrive_secret = None
-            log.warning("Google Drive client secret is invalid.")
         self.gdrive_folder_id = os.environ.get("G_DRIVE_FOLDER_ID")
 
         # Checker

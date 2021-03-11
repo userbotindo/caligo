@@ -25,6 +25,11 @@ class GoogleDrive(module.Module):
 
     async def on_load(self) -> None:
         self.configs = self.bot.getConfig.gdrive_secret
+        if self.configs is None:
+            self.log.warning("GoogleDrive module secret not satisfy.")
+            self.bot.unload_module(self)
+            return
+
         self.creds = None
         self.lock = asyncio.Lock()
 

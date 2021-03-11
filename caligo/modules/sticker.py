@@ -270,6 +270,17 @@ class StickerModule(module.Module):
                 upsert=True
             )
 
+        try:
+            await self.bot.client.send(GetStickerSet(
+                stickerset=InputStickerSetShortName(short_name=pack_name)
+                )
+            )
+        except StickersetInvalid:
+            pass
+        else:
+            await self.on_load()
+            return "__Pack with that name already exists, use 'kang' instead.__"
+
         await ctx.respond("Creating new pack...")
 
         sticker_file = await reply_msg.download()
@@ -286,8 +297,8 @@ class StickerModule(module.Module):
         if status:
             await self.bot.log_stat("stickers_created")
 
-            # Update the database if this is the first time user created pack
-            self.kang_db = (await self.db.find_one({"_id": self.name})).get("pack_name")
+            # Update the database
+            await self.on_load()
             return f"[Pack Created]({result})."
 
         return result

@@ -281,8 +281,8 @@ class StickerModule(module.Module):
     @command.desc("Glitch an image")
     @command.usage("[block offset strength?]", optional=True)
     async def cmd_glitch(self, ctx: command.Context) -> Optional[str]:
-        if not (ctx.msg.reply_to_message or ctx.msg.photo):
-            return "__Reply to an image to glitch it.__"
+        if not ctx.msg.reply_to_message:
+            return "__Reply to an image or sticker to glitch it.__"
 
         offset = 8
         if ctx.input:
@@ -291,9 +291,9 @@ class StickerModule(module.Module):
             except ValueError:
                 return "__Invalid distorted block offset strength.__"
 
-        reply_msg = ctx.msg if ctx.msg.photo else ctx.msg.reply_to_message
-        if not reply_msg.photo:
-            return "__That message isn't an image.__"
+        reply_msg = ctx.msg.reply_to_message
+        if not (reply_msg.photo or reply_msg.sticker):
+            return "__That message isn't an image nor sticker.__"
 
         await ctx.respond("Glitching image...")
 
@@ -333,6 +333,12 @@ class StickerModule(module.Module):
             )
 
         with io.BytesIO(stdout) as file:
+            if reply_msg.sticker:
+                file.name = "glitch.webp"
+                await ctx.msg.reply_sticker(file)
+                await ctx.msg.delete()
+                return None
+
             file.name = "glitch.png"
             await ctx.respond(document=file, mode="repost")
 

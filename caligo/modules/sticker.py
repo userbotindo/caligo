@@ -6,6 +6,9 @@ from typing import ClassVar, Optional, Set, Tuple, Union
 import pyrogram
 from aiofile import AIOFile
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from pyrogram.errors import StickersetInvalid
+from pyrogram.raw.functions.messages import GetStickerSet
+from pyrogram.raw.types import InputStickerSetShortName
 
 from .. import command, module, util
 
@@ -192,20 +195,23 @@ class StickerModule(module.Module):
 
         if not pack_VOL:
             pack_name = self.kang_db.get("1") if self.kang_db is not None else None
-
-            # Create a default pack if not exist
-            if not pack_name:
-                ret = await self.cmd_createpack(ctx)
-
-                return ret
         else:
             pack_name = self.kang_db.get(pack_VOL) if self.kang_db is not None else None
 
         if not pack_name:
-            return (
-                "__There is no stickerpack with that name, "
-                "make sure you already created it.__"
-            )
+            ret = await self.cmd_createpack(ctx)
+
+            return ret
+        elif pack_name:  # if pack_name in db exists but haven't create it
+            try:
+                await self.bot.client.send(GetStickerSet(
+                    stickerset=InputStickerSetShortName(short_name=pack_name)
+                    )
+                )
+            except StickersetInvalid:
+                ret = await self.cmd_createpack(ctx)
+
+                return ret
 
         reply_msg = ctx.msg.reply_to_message
 
@@ -241,7 +247,15 @@ class StickerModule(module.Module):
         num = ctx.input if ctx.input else "1"
         check = self.kang_db.get(num) if self.kang_db is not None else None
         if check:
-            return "__Pack with that name already exists, use 'kang' instead.__"
+            try:
+                await self.bot.client.send(GetStickerSet(
+                    stickerset=InputStickerSetShortName(short_name=check)
+                    )
+                )
+            except StickersetInvalid:
+                pass
+            else:
+                return "__Pack with that name already exists, use 'kang' instead.__"
 
         emoji = ctx.args[1] if len(ctx.args) > 1 else "❓"
         pack_name = self.bot.user.username + f"_kangPack_VOL{num}"

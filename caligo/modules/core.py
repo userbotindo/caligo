@@ -3,6 +3,7 @@ import platform
 from collections import defaultdict
 from typing import ClassVar, MutableMapping
 
+import pyrogram
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from .. import __version__, command, module, util
@@ -151,6 +152,7 @@ Expected parameters: {args_desc}"""
             {
                 "Version": version,
                 "Python": f"{platform.python_implementation()} {platform.python_version()}",
+                "Pyrogram": f"{pyrogram.__version__}",
                 "System": f"{platform.system()} {sys_ver}",
                 "Uptime": uptime,
                 **({"Total uptime": total_uptime} if total_uptime else {}),

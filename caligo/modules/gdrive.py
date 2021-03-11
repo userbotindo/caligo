@@ -1,6 +1,6 @@
 import asyncio
 import pickle
-from typing import ClassVar, Dict
+from typing import ClassVar, Dict, Union
 
 import pyrogram
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -36,14 +36,15 @@ class GoogleDrive(module.Module):
 
         self.lock = asyncio.Lock()
 
-        self.creds = await util.run_sync(pickle.loads, data.get("creds"))
-        # service will be overwrite if credentials is expired
-        self.service = build(
-            "drive",
-            "v3",
-            credentials=self.creds,
-            cache_discovery=False
-        )
+        if data:
+            self.creds = await util.run_sync(pickle.loads, data.get("creds"))
+            # service will be overwrite if credentials is expired
+            self.service = build(
+                "drive",
+                "v3",
+                credentials=self.creds,
+                cache_discovery=False
+            )
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
@@ -101,7 +102,7 @@ class GoogleDrive(module.Module):
 
         return "Credentials created."
 
-    async def authorize(self, message: pyrogram.types.Message) -> None:
+    async def authorize(self, message: pyrogram.types.Message) -> Union[None, bool]:
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.log.info("Refreshing credentials")

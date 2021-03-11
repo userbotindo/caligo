@@ -192,6 +192,12 @@ class StickerModule(module.Module):
 
         if not pack_VOL:
             pack_name = self.kang_db.get("1") if self.kang_db is not None else None
+
+            # Create a default pack if not exist
+            if not pack_name:
+                ret = await self.cmd_createpack(ctx)
+
+                return ret
         else:
             pack_name = self.kang_db.get(pack_VOL) if self.kang_db is not None else None
 

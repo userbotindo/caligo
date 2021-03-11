@@ -4,3 +4,5 @@
 *.pyc
 *.log
 *.session
+
+caligo/downloads

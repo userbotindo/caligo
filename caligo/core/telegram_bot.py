@@ -30,7 +30,7 @@ class TelegramBot(Base):
         self.getConfig = BotConfig(self.log)
 
         self._mevent_handlers = {}
-        self._conversation = {}
+        self.conv = {}
 
         super().__init__(**kwargs)
 
@@ -203,8 +203,8 @@ class TelegramBot(Base):
 
     def conversation_predicate(self: "Bot") -> Filter:
         async def func(_, client, conv):
-            if (self._conversation and conv.chat and
-                    conv.chat.id in self._conversation
+            if (self.conv and conv.chat and
+                    conv.chat.id in self.conv
                     and not conv.outgoing):
                 return True
 
@@ -217,7 +217,7 @@ class TelegramBot(Base):
         client: pyrogram.Client,
         msg: pyrogram.types.Message
     ) -> None:
-        cache = self._conversation[msg.chat.id]
+        cache = self.conv[msg.chat.id]
 
         if isinstance(cache, asyncio.Queue):
             cache.put_nowait(msg)

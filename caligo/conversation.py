@@ -13,10 +13,7 @@ if TYPE_CHECKING:
 
 
 class AlreadyInConversation(Exception):
-    def __init__(self):
-        super().__init(
-            "Cannot open exclusive conversation in a chat that already open."
-        )
+    pass
 
 
 class Conversation:
@@ -39,6 +36,8 @@ class Conversation:
         self._max_incoming = max_messages
 
         self._counter = 0
+
+        self._chat_id: int
 
     async def send_message(self, text, **kwargs) -> pyrogram.types.Message:
         sent = await self.bot.client.send_message(self._chat_id, text, **kwargs)
@@ -65,7 +64,7 @@ class Conversation:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages.")
 
-        fut = self.bot._conversation[self._chat_id]
+        fut = self.bot.conv[self._chat_id]
         timeout = kwargs.get("timeout") or self._timeout
 
         before = util.time.usec()
@@ -113,16 +112,16 @@ class Conversation:
             chat = await self.bot.client.get_chat(self._input_chat)
             self._chat_id = chat.id
 
-        if self._chat_id in self.bot._conversation:
+        if self._chat_id in self.bot.conv:
             self.log.error(f"Conversation with {self._chat_id} already open.")
-            raise AlreadyInConversation()
+            raise AlreadyInConversation
 
-        self.bot._conversation[self._chat_id] = asyncio.Queue(self._max_incoming)
+        self.bot.conv[self._chat_id] = asyncio.Queue(self._max_incoming)
 
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        conv = self.bot._conversation[self._chat_id]
+        conv = self.bot.conv[self._chat_id]
 
         conv.put_nowait(None)
-        del self.bot._conversation[self._chat_id]
+        del self.bot.conv[self._chat_id]

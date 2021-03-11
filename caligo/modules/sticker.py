@@ -1,6 +1,5 @@
 import asyncio
 import io
-import os
 from datetime import datetime
 from typing import ClassVar, Optional, Set, Tuple, Union
 

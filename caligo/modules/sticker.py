@@ -1,7 +1,6 @@
 import asyncio
 import io
 from datetime import datetime
-from pathlib import Path
 from typing import ClassVar, Optional, Set, Tuple, Union
 
 import pyrogram

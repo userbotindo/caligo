@@ -33,6 +33,7 @@ WORKDIR /src
 COPY . .
 RUN pip install --upgrade pip
 RUN pip install wheel
+RUN pip install uvloop
 RUN pip install .
 
 

@@ -8,6 +8,7 @@ import traceback
 from pathlib import Path
 from typing import Any, ClassVar, Dict, Optional, Union, Tuple
 
+import aiohttp
 import pyrogram
 import speedtest
 from meval import meval
@@ -294,7 +295,8 @@ Time: {el_str}"""
             duration = util.time.format_duration_us(util.time.usec() - rs_time)
             self.log.info(f"Bot {updated}restarted in {duration}")
             status_msg = await self.bot.client.get_messages(rs_chat_id, rs_message_id)
-            await self.bot.respond(status_msg, f"Bot {updated}restarted in {duration}.")
+            await self.bot.respond(
+                status_msg, f"Bot {updated}restarted in {duration}.", mode="repost")
 
     async def on_stopped(self) -> None:
         if self.restart_pending:
@@ -303,11 +305,29 @@ Time: {el_str}"""
             os.execv(sys.executable, (sys.executable, "-m", "caligo"))
             sys.exit()
 
+    async def run_workflows(self) -> None:
+        headers = {"accept": "application/vnd.github.v3+json"}
+        payload = {"ref": "refs/heads/staging"}
+
+        user = self.bot.getConfig.github_repo.split("/")[0]
+        repo = self.bot.getConfig.github_repo.split("/")[1]
+        path = f"/repos/{user}/{repo}/actions/workflows/container.yml/dispatches"
+        uri = "https://api.github.com"
+        auth = aiohttp.BasicAuth(user, self.bot.getConfig.github_token)
+
+        async with self.bot.http.post(
+            uri + path,
+            auth=auth,
+            headers=headers,
+            json=payload
+        ) as resp:
+            return resp.status
+
     @command.desc("Update this bot from Git and restart")
-    @command.usage("[force flag?]", optional=True)
+    @command.usage("[deploy flag?]", optional=True)
     @command.alias("up", "upd")
     async def cmd_update(self, ctx: command.Context) -> Optional[str]:
-        force = ctx.input
+        flag = ctx.input
 
         if not util.git.have_git:
             return "__The__ `git` __command is required for self-updating.__"
@@ -328,26 +348,6 @@ Time: {el_str}"""
 
         await ctx.respond("Checking...")
 
-        # Container heroku handling
-        if self.bot.getConfig.secret:
-            local_actvbranch = repo.active_branch.name
-            fetch = await util.run_sync(remote.fetch)
-
-            for obj in fetch:
-                if (local_actvbranch in obj.name and
-                    any(change.a_path == "poetry.lock"
-                        for change in await util.run_sync(obj.commit.diff, old_commit)
-                        )):
-
-                    if force != "-f":
-                        return (
-                            "There is depency changes, you need to redeploy "
-                            "to avoid __RunTimeError__ when the server restarted.\n\n"
-                            "**Discourage**: You can pass the update with `-f` flag."
-                        )
-
-                    break
-
         # Pull from remote
         await ctx.respond(f"Pulling changes from `{remote}`...")
         await util.run_sync(remote.pull)
@@ -356,6 +356,35 @@ Time: {el_str}"""
         diff = old_commit.diff()
         if not diff:
             return "No updates found."
+
+        # GitHub workflows to push into heroku
+        if flag == "-D=y":
+            if (self.bot.getConfig.secret and
+                    self.bot.getConfig.github_token and
+                    self.bot.getConfig.heroku_api_key):
+                ret = await self.run_workflows()
+
+                resp_msg = await ctx.respond("Deploying bot...")
+
+                async with self.lock:
+                    await self.db.find_one_and_update(
+                        {"_id": self.name},
+                        {
+                            "$set": {
+                                "restart": {
+                                    "status_chat_id": resp_msg.chat.id,
+                                    "status_message_id": resp_msg.message_id,
+                                    "time": update_time,
+                                    "reason": "update_deploy"
+                                }
+                            }
+                        },
+                        upsert=True
+                    )
+                self.restart_pending = True
+                return None  # TO-DO: Maybe block all code while waiting???
+            else:
+                return "__Deploying needs Heroku and GitHub credential set properly.__"
 
         # Check for dependency changes
         if any(change.a_path == "poetry.lock" for change in diff):

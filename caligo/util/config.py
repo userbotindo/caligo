@@ -37,6 +37,7 @@ class BotConfig:
         self.secret = bool(os.environ.get("CONTAINER") == "True")
 
         # Github
+        self.github_repo = os.environ.get("GITHUB_REPO")
         self.github_token = os.environ.get("GITHUB_TOKEN")
 
         # Heroku

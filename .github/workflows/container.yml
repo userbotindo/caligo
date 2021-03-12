@@ -1,18 +1,11 @@
 name: Container
 
-on:
-  workflow_dispatch:
-    inputs:
-      heroku_api_key:
-        description: "Your heroku API Key"
-        required: true
-      heroku_app:
-        description: "Your heroku app name where this image to push"
-        required: true
+on: workflow_dispatch
 
 env:
   IMAGE_NAME: caligo
-  HEROKU_APP: ${{ github.event.inputs.heroku_app }}
+  HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+  HEROKU_APP: ${{ secrets.HEROKU_APP }}
 
 jobs:
   build_and_push:
@@ -25,16 +18,10 @@ jobs:
         run: docker build . --file Dockerfile --tag $IMAGE_NAME
 
       - name: Login into Heroku Container registry
-        env:
-          HEROKU_API_KEY: ${{ github.event.inputs.heroku_api_key }}
         run: heroku container:login
 
       - name: Push the image to Heroku
-        env:
-          HEROKU_API_KEY: ${{ github.event.inputs.heroku_api_key }}
         run: heroku container:push $IMAGE_NAME -a $HEROKU_APP
         
       - name: Release image to Heroku
-        env:
-          HEROKU_API_KEY: ${{ github.event.inputs.heroku_api_key }}
         run: heroku container:release $IMAGE_NAME -a $HEROKU_APP

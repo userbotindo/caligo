@@ -12,7 +12,7 @@ except ImportError:
     have_git = False
 
 
-REPO = os.environ.get("REPO", "adekmaulana/caligo")
+REPO = os.environ.get("GITHUB_REPO", "adekmaulana/caligo")
 
 
 class LazyRepo:

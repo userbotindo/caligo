@@ -360,7 +360,8 @@ Time: {el_str}"""
         # GitHub workflows to push into heroku
         if flag == "-D=y":
             if (self.bot.getConfig.secret and
-                    self.bot.getConfig.github_token and
+                    (self.bot.getConfig.github_token and
+                     self.bot.getConfig.github_repo) and
                     self.bot.getConfig.heroku_api_key):
                 ret = await self.run_workflows()
 

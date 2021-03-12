@@ -80,4 +80,4 @@ RUN cp /home/caligo/bot /usr/local/bin
 # Set runtime settings
 USER caligo
 WORKDIR /home/caligo
-CMD ["caligo"]
+CMD ["bash", "bot"]

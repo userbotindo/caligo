@@ -15,6 +15,18 @@
       "description": "Your MongoDB atlas URI",
       "required": true
     },
+    "GITHUB_TOKEN": {
+      "description": "Your GitHub token for deploying",
+      "required": false
+    },
+    "HEROKU_API_KEY": {
+      "description": "Your Heroku API Key for managing heroku app",
+      "required": false
+    },
+    "HEROKU_APP": {
+      "description": "Your current Heroku APP name where this deployed",
+      "required": false
+    },
     "STRING_SESSION": {
       "description": "Your StringSession",
       "required": true

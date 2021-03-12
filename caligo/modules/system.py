@@ -383,8 +383,8 @@ Time: {el_str}"""
                     )
                 self.restart_pending = True
                 return None  # TO-DO: Maybe block all code while waiting???
-            else:
-                return "__Deploying needs Heroku and GitHub credential set properly.__"
+
+            return "__Deploying needs Heroku and GitHub credential set properly.__"
 
         # Check for dependency changes
         if any(change.a_path == "poetry.lock" for change in diff):

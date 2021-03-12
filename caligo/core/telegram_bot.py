@@ -104,8 +104,8 @@ class TelegramBot(Base):
         self.user = user
         self.uid = user.id
 
-        self.start_time_usec = time.usec()
-        await self.dispatch_event("start", self.start_time_usec)
+        self.start_time_us = time.usec()
+        await self.dispatch_event("start", self.start_time_us)
 
         self.log.info("Bot is ready")
 

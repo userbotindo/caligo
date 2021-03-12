@@ -89,7 +89,7 @@ class StatsModule(module.Module):
 
         uptime = await self.get("uptime")
         if uptime is not None:
-            await self.put("start_time_usec", self.bot.start_time_usec - uptime)
+            await self.put("start_time_usec", self.bot.start_time_us - uptime)
             await self.delete("uptime")
 
     async def on_start(self, time_us: int) -> None:
@@ -118,7 +118,7 @@ class StatsModule(module.Module):
         await self.inc(key, 1)
 
     async def get_start_time(self) -> int:
-        return await self.get("start_time_usec") or self.bot.start_time_usec
+        return await self.get("start_time_usec") or self.bot.start_time_us
 
     @command.desc("Show chat stats (pass `reset` to reset stats)")
     @command.usage('["reset" to reset stats?]', optional=True)

@@ -94,16 +94,15 @@ class Aria2(module.Module):
         await self.client.close()
 
     async def onDownloadStart(self, gid: str) -> None:
-        self.log.info(f"Starting download: {gid: {gid}}.")
+        self.log.info(f"Starting download: [gid: '{gid}']")
 
     async def onDownloadComplete(self, gid: str):
         meta = ""
-        if self.downloads.get(gid):
-            _, metadata = self.downloads[gid]
-            if metadata is True:
-                meta += " - MetaData"
+        metadata = await self.client.tellStatus(gid, ["followedBy"])
+        if bool(metadata) is True:
+            meta += " - Metadata"
 
-        self.log.info(f"Complete download: {gid: {gid}}{meta}.")
+        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
 
     async def onDownloadError(self, gid: str) -> None:
         res = await self.client.tellStatus(gid, ["errorMessage"])
@@ -120,7 +119,6 @@ class Aria2(module.Module):
             fut, metadata = (None, False)
 
         if fut is not None and metadata is True:
-            self.downloads[gid] = (fut, metadata)
             return fut
 
         return gid

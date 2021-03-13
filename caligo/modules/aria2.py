@@ -89,6 +89,7 @@ class Aria2(module.Module):
 
     async def on_load(self) -> None:
         self.data = {}
+        self.downloads = {}
         self.client = await Aria2WebSocket.init(self)
 
     async def on_stop(self) -> None:

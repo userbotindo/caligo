@@ -73,8 +73,6 @@ class Aria2WebSocket:
             res = self.mod.data[gid]
             if cache:
                 res.put_nowait((cache["followedBy"][0], True))
-            else:
-                res.put_nowait((None, False))
 
         update = getattr(self.mod, method)
         await update(gid)
@@ -115,7 +113,12 @@ class Aria2(module.Module):
         gid = await self.client.addUri([uri])
 
         self.data[gid] = asyncio.Queue(1)
-        fut, metadata = await asyncio.wait_for(self.data[gid].get(), 10)
+
+        try:
+            fut, metadata = await asyncio.wait_for(self.data[gid].get(), 10)
+        except asyncio.TimeoutError:
+            fut, metadata = (None, False)
+
         if fut is not None and metadata is True:
             self.downloads[gid] = (fut, metadata)
             return fut

@@ -78,6 +78,8 @@ RUN git clone https://github.com/adekmaulana/caligo /home/caligo
 RUN chmod +x /home/caligo/bot
 RUN cp /home/caligo/bot /usr/local/bin
 
+RUN mkdir -p /home/caligo/.cache/caligo
+
 RUN curl -LJO https://github.com/FiloSottile/mkcert/releases/download/v1.4.3/mkcert-v1.4.3-linux-amd64
 RUN mv mkcert-v1.4.3-linux-amd64 /usr/local/bin/mkcert
 RUN chmod +x /usr/local/bin/mkcert

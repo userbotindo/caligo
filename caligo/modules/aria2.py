@@ -50,7 +50,7 @@ class Aria2WebSocket:
         cpath = Path.home() / ".cache" / "caligo" / ".certs"
         if (Path(cpath / "cert.pem").is_file() and
                 Path(cpath / "key.pem").is_file()):
-            mod.log.info("Using TLS/SSL protocol")
+            mod.log.debug("Using TLS/SSL protocol")
             cmd.insert(3, "--rpc-secure=true")
             cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
             cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
@@ -100,7 +100,7 @@ class Aria2(module.Module):
         self.client = await Aria2WebSocket.init(self)
 
         version = bprint(await self.client.getVersion(), stream=str)
-        self.log.info(version.replace("dict", "").replace("list", "").rstrip())
+        self.log.debug(version.replace("dict", "").replace("list", "").rstrip())
 
     async def on_stop(self) -> None:
         await self.client.close()

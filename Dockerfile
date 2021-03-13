@@ -41,7 +41,6 @@ RUN pip install .
 FROM python:3-alpine AS final
 # Install optional native tools (for full functionality)
 RUN apk add --no-cache \
-        aria2 \
         curl \
         neofetch \
         git \

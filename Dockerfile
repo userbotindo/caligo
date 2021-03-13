@@ -58,7 +58,8 @@ RUN apk add --no-cache \
         libjpeg-turbo \
         lcms2 \
         libwebp \
-        openssl
+        openssl \
+        nss
 
 # Create bot user
 RUN adduser -D caligo
@@ -76,6 +77,13 @@ ENV CONTAINER="True"
 RUN git clone https://github.com/adekmaulana/caligo /home/caligo
 RUN chmod +x /home/caligo/bot
 RUN cp /home/caligo/bot /usr/local/bin
+
+RUN curl -LJO https://github.com/FiloSottile/mkcert/releases/download/v1.4.3/mkcert-v1.4.3-linux-amd64
+RUN mv mkcert-v1.4.3-linux-amd64 /usr/local/bin/mkcert
+RUN chmod +x /usr/local/bin/mkcert
+
+RUN mkcert -install
+RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost
 
 # Set runtime settings
 USER caligo

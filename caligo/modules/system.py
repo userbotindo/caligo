@@ -99,7 +99,7 @@ class SystemModule(module.Module):
 
         try:
             stdout, _, ret = await util.system.run_command(
-                *snip.split(), timeout=120
+                snip, shell=True, timeout=120  # skipcq: BAN-B604
             )
         except FileNotFoundError as E:
             after = util.time.usec()

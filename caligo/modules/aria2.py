@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Dict, Union
 
 import aioaria2
+from bprint import bprint
 
 from .. import module
 
@@ -44,6 +45,16 @@ class Aria2WebSocket:
             "--daemon=true",
             "--allow-overwrite=true",
         ]
+        protocol = "http://localhost:8080/jsonrpc"
+
+        cpath = Path.home() / ".cache" / "caligo" / ".certs"
+        if (Path(cpath / "cert.pem").is_file() and
+                Path(cpath / "key.pem").is_file()):
+            mod.log.info("Using TLS/SSL protocol")
+            cmd.insert(3, "--rpc-secure=true")
+            cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
+            cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
+            protocol = "https://localhost:8080/jsonrpc"
 
         server = aioaria2.AsyncAria2Server(*cmd, daemon=True)
 
@@ -51,9 +62,7 @@ class Aria2WebSocket:
         await server.wait()
 
         self = cls(mod)
-        client = await aioaria2.Aria2WebsocketTrigger.new(
-            url="http://localhost:8080/jsonrpc"
-        )
+        client = await aioaria2.Aria2WebsocketTrigger.new(url=protocol)
 
         trigger_names = ["Start", "Complete", "Error"]
         for handler_name in trigger_names:
@@ -89,6 +98,9 @@ class Aria2(module.Module):
         self.data = {}
         self.downloads = {}
         self.client = await Aria2WebSocket.init(self)
+
+        version = bprint(await self.client.getVersion(), stream=str)
+        self.log.info(version.replace("dict", "").replace("list", "").rstrip())
 
     async def on_stop(self) -> None:
         await self.client.close()

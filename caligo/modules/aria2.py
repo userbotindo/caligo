@@ -52,8 +52,8 @@ class Aria2WebSocket:
                 Path(cpath / "key.pem").is_file()):
             mod.log.debug("Using TLS/SSL protocol")
             cmd.insert(3, "--rpc-secure=true")
-            cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
             cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
+            cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
             protocol = "https://localhost:8080/jsonrpc"
 
         server = aioaria2.AsyncAria2Server(*cmd, daemon=True)

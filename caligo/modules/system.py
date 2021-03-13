@@ -358,7 +358,7 @@ Time: {el_str}"""
             return "No updates found."
 
         # GitHub workflows to push into heroku
-        if flag == "-D=y":
+        if flag == "deploy":
             if (self.bot.getConfig.secret and
                     (self.bot.getConfig.github_token and
                      self.bot.getConfig.github_repo) and
@@ -382,7 +382,6 @@ Time: {el_str}"""
                         },
                         upsert=True
                     )
-                self.restart_pending = True
                 return None  # TO-DO: Maybe block all code while waiting???
 
             return "__Deploying needs Heroku and GitHub credential set properly.__"

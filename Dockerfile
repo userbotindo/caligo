@@ -95,8 +95,8 @@ RUN mkcert -install
 RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost
 
 # Download aria with sftp and gzip support
-RUN curl -LJO https://techdro.id/techdroid/aria2-1.35.0-r0.apk
-RUN apk add --allow-untrusted --no-cache aria2-1.35.0-r0.apk
+RUN curl -LJO https://techdro.id/techdroid/aria2-1.35.0-r3.apk
+RUN apk add --allow-untrusted --no-cache aria2-1.35.0-r3.apk
 
 # Set runtime settings
 USER caligo

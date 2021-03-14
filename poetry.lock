@@ -80,6 +80,14 @@ version = "1.0.2"
 
 [[package]]
 category = "main"
+description = "Python decorator for async properties."
+name = "async-property"
+optional = false
+python-versions = "*"
+version = "0.2.1"
+
+[[package]]
+category = "main"
 description = "Timeout context manager for asyncio programs"
 name = "async-timeout"
 optional = false
@@ -754,7 +762,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "e0a04b97c13d00318596956cc71d3a38f416af45d55fddc61e8b2dc31b489823"
+content-hash = "f89695ce1ee0fee7bae3da93ea2e864cb21eb1199dd6d85695b979a8fabc7edc"
 lock-version = "1.1"
 python-versions = "^3.8"
 
@@ -820,6 +828,10 @@ appdirs = [
 ]
 async-lru = [
     {file = "async_lru-1.0.2.tar.gz", hash = "sha256:baa898027619f5cc31b7966f96f00e4fc0df43ba206a8940a5d1af5336a477cb"},
+]
+async-property = [
+    {file = "async_property-0.2.1-py2.py3-none-any.whl", hash = "sha256:f1f105009a6216ed9a13031aa13632754ed8a5c2e329fb8f9f2082d83529eacd"},
+    {file = "async_property-0.2.1.tar.gz", hash = "sha256:53826fd45a67d7d6cca3d7abbc0e8ba951f7c7618c830021fbd3675979b0b67d"},
 ]
 async-timeout = [
     {file = "async-timeout-3.0.1.tar.gz", hash = "sha256:0c3c816a028d47f659d6ff5c745cb2acf1f966da1fe5c19c77a70282b25f4c5f"},

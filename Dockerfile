@@ -63,7 +63,7 @@ RUN apk add --no-cache \
         busybox \
         sqlite \
         libxml2 \
-        libssh \
+        libssh2 \
         ca-certificates
 
 # Create bot user

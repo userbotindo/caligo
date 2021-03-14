@@ -1,4 +1,5 @@
 from . import (
+    aria2,
     async_helpers,
     config,
     error,

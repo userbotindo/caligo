@@ -1,4 +1,5 @@
 import time
+from datetime import timedelta
 from typing import Union
 
 
@@ -50,3 +51,30 @@ def format_duration_us(t_us: Union[int, float]) -> str:
         return "%d ms" % t_ms
 
     return "%d μs" % t_us
+
+
+def format_duration_td(value: timedelta, precision: int = 0) -> str:
+    pieces = []
+
+    if value.days:
+        pieces.append(f"{value.days}d")
+
+    seconds = value.seconds
+
+    if seconds >= 3600:
+        hours = int(seconds / 3600)
+        pieces.append(f"{hours}h")
+        seconds -= hours * 3600
+
+    if seconds >= 60:
+        minutes = int(seconds / 60)
+        pieces.append(f"{minutes}m")
+        seconds -= minutes * 60
+
+    if seconds > 0 or not pieces:
+        pieces.append(f"{seconds}s")
+
+    if precision == 0:
+        return "".join(pieces)
+
+    return "".join(pieces[:precision])

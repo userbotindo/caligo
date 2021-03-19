@@ -73,11 +73,8 @@ class File:
 
 class Download:
 
-    def __init__(
-        self,
-        client: Aria2WebsocketTrigger,
-        data: Dict[str, Any]
-    ) -> None:
+    def __init__(self, client: Aria2WebsocketTrigger, data: Dict[str,
+                                                                 Any]) -> None:
         self.client = client
         self._data = data or {}
 
@@ -221,10 +218,8 @@ class Download:
     @property
     def eta(self) -> float:
         try:
-            return round(
-                (self.total_length - self.completed_length) /
-                self.download_speed
-            )
+            return round((self.total_length - self.completed_length) /
+                         self.download_speed)
         except ZeroDivisionError:
             return 0.0
 

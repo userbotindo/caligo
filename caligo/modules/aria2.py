@@ -4,7 +4,7 @@ from typing import Any, ClassVar, Dict, Union
 
 import aioaria2
 import pyrogram
-from pyrogram.errors import MessageNotModified, MessageEmpty
+from pyrogram.errors import MessageEmpty, MessageNotModified
 
 from .. import module, util
 

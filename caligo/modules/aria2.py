@@ -108,7 +108,7 @@ class _Aria2WebSocket:
     ) -> None:
         gid = data["params"][0]["gid"]
 
-        self.downloads[gid] = await self.downloads[gid].update
+        self.downloads[gid] = await self.get_download(trigger, gid)
         file = self.downloads[gid]
 
         meta = ""

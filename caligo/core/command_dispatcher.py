@@ -68,8 +68,8 @@ class CommandDispatcher(Base):
         for cmd in to_unreg:
             self.unregister_command(cmd)
 
-    def chat_action(self: "Bot") -> Filter:
-        async def func(_, __, chat):
+    def chat_action(_: "Bot") -> Filter:
+        async def func(__, ___, chat):
             if chat.new_chat_members or chat.left_chat_member:
                 return True
 
@@ -89,7 +89,7 @@ class CommandDispatcher(Base):
 
         return create(func)
 
-    async def on_command(self: "Bot", client: pyrogram.Client,
+    async def on_command(self: "Bot", _: pyrogram.Client,
                          message: pyrogram.types.Message) -> None:
         cmd = None
 
@@ -121,7 +121,7 @@ class CommandDispatcher(Base):
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
                 )
-            except Exception as E:
+            except Exception as E:  # skipcq: PYL-W0703
                 cmd.module.log.error(f"Error in command '{cmd.name}'",
                                      exc_info=E)
                 await ctx.respond(
@@ -132,7 +132,7 @@ class CommandDispatcher(Base):
                 )
 
             await self.dispatch_event("command", cmd, message)
-        except Exception as E:
+        except Exception as E:  # skipcq: PYL-W0703
             if cmd is not None:
                 cmd.module.log.error("Error in command handler", exc_info=E)
 

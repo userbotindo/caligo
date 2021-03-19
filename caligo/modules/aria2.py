@@ -4,7 +4,7 @@ from typing import Any, ClassVar, Dict, Union
 
 import aioaria2
 import pyrogram
-from pyrogram.errors import MessageNotModified, MessageEmpty
+from pyrogram.errors import MessageEmpty, MessageNotModified
 
 from .. import module, util
 
@@ -34,23 +34,13 @@ class _Aria2WebSocket:
             trackers: str = "[" + trackers_list.replace("\n\n", ",") + "]"
 
         cmd = [
-            "aria2c",
-            f"--dir={str(path)}",
-            "--enable-rpc",
-            "--rpc-listen-all=false",
-            "--rpc-listen-port=8080",
-            "--max-connection-per-server=10",
-            "--rpc-max-request-size=1024M",
-            "--seed-time=0.01",
-            "--seed-ratio=0.1",
-            "--max-upload-limit=5K",
-            "--max-concurrent-downloads=5",
-            "--min-split-size=10M",
-            "--follow-torrent=mem",
-            "--split=10",
-            f"--bt-tracker={trackers}",
-            "--daemon=true",
-            "--allow-overwrite=true"
+            "aria2c", f"--dir={str(path)}", "--enable-rpc",
+            "--rpc-listen-all=false", "--rpc-listen-port=8080",
+            "--max-connection-per-server=10", "--rpc-max-request-size=1024M",
+            "--seed-time=0.01", "--seed-ratio=0.1", "--max-upload-limit=5K",
+            "--max-concurrent-downloads=5", "--min-split-size=10M",
+            "--follow-torrent=mem", "--split=10", f"--bt-tracker={trackers}",
+            "--daemon=true", "--allow-overwrite=true"
         ]
         protocol = "http://localhost:8080/jsonrpc"
 
@@ -70,28 +60,20 @@ class _Aria2WebSocket:
         self = cls(api)
         client = await aioaria2.Aria2WebsocketTrigger.new(url=protocol)
 
-        trigger = [
-            (self.on_download_start, "onDownloadStart"),
-            (self.on_download_complete, "onDownloadComplete"),
-            (self.on_download_error, "onDownloadError")
-        ]
+        trigger = [(self.on_download_start, "onDownloadStart"),
+                   (self.on_download_complete, "onDownloadComplete"),
+                   (self.on_download_error, "onDownloadError")]
         for handler, name in trigger:
             client.register(handler, f"aria2.{name}")
         return client
 
-    async def get_download(
-        self,
-        client: aioaria2.Aria2WebsocketTrigger,
-        gid: str
-    ) -> util.aria2.Download:
+    async def get_download(self, client: aioaria2.Aria2WebsocketTrigger,
+                           gid: str) -> util.aria2.Download:
         res = await client.tellStatus(gid)
         return await util.run_sync(util.aria2.Download, client, res)
 
-    async def on_download_start(
-        self,
-        trigger: aioaria2.Aria2WebsocketTrigger,
-        data: Union[Dict[str, str], Any]
-    ) -> None:
+    async def on_download_start(self, trigger: aioaria2.Aria2WebsocketTrigger,
+                                data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
         self.downloads[gid] = await self.get_download(trigger, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
@@ -101,11 +83,9 @@ class _Aria2WebSocket:
             self._start = True
             self._bot.loop.create_task(await self._updateProgress())
 
-    async def on_download_complete(
-        self,
-        trigger: aioaria2.Aria2WebsocketTrigger,
-        data: Union[Dict[str, str], Any]
-    ) -> None:
+    async def on_download_complete(self,
+                                   trigger: aioaria2.Aria2WebsocketTrigger,
+                                   data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         self.downloads[gid] = await self.get_download(trigger, gid)
@@ -127,20 +107,15 @@ class _Aria2WebSocket:
         if len(self.downloads) == 0:
             self.api.invoker = None
 
-    async def on_download_error(
-        self,
-        trigger: aioaria2.Aria2WebsocketTrigger,
-        data: Union[Dict[str, str], Any]
-    ) -> None:
+    async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
+                                data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         file = await self.get_download(trigger, gid)
-        await self.api.invoker.edit(
-            f"`{file.name}`\n"
-            f"Status: **{file.status.capitalize()}**\n"
-            f"Error: __{file.error_message}__\n"
-            f"Code: **{file.error_code}**"
-        )
+        await self.api.invoker.edit(f"`{file.name}`\n"
+                                    f"Status: **{file.status.capitalize()}**\n"
+                                    f"Error: __{file.error_message}__\n"
+                                    f"Code: **{file.error_code}**")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         del self.downloads[gid]
@@ -173,8 +148,7 @@ class _Aria2WebSocket:
                 f"Status: **{file.status.capitalize()}**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
                 f"{human(downloaded)} of {human(file_size)} @ "
-                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n"
-            )
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n")
 
         return progress_string
 

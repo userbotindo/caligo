@@ -74,7 +74,7 @@ class File:
 
     @property
     def selected(self) -> bool:
-        return True if self._data.get("selected") == "true" else False
+        return self._data.get("selected") == "true"
 
     @property
     def uris(self) -> Optional[List[str]]:

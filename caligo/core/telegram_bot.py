@@ -147,8 +147,8 @@ class TelegramBot(Base):
                 async def update_handler(_, event) -> None:
                     await self.dispatch_event(name, event)
 
-                handler_info = self.client.add_handler(
-                    handler_type(update_handler, filt), group)  # skipcq: PYL-E1111
+                handler_info = self.client.add_handler(  # skipcq: PYL-E1111
+                    handler_type(update_handler, filt), group)
                 self._mevent_handlers[name] = handler_info
         elif name in self._mevent_handlers:
             # Remove if there are NO listeners and it's ALREADY registered
@@ -159,13 +159,13 @@ class TelegramBot(Base):
         self.update_module_event("message", MessageHandler,
                                  filters.all & ~filters.edited &
                                  ~self.command_predicate() &
-                                 ~self.chat_action(), 3)
+                                 ~TelegramBot.chat_action(), 3)
         self.update_module_event("message_edit", MessageHandler,
                                  filters.edited, 3)
         self.update_module_event("message_delete", DeletedMessagesHandler,
                                  filters.all, 3)
         self.update_module_event("chat_action", MessageHandler,
-                                 self.chat_action(), 3)
+                                 TelegramBot.chat_action(), 3)
         self.update_module_event("user_update", UserStatusHandler,
                                  filters.all, 5)
 
@@ -200,6 +200,16 @@ class TelegramBot(Base):
             text = text.replace(string_session, redacted)
 
         return text
+
+    @staticmethod
+    def chat_action() -> Filter:
+        async def func(__, ___, chat):
+            if chat.new_chat_members or chat.left_chat_member:
+                return True
+
+            return False
+
+        return create(func)
 
     def conversation_predicate(self: "Bot") -> Filter:
         async def func(_, __, conv):

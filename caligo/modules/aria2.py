@@ -91,7 +91,7 @@ class _Aria2WebSocket:
         self,
         trigger: aioaria2.Aria2WebsocketTrigger,
         data: Union[Dict[str, str], Any]
-    ):
+    ) -> None:
         gid = data["params"][0]["gid"]
         self.downloads[gid] = await self.get_download(trigger, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
@@ -105,7 +105,7 @@ class _Aria2WebSocket:
         self,
         trigger: aioaria2.Aria2WebsocketTrigger,
         data: Union[Dict[str, str], Any]
-    ):
+    ) -> None:
         gid = data["params"][0]["gid"]
 
         self.downloads[gid] = await self.downloads[gid].update
@@ -131,7 +131,7 @@ class _Aria2WebSocket:
         self,
         trigger: aioaria2.Aria2WebsocketTrigger,
         data: Union[Dict[str, str], Any]
-    ):
+    ) -> None:
         gid = data["params"][0]["gid"]
 
         file = await self.get_download(trigger, gid)
@@ -148,7 +148,7 @@ class _Aria2WebSocket:
         if len(self.downloads) == 0:
             self.api.invoker = None
 
-    async def _checkProgress(self) -> None:
+    async def _checkProgress(self) -> str:
         progress_string = ""
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes

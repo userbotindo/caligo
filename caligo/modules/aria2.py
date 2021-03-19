@@ -22,6 +22,7 @@ class _Aria2WebSocket:
         self._bot = self.api.bot
 
         self.downloads: Dict[str, util.aria2.Download] = {}
+        self.lock: asyncio.Lock = asyncio.Lock()
 
     @classmethod
     async def init(cls, api: "Aria2") -> "_Aria2WebSocket":
@@ -75,7 +76,8 @@ class _Aria2WebSocket:
     async def on_download_start(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
-        self.downloads[gid] = await self.get_download(trigger, gid)
+        async with self.lock:
+            self.downloads[gid] = await self.get_download(trigger, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
         # Only create task once, because we running on forever loop
@@ -88,7 +90,8 @@ class _Aria2WebSocket:
                                    data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
-        self.downloads[gid] = await self.get_download(trigger, gid)
+        async with self.lock:
+            self.downloads[gid] = await self.get_download(trigger, gid)
         file = self.downloads[gid]
 
         meta = ""
@@ -102,27 +105,30 @@ class _Aria2WebSocket:
                                     mode="reply")
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
-        self.api.complete[gid] = file
-        del self.downloads[gid]
+        async with self.lock:
+            self.api.complete[gid] = file
+            del self.downloads[gid]
 
-        if len(self.downloads) == 0:
-            self.api.invoker = None
+            if len(self.downloads) == 0:
+                self.api.invoker = None
 
     async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
-        file = await self.get_download(trigger, gid)
+        async with self.lock:
+            file = await self.get_download(trigger, gid)
         await self.api.invoker.edit(f"`{file.name}`\n"
                                     f"Status: **{file.status.capitalize()}**\n"
                                     f"Error: __{file.error_message}__\n"
                                     f"Code: **{file.error_code}**")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
-        del self.downloads[gid]
+        async with self.lock:
+            del self.downloads[gid]
 
-        if len(self.downloads) == 0:
-            self.api.invoker = None
+            if len(self.downloads) == 0:
+                self.api.invoker = None
 
     async def _checkProgress(self) -> str:
         progress_string = ""

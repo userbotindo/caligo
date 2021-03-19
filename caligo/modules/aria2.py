@@ -185,6 +185,7 @@ class Aria2(module.Module):
     stopping: bool
 
     async def on_load(self) -> None:
+        self.complete = {}
         self.data = {}
         self.client = await _Aria2WebSocket.init(self)
 

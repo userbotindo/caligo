@@ -116,8 +116,7 @@ class _Aria2WebSocket:
                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
-        async with self.lock:
-            file = await self.get_download(trigger, gid)
+        file = await self.get_download(trigger, gid)
         await self.api.invoker.edit(f"`{file.name}`\n"
                                     f"Status: **{file.status.capitalize()}**\n"
                                     f"Error: __{file.error_message}__\n"

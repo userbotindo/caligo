@@ -21,6 +21,7 @@ class _Aria2WebSocket:
         self._start = False
         self._bot = self.api.bot
 
+        self.complete: Dict[str, util.aria2.Download] = {}
         self.downloads: Dict[str, util.aria2.Download] = {}
         self.lock: asyncio.Lock = asyncio.Lock()
 
@@ -99,16 +100,13 @@ class _Aria2WebSocket:
             queue = self.api.data[gid]
             queue.put_nowait(file.followed_by[0])
             meta += " - Metadata"
-        else:
-            await self._bot.respond(self.api.invoker,
-                                    f"Complete download: `{file.name}`",
-                                    mode="reply")
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
         async with self.lock:
-            self.api.complete[gid] = file
             del self.downloads[gid]
 
+            if file.metadata is False:
+                self.complete[gid] = file
             if len(self.downloads) == 0:
                 self.api.invoker = None
 
@@ -117,10 +115,11 @@ class _Aria2WebSocket:
         gid = data["params"][0]["gid"]
 
         file = await self.get_download(trigger, gid)
-        await self.api.invoker.edit(f"`{file.name}`\n"
-                                    f"Status: **{file.status.capitalize()}**\n"
-                                    f"Error: __{file.error_message}__\n"
-                                    f"Code: **{file.error_code}**")
+        await self._bot.respond(self.api.invoker,
+                                f"`{file.name}`\n"
+                                f"Status: **{file.status.capitalize()}**\n"
+                                f"Error: __{file.error_message}__\n"
+                                f"Code: **{file.error_code}**", mode="reply")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         async with self.lock:
@@ -177,7 +176,6 @@ class _Aria2WebSocket:
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
-    complete: Dict[str, util.aria2.Download]
     client: _Aria2WebSocket
     data: Dict[str, asyncio.Queue]
 
@@ -185,7 +183,6 @@ class Aria2(module.Module):
     stopping: bool
 
     async def on_load(self) -> None:
-        self.complete = {}
         self.data = {}
         self.client = await _Aria2WebSocket.init(self)
 

@@ -98,7 +98,8 @@ class _Aria2WebSocket:
             meta += " - Metadata"
         else:
             await self._bot.respond(self.api.invoker,
-                                    "Complete download: `{file.name}`")
+                                    f"Complete download: `{file.name}`",
+                                    mode="repost")
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
         self.api.complete[gid] = file

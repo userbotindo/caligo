@@ -138,17 +138,17 @@ class TelegramBot(Base):
     def update_module_event(self: "Bot",
                             name: str,
                             handler_type: Handler,
-                            filters: Optional[Filter] = None,
+                            filt: Optional[Filter] = None,
                             group: int = 0) -> None:
         if name in self.listeners:
             # Add if there ARE listeners and it's NOT already registered
             if name not in self._mevent_handlers:
 
-                async def update_handler(client, event) -> None:
+                async def update_handler(_, event) -> None:
                     await self.dispatch_event(name, event)
 
-                handler_info = self.client.add_handler(
-                    handler_type(update_handler, filters), group)
+                handler_info = self.client.add_handler(  # skipcq: PYL-E1111
+                    handler_type(update_handler, filt), group)
                 self._mevent_handlers[name] = handler_info
         elif name in self._mevent_handlers:
             # Remove if there are NO listeners and it's ALREADY registered
@@ -159,13 +159,13 @@ class TelegramBot(Base):
         self.update_module_event("message", MessageHandler,
                                  filters.all & ~filters.edited &
                                  ~self.command_predicate() &
-                                 ~self.chat_action(), 3)
+                                 ~TelegramBot.chat_action(), 3)
         self.update_module_event("message_edit", MessageHandler,
                                  filters.edited, 3)
         self.update_module_event("message_delete", DeletedMessagesHandler,
                                  filters.all, 3)
         self.update_module_event("chat_action", MessageHandler,
-                                 self.chat_action(), 3)
+                                 TelegramBot.chat_action(), 3)
         self.update_module_event("user_update", UserStatusHandler,
                                  filters.all, 5)
 
@@ -201,8 +201,18 @@ class TelegramBot(Base):
 
         return text
 
+    @staticmethod
+    def chat_action() -> Filter:
+        async def func(__, ___, chat):
+            if chat.new_chat_members or chat.left_chat_member:
+                return True
+
+            return False
+
+        return create(func)
+
     def conversation_predicate(self: "Bot") -> Filter:
-        async def func(_, client, conv):
+        async def func(_, __, conv):
             if (self.conv and conv.chat and
                     conv.chat.id in self.conv
                     and not conv.outgoing):
@@ -214,7 +224,7 @@ class TelegramBot(Base):
 
     async def on_conversation(
         self: "Bot",
-        client: pyrogram.Client,
+        _: pyrogram.Client,
         msg: pyrogram.types.Message
     ) -> None:
         cache = self.conv[msg.chat.id]
@@ -244,7 +254,9 @@ class TelegramBot(Base):
         **kwargs: Any,
     ) -> pyrogram.types.Message:
         if text is not None:
-            text = self.redact_message(text)
+
+            if redact:
+                text = self.redact_message(text)
 
             # send as file if text > 4096
             if len(text) > tg.MESSAGE_CHAR_LIMIT:

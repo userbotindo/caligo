@@ -4,46 +4,43 @@ from typing import Any, ClassVar, Dict, Union
 
 import aioaria2
 import pyrogram
+from pyrogram.errors import MessageEmpty, MessageNotModified
 
 from .. import module, util
 
 
-class Aria2WebSocket:
+class _Aria2WebSocket:
 
     server: aioaria2.AsyncAria2Server
     client: aioaria2.Aria2WebsocketTrigger
 
     def __init__(self, api: "Aria2") -> None:
         self.api = api
+        self.log = self.api.log
+
+        self._start = False
+        self._bot = self.api.bot
+
+        self.downloads: Dict[str, util.aria2.Download] = {}
 
     @classmethod
-    async def init(cls, api: "Aria2") -> "Aria2WebSocket":
+    async def init(cls, api: "Aria2") -> "_Aria2WebSocket":
         path = Path.home() / "downloads"
         path.mkdir(parents=True, exist_ok=True)
 
         link = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
         async with api.bot.http.get(link) as resp:
             trackers_list: str = await resp.text()
-            trackers: str = "[" + trackers_list.replace('\n\n', ',') + "]"
+            trackers: str = "[" + trackers_list.replace("\n\n", ",") + "]"
 
         cmd = [
-            "aria2c",
-            f"--dir={str(path)}",
-            "--enable-rpc",
-            "--rpc-listen-all=false",
-            "--rpc-listen-port=8080",
-            "--max-connection-per-server=10",
-            "--rpc-max-request-size=1024M",
-            "--seed-ratio=1",
-            "--seed-time=60",
-            "--max-upload-limit=1024K",
-            "--max-concurrent-downloads=5",
-            "--min-split-size=10M",
-            "--follow-torrent=mem",
-            "--split=10",
-            f"--bt-tracker={trackers}",
-            "--daemon=true",
-            "--allow-overwrite=true",
+            "aria2c", f"--dir={str(path)}", "--enable-rpc",
+            "--rpc-listen-all=false", "--rpc-listen-port=8080",
+            "--max-connection-per-server=10", "--rpc-max-request-size=1024M",
+            "--seed-time=0.01", "--seed-ratio=0.1", "--max-upload-limit=5K",
+            "--max-concurrent-downloads=5", "--min-split-size=10M",
+            "--follow-torrent=mem", "--split=10", f"--bt-tracker={trackers}",
+            "--daemon=true", "--allow-overwrite=true"
         ]
         protocol = "http://localhost:8080/jsonrpc"
 
@@ -63,74 +60,146 @@ class Aria2WebSocket:
         self = cls(api)
         client = await aioaria2.Aria2WebsocketTrigger.new(url=protocol)
 
-        trigger_names = ["Start", "Complete", "Error"]
-        for handler_name in trigger_names:
-            client.register(self.on_trigger, f"aria2.onDownload{handler_name}")
+        trigger = [(self.on_download_start, "onDownloadStart"),
+                   (self.on_download_complete, "onDownloadComplete"),
+                   (self.on_download_error, "onDownloadError")]
+        for handler, name in trigger:
+            client.register(handler, f"aria2.{name}")
         return client
 
-    async def on_trigger(
-        self,
-        trigger: aioaria2.Aria2WebsocketTrigger,
-        data: Union[Dict[str, str], Any]
-    ):
-        method = data.get("method").removeprefix("aria2.")
+    async def get_download(self, client: aioaria2.Aria2WebsocketTrigger,
+                           gid: str) -> util.aria2.Download:
+        res = await client.tellStatus(gid)
+        return await util.run_sync(util.aria2.Download, client, res)
+
+    async def on_download_start(self, trigger: aioaria2.Aria2WebsocketTrigger,
+                                data: Union[Dict[str, str], Any]) -> None:
+        gid = data["params"][0]["gid"]
+        self.downloads[gid] = await self.get_download(trigger, gid)
+        self.log.info(f"Starting download: [gid: '{gid}']")
+
+        # Only create task once, because we running on forever loop
+        if self._start is False:
+            self._start = True
+            self._bot.loop.create_task(await self._updateProgress())
+
+    async def on_download_complete(self,
+                                   trigger: aioaria2.Aria2WebsocketTrigger,
+                                   data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
-        if method == "onDownloadComplete":
-            self.api.downloads[gid] = await self.api.downloads[gid].update
-            file = self.api.downloads[gid]
+        self.downloads[gid] = await self.get_download(trigger, gid)
+        file = self.downloads[gid]
+
+        meta = ""
+        if file.metadata is True:
             queue = self.api.data[gid]
+            queue.put_nowait(file.followed_by[0])
+            meta += " - Metadata"
+        else:
+            await self._bot.respond(self.api.invoker,
+                                    "Complete download: `{file.name}`")
 
-            if file.metadata is True:
-                newGid = file.followed_by[0]
-                self.api.downloads[newGid] = await self.api.getDownload(newGid)
-                queue.put_nowait(newGid)
+        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
+        self.api.complete[gid] = file
+        del self.downloads[gid]
 
-        update = getattr(self.api, method)
-        await update(gid)
+        if len(self.downloads) == 0:
+            self.api.invoker = None
+
+    async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
+                                data: Union[Dict[str, str], Any]) -> None:
+        gid = data["params"][0]["gid"]
+
+        file = await self.get_download(trigger, gid)
+        await self.api.invoker.edit(f"`{file.name}`\n"
+                                    f"Status: **{file.status.capitalize()}**\n"
+                                    f"Error: __{file.error_message}__\n"
+                                    f"Code: **{file.error_code}**")
+
+        self.log.warning(f"[gid: '{gid}']: {file.error_message}")
+        del self.downloads[gid]
+
+        if len(self.downloads) == 0:
+            self.api.invoker = None
+
+    async def _checkProgress(self) -> str:
+        progress_string = ""
+        time = util.time.format_duration_td
+        human = util.misc.human_readable_bytes
+        for file in self.downloads.values():
+            file = await file.update
+            downloaded = file.completed_length
+            file_size = file.total_length
+            percent = file.progress
+            speed = file.download_speed
+            eta = file.eta_formatted
+
+            bullets = "●" * int(round(percent * 10)) + "○"
+            if len(bullets) > 10:
+                bullets = bullets.replace("○", "")
+
+            space = '   ' * (10 - len(bullets))
+            if file.complete or file.failed or file.paused:
+                continue
+
+            progress_string += (
+                f"`{file.name}`\nGID: `{file.gid}`\n"
+                f"Status: **{file.status.capitalize()}**\n"
+                f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
+                f"{human(downloaded)} of {human(file_size)} @ "
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n")
+
+        return progress_string
+
+    async def _updateProgress(self) -> None:
+        while not self.api.stopping:
+            if len(self.downloads) >= 1:
+                progress = await self._checkProgress()
+                try:
+                    await self.api.invoker.edit(progress)
+                except (MessageNotModified, MessageEmpty):
+                    await asyncio.sleep(1)
+                else:
+                    await asyncio.sleep(5)
+                finally:
+                    continue
+
+            await asyncio.sleep(1)
 
 
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
-    client: Aria2WebSocket
+    complete: Dict[str, util.aria2.Download]
+    client: _Aria2WebSocket
     data: Dict[str, asyncio.Queue]
-    downloads: Dict[str, str]
+
+    invoker: pyrogram.types.Message
+    stopping: bool
 
     async def on_load(self) -> None:
-        self.bot.unload_module(self)
-
         self.data = {}
-        self.downloads = {}
-        self.client = await Aria2WebSocket.init(self)
+        self.client = await _Aria2WebSocket.init(self)
+
+        self.invoker = None
+        self.stopping = False
 
     async def on_stop(self) -> None:
+        self.stopping = True
         await self.client.close()
-
-    async def onDownloadStart(self, gid: str) -> None:
-        self.log.info(f"Starting download: [gid: '{gid}']")
-
-    async def onDownloadComplete(self, gid: str):
-        meta = ""
-        file = self.downloads[gid]
-        if file.metadata is True:
-            meta += " - Metadata"
-
-        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
-
-    async def onDownloadError(self, gid: str) -> None:
-        file = await self.downloads[gid].update
-        self.log.warning(file.error_message)
 
     async def addDownload(self, uri: str, msg: pyrogram.types.Message) -> str:
         gid = await self.client.addUri([uri])
-        self.downloads[gid] = await self.getDownload(gid)
-        self.bot.loop.create_task(self.checkProgress(gid))
+
+        # Save the message but delete first so we don't spam chat with new download
+        if self.invoker is not None:
+            await self.invoker.delete()
+        self.invoker = msg
 
         self.data[gid] = asyncio.Queue(1)
-
         try:
-            fut = await asyncio.wait_for(self.data[gid].get(), 10)
+            fut = await asyncio.wait_for(self.data[gid].get(), 15)
         except asyncio.TimeoutError:
             fut = None
         finally:
@@ -146,43 +215,3 @@ class Aria2(module.Module):
 
     async def removeDownload(self, gid: str) -> str:
         return await self.client.remove(gid)
-
-    async def getDownload(self, gid: str) -> util.aria2.Download:
-        res = await self.client.tellStatus(gid)
-        return util.aria2.Download(self, res)
-
-    async def checkProgress(self, gid: str) -> Union[str, pyrogram.types.Message]:
-        complete = False
-        while not complete:
-            file = await self.downloads[gid].update
-            complete = file.complete
-            try:
-                if not complete and not file.error_message:
-                    percentage = file.progress
-                    downloaded = file.total_length
-                    speed = file.download_speed
-                    eta = file.eta
-                    text = f"{percentage}%: {downloaded} -> {speed} - {eta}"
-
-                    self.log.info(text)
-                await asyncio.sleep(2)
-                file = await self.downloads[gid].update
-                complete = file.complete
-                if complete:
-                    del self.downloads[gid]
-                    self.log.info("Completed")
-                else:
-                    continue
-            except Exception as e:
-                self.log.info("ERROR: ", e)
-                return
-
-    async def cmd_test(self, ctx):
-        gid = await self.addDownload(ctx.input, ctx.msg)
-
-        if gid:
-            file = self.downloads[gid]
-            self.log.info(dir(file))
-            await file.pause
-            await file.remove
-        return

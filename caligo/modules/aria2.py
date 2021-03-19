@@ -99,7 +99,7 @@ class _Aria2WebSocket:
         else:
             await self._bot.respond(self.api.invoker,
                                     f"Complete download: `{file.name}`",
-                                    mode="repost")
+                                    mode="reply")
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
         self.api.complete[gid] = file

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from mimetypes import guess_type
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -55,6 +56,11 @@ class File:
         return Path(self._data["path"])
 
     @property
+    def mime_type(self) -> str:
+        mimeType = guess_type(self.path)[0]
+        return mimeType if mimeType is not None else "text/plain"
+
+    @property
     def metadata(self) -> bool:
         return str(self.path).startswith("[METADATA]")
 
@@ -65,6 +71,10 @@ class File:
     @property
     def completed_length(self) -> int:
         return int(self._data["completedLength"])
+
+    @property
+    def selected(self) -> bool:
+        return True if self._data.get("selected") == "true" else False
 
     @property
     def uris(self) -> Optional[List[str]]:
@@ -117,6 +127,10 @@ class Download:
                     except IndexError:
                         pass
         return self._name
+
+    @property
+    def mime_type(self) -> str:
+        return self.files[0].mime_type
 
     @property
     def gid(self) -> str:

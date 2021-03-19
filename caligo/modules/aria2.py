@@ -70,7 +70,6 @@ class Aria2WebSocket:
         trigger = [
             (self.on_download_start, "onDownloadStart"),
             (self.on_download_complete, "onDownloadComplete"),
-            (self.on_download_complete, "onBtDownloadComplete"),
             (self.on_download_error, "onDownloadError")
         ]
         for handler, name in trigger:
@@ -116,30 +115,6 @@ class Aria2WebSocket:
             meta += " - Metadata"
         else:
             await self.api.invoker.reply("Complete download: `{file.name}`")
-
-        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
-        del self.api.downloads[gid]
-
-        if len(self.api.downloads) == 0:
-            self.api.invoker = None
-
-    async def on_btdownload_complete(
-        self,
-        trigger: aioaria2.Aria2WebsocketTrigger,
-        data: Union[Dict[str, str], Any]
-    ):
-        gid = data["params"][0]["gid"]
-
-        self.api.downloads[gid] = await self.api.downloads[gid].update
-        file = self.api.downloads[gid]
-
-        meta = ""
-        if file.metadata is True:
-            queue = self.api.data[gid]
-            queue.put_nowait(file.followed_by[0])
-            meta += " - Metadata"
-        else:
-            await self.api.invoker.reply(f"Complete download: `{file.name}`")
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
         del self.api.downloads[gid]

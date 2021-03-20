@@ -18,9 +18,6 @@ class AlreadyInConversation(Exception):
 
 class Conversation:
 
-    bot: "Bot"
-    log: logging.Logger
-
     def __init__(
         self,
         bot: "Bot",
@@ -29,7 +26,7 @@ class Conversation:
         max_messages: int
     ):
         self.bot = bot
-        self.log = self.bot.log
+        self.log: logging.Logger = self.bot.log
 
         self._input_chat = input_chat
         self._timeout = timeout

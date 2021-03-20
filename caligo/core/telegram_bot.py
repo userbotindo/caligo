@@ -228,9 +228,7 @@ class TelegramBot(Base):
         msg: pyrogram.types.Message
     ) -> None:
         cache = self.conv[msg.chat.id]
-
-        if isinstance(cache, asyncio.Queue):
-            cache.put_nowait(msg)
+        cache.put_nowait(msg)
         msg.continue_propagation()
 
     def conversation(

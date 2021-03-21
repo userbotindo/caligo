@@ -28,7 +28,6 @@ class Aria2WebSocket:
         self.complete: List[str] = []
         self.downloads: Dict[str, util.aria2.Download] = {}
         self.uploads: Dict[str, List[Any]] = {}
-        self.lock: asyncio.Lock = asyncio.Lock()
 
     @classmethod
     async def init(cls, api: "Aria2") -> "Aria2WebSocket":
@@ -82,7 +81,7 @@ class Aria2WebSocket:
     async def on_download_start(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
-        async with self.lock:
+        async with self.api.lock:
             self.downloads[gid] = await self.get_download(trigger, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
@@ -99,7 +98,7 @@ class Aria2WebSocket:
         file = self.downloads[gid]
 
         meta = ""
-        async with self.lock:
+        async with self.api.lock:
             if file.metadata is True:
                 meta += " - Metadata"
                 del self.downloads[file.gid]
@@ -121,7 +120,7 @@ class Aria2WebSocket:
                                 f"Code: **{file.error_code}**", mode="reply")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
-        async with self.lock:
+        async with self.api.lock:
             del self.downloads[file.gid]
 
             if len(self.downloads) == 0:
@@ -168,7 +167,7 @@ class Aria2WebSocket:
             if len(self.complete) != 0:
                 for gid in self.complete:
                     if gid in self.downloads and gid in self.uploads:
-                        async with self.lock:
+                        async with self.api.lock:
                             del self.downloads[gid]
                             del self.uploads[gid]
 
@@ -251,11 +250,15 @@ class Aria2(module.Module):
     invoker: pyrogram.types.Message
     stopping: bool
 
+    lock: asyncio.Lock
+
     async def on_load(self) -> None:
         self.client = await Aria2WebSocket.init(self)
 
         self.invoker = None
         self.stopping = False
+
+        self.lock = asyncio.Lock()
 
     async def on_stop(self) -> None:
         self.stopping = True
@@ -266,7 +269,7 @@ class Aria2(module.Module):
 
         # Save the message but delete first so we don't spam chat with new download
         if self.invoker is not None:
-            async with asyncio.Lock():
+            async with self.lock:
                 await self.invoker.delete()
         self.invoker = msg
 
@@ -280,7 +283,7 @@ class Aria2(module.Module):
         await self.pauseDownload(gid)
         await self.removeDownload(gid)
 
-        async with asyncio.Lock():
+        async with self.lock:
             if gid in self.downloads:
                 del self.downloads[gid]
             if gid in self.uploads:

@@ -5,13 +5,15 @@ from typing import ClassVar, Dict, Union
 import pyrogram
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.discovery import Resource
-from google.oauth2.credentials import Credentials
+from googleapiclient.http import MediaFileUpload
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
+from .aria2 import Aria2WebSocket, Aria2
 
 
 class GoogleDrive(module.Module):
@@ -22,6 +24,9 @@ class GoogleDrive(module.Module):
     db: AsyncIOMotorDatabase
     lock: asyncio.Lock
     service: Resource
+
+    parent_id: str
+    aria2: Aria2
 
     async def on_load(self) -> None:
         self.db = self.bot.get_db("gdrive")
@@ -34,6 +39,7 @@ class GoogleDrive(module.Module):
             self.bot.unload_module(self)
             return
 
+        self.parent_id = self.bot.getConfig.gdrive_folder_id
         self.lock = asyncio.Lock()
 
         if data:
@@ -45,6 +51,8 @@ class GoogleDrive(module.Module):
                 credentials=self.creds,
                 cache_discovery=False
             )
+
+            self.aria2 = self.bot.modules.get("Aria2")
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
@@ -136,3 +144,23 @@ class GoogleDrive(module.Module):
                 credentials=self.creds,
                 cache_discovery=False
             )
+
+    async def uploadFile(self, aria2: Aria2WebSocket, gid: str) -> MediaFileUpload:
+        download = aria2.downloads[gid]
+        file = download.files[0]
+        body = {"name": download.name, "mimeType": file.mime_type}
+        if self.parent_id is not None:
+            body["parents"] = [self.parent_id]
+
+        media_body = MediaFileUpload(file.path, mimetype=file.mime_type, resumable=True)
+        file = self.service.files().create(
+            body=body, media_body=media_body, fields="id, size, webContentLink",
+            supportsAllDrives=True)
+
+        return file
+
+    async def cmd_gdmirror(self, ctx: command.Context) -> None:
+        if not ctx.input:
+            return "Link not found."
+
+        await self.aria2.addDownload(ctx.input, ctx.msg)

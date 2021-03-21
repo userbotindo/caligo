@@ -18,6 +18,8 @@ class AlreadyInConversation(Exception):
 
 class Conversation:
 
+    log: logging.Logger
+
     def __init__(
         self,
         bot: "Bot",
@@ -26,7 +28,7 @@ class Conversation:
         max_messages: int
     ):
         self.bot = bot
-        self.log: logging.Logger = self.bot.log
+        self.log = self.bot.log
 
         self._input_chat = input_chat
         self._timeout = timeout
@@ -59,9 +61,9 @@ class Conversation:
 
     async def _get_message(self, filters=None, **kwargs) -> pyrogram.types.Message:
         if self._counter >= self._max_incoming:
-            raise ValueError("Received max messages.")
+            raise ValueError("Received max messages")
 
-        fut = self.bot.conv[self._chat_id]
+        fut = self.bot.CONVERSATION[self._chat_id]
         timeout = kwargs.get("timeout") or self._timeout
 
         before = util.time.usec()
@@ -81,7 +83,7 @@ class Conversation:
 
         self._counter += 1
         if kwargs.get("mark_read"):
-            await self.mark_read()
+            await self._mark_read()
 
         return result
 
@@ -93,7 +95,7 @@ class Conversation:
     ) -> pyrogram.types.Message:
         return await asyncio.wait_for(future.get(), max(0.1, due))
 
-    async def mark_read(self, **kwargs) -> None:
+    async def _mark_read(self, **kwargs) -> None:
         await asyncio.gather(
             self.bot.client.send(functions.messages.ReadMentions(
                 peer=await self.bot.client.resolve_peer(
@@ -108,17 +110,19 @@ class Conversation:
         if not isinstance(self._chat_id, int):
             chat = await self.bot.client.get_chat(self._input_chat)
             self._chat_id = chat.id
+        self.log.info(f"Opening conversation with '{self._chat_id}'")
 
-        if self._chat_id in self.bot.conv:
-            self.log.error(f"Conversation with {self._chat_id} already open.")
+        if self._chat_id in self.bot.CONVERSATION:
+            self.log.error(f"Conversation with '{self._chat_id}' already open")
             raise AlreadyInConversation
 
-        self.bot.conv[self._chat_id] = asyncio.Queue(self._max_incoming)
+        self.bot.CONVERSATION[self._chat_id] = asyncio.Queue(self._max_incoming)
 
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        conv = self.bot.conv[self._chat_id]
+        self.log.info(f"Closing conversation with '{self._chat_id}'")
+        conv = self.bot.CONVERSATION[self._chat_id]
 
         conv.put_nowait(None)
-        del self.bot.conv[self._chat_id]
+        del self.bot.CONVERSATION[self._chat_id]

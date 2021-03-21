@@ -12,10 +12,6 @@ from pyrogram.errors import MessageEmpty, MessageNotModified
 from .. import module, util
 
 
-class Aria2CancelledProcess(Exception):
-    pass
-
-
 class Aria2WebSocket:
 
     server: aioaria2.AsyncAria2Server
@@ -105,18 +101,15 @@ class Aria2WebSocket:
         file = self.downloads[gid]
 
         meta = ""
-        if file.metadata is True:
-            queue = self.api.data[gid]
-            queue.put_nowait(file.followed_by[0])
-            meta += " - Metadata"
-
-        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
         async with self.lock:
             if file.metadata is True:
+                meta += " - Metadata"
                 del self.downloads[file.gid]
             else:
                 _file = await self.drive.uploadFile(self, file.gid)
                 self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
+
+        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
 
     async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
@@ -257,13 +250,10 @@ class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
     client: Aria2WebSocket
-    data: Dict[str, asyncio.Queue]
-
     invoker: pyrogram.types.Message
     stopping: bool
 
     async def on_load(self) -> None:
-        self.data = {}
         self.client = await Aria2WebSocket.init(self)
 
         self.invoker = None
@@ -273,27 +263,14 @@ class Aria2(module.Module):
         self.stopping = True
         await self.client.close()
 
-    async def addDownload(self, uri: str, msg: pyrogram.types.Message) -> str:
-        gid = await self.client.addUri([uri])
+    async def addDownload(self, uri: str, msg: pyrogram.types.Message) -> None:
+        await self.client.addUri([uri])
 
         # Save the message but delete first so we don't spam chat with new download
         if self.invoker is not None:
             async with asyncio.Lock():
                 await self.invoker.delete()
         self.invoker = msg
-
-        self.data[gid] = asyncio.Queue(1)
-        try:
-            fut = await asyncio.wait_for(self.data[gid].get(), 15)
-        except asyncio.TimeoutError:
-            fut = None
-        finally:
-            del self.data[gid]
-
-        if fut is not None:
-            return fut
-
-        return gid
 
     async def pauseDownload(self, gid: str) -> str:
         return await self.client.pause(gid)

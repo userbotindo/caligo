@@ -1,6 +1,6 @@
 import asyncio
 import pickle
-from typing import ClassVar, Dict, Union
+from typing import Any, ClassVar, Dict, Union
 
 import pyrogram
 from google.auth.transport.requests import Request
@@ -12,7 +12,6 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
-from .aria2 import Aria2, Aria2WebSocket
 
 
 class GoogleDrive(module.Module):
@@ -25,7 +24,7 @@ class GoogleDrive(module.Module):
     service: Resource
 
     parent_id: str
-    aria2: Aria2
+    aria2: Any
 
     async def on_load(self) -> None:
         self.db = self.bot.get_db("gdrive")
@@ -49,7 +48,8 @@ class GoogleDrive(module.Module):
                                  credentials=self.creds,
                                  cache_discovery=False)
 
-            self.aria2 = self.bot.modules.get("Aria2")
+    async def on_started(self) -> None:
+        self.aria2 = self.bot.modules.get("Aria2")
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
@@ -130,8 +130,7 @@ class GoogleDrive(module.Module):
                                  credentials=self.creds,
                                  cache_discovery=False)
 
-    async def uploadFile(self, aria2: Aria2WebSocket,
-                         gid: str) -> MediaFileUpload:
+    async def uploadFile(self, aria2: Any, gid: str) -> MediaFileUpload:
         download = aria2.downloads[gid]
         file = download.files[0]
         body = {"name": download.name, "mimeType": file.mime_type}

@@ -269,7 +269,8 @@ class Aria2(module.Module):
 
         # Save the message but delete first so we don't spam chat with new download
         if self.invoker is not None:
-            await self.invoker.delete()
+            async with asyncio.Lock():
+                await self.invoker.delete()
         self.invoker = msg
 
         self.data[gid] = asyncio.Queue(1)

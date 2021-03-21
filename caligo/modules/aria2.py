@@ -1,4 +1,5 @@
 import asyncio
+import urllib
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Tuple, Union
@@ -235,6 +236,7 @@ class Aria2WebSocket:
         mirrorLink = response.get("webContentLink")
         text = f"**GoogleDrive Link**: [{file_name}]({mirrorLink})"
         if self.drive.index_link is not None:
+            file_name = await util.run_sync(urllib.quote, file_name)
             if self.drive.index_link.endswith("/"):
                 link = self.drive.index_link + file_name
             else:
@@ -304,7 +306,7 @@ class Aria2(module.Module):
         await self.pauseDownload(gid)
         await self.removeDownload(gid)
 
-        async with self.lock:
+        async with asyncio.Lock():
             if gid in self.downloads:
                 del self.downloads[gid]
             if gid in self.uploads:

@@ -174,7 +174,7 @@ class Download:
 
     @property
     def info_hash(self) -> Optional[str]:
-        return self._data.get.get("infoHash")
+        return self._data.get("infoHash")
 
     @property
     def num_seeders(self) -> int:

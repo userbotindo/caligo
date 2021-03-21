@@ -69,7 +69,7 @@ class CommandDispatcher(Base):
             self.unregister_command(cmd)
 
     def command_predicate(self: "Bot") -> Filter:
-        async def func(_, __, message):
+        async def func(_, __, message: pyrogram.types.Message):
             if message.text is not None and message.text.startswith(self.prefix):
                 parts = message.text.split()
                 parts[0] = parts[0][len(self.prefix):]

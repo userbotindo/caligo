@@ -249,9 +249,8 @@ class Aria2(module.Module):
 
     client: Aria2WebSocket
     invoker: pyrogram.types.Message
-    stopping: bool
-
     lock: asyncio.Lock
+    stopping: bool
 
     async def on_load(self) -> None:
         self.client = await Aria2WebSocket.init(self)
@@ -283,9 +282,3 @@ class Aria2(module.Module):
     async def cancelMirror(self, gid: str):
         await self.pauseDownload(gid)
         await self.removeDownload(gid)
-
-        async with self.lock:
-            if gid in self.downloads:
-                del self.downloads[gid]
-            if gid in self.uploads:
-                del self.uploads[gid]

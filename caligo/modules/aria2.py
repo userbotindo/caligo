@@ -1,15 +1,21 @@
 import asyncio
+from datetime import timedelta
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Union
+from typing import Any, ClassVar, Dict, List, Tuple, Union
 
 import aioaria2
 import pyrogram
+from googleapiclient.http import MediaFileUpload
 from pyrogram.errors import MessageEmpty, MessageNotModified
 
 from .. import module, util
 
 
-class _Aria2WebSocket:
+class Aria2CancelledProcess(Exception):
+    pass
+
+
+class Aria2WebSocket:
 
     server: aioaria2.AsyncAria2Server
     client: aioaria2.Aria2WebsocketTrigger
@@ -17,16 +23,18 @@ class _Aria2WebSocket:
     def __init__(self, api: "Aria2") -> None:
         self.api = api
         self.log = self.api.log
+        self.drive = self.api.bot.modules.get("GoogleDrive")
 
         self._start = False
         self._bot = self.api.bot
 
-        self.complete: Dict[str, util.aria2.Download] = {}
+        self.complete: List[str] = []
         self.downloads: Dict[str, util.aria2.Download] = {}
+        self.uploads: Dict[str, List[Any]] = {}
         self.lock: asyncio.Lock = asyncio.Lock()
 
     @classmethod
-    async def init(cls, api: "Aria2") -> "_Aria2WebSocket":
+    async def init(cls, api: "Aria2") -> "Aria2WebSocket":
         path = Path.home() / "downloads"
         path.mkdir(parents=True, exist_ok=True)
 
@@ -103,12 +111,11 @@ class _Aria2WebSocket:
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
         async with self.lock:
-            del self.downloads[gid]
-
-            if file.metadata is False:
-                self.complete[gid] = file
-            if len(self.downloads) == 0:
-                self.api.invoker = None
+            if file.metadata is True:
+                del self.downloads[file.gid]
+            else:
+                _file = await self.drive.uploadFile(self.drive, self, file.gid)
+                self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
 
     async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
@@ -123,7 +130,7 @@ class _Aria2WebSocket:
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         async with self.lock:
-            del self.downloads[gid]
+            del self.downloads[file.gid]
 
             if len(self.downloads) == 0:
                 self.api.invoker = None
@@ -134,20 +141,26 @@ class _Aria2WebSocket:
         human = util.misc.human_readable_bytes
         for file in self.downloads.values():
             file = await file.update
+            if file.failed or file.paused or (file.complete and file.metadata):
+                continue
+            elif file.complete and not file.metadata:
+                file = self.uploads[file.gid]
+                progress, done = await self._uploadProgress(file)
+                if not done:
+                    progress_string += progress
+
+                continue
+
             downloaded = file.completed_length
             file_size = file.total_length
             percent = file.progress
             speed = file.download_speed
             eta = file.eta_formatted
-
             bullets = "●" * int(round(percent * 10)) + "○"
             if len(bullets) > 10:
                 bullets = bullets.replace("○", "")
 
             space = '   ' * (10 - len(bullets))
-            if file.complete or file.failed or file.paused:
-                continue
-
             progress_string += (
                 f"`{file.name}`\nGID: `{file.gid}`\n"
                 f"Status: **{file.status.capitalize()}**\n"
@@ -159,6 +172,13 @@ class _Aria2WebSocket:
 
     async def _updateProgress(self) -> None:
         while not self.api.stopping:
+            if len(self.complete) != 0:
+                for gid in self.complete:
+                    if gid in self.downloads and gid in self.uploads:
+                        async with self.lock:
+                            del self.downloads[gid]
+                            del self.uploads[gid]
+
             if len(self.downloads) >= 1:
                 progress = await self._checkProgress()
                 try:
@@ -169,14 +189,64 @@ class _Aria2WebSocket:
                     await asyncio.sleep(5)
                 finally:
                     continue
+            elif len(self.downloads) == 0 and self.api.invoker is not None:
+                self.complete = []  # CHECKME
+                await self.api.invoker.delete()
 
             await asyncio.sleep(1)
+
+    async def _uploadProgress(
+        self, file: List[Union[MediaFileUpload, str]]
+    ) -> Tuple[Union[str, None], bool]:
+        file_name = file[1]
+        gid = file[2]
+        start = file[3]
+        time = util.time.format_duration_td
+        human = util.misc.human_readable_bytes
+
+        file = file[0]
+        status, response = await util.run_sync(file.next_chunk)
+        if status:
+            file_size = status.total_size
+            end = util.time.sec() - start
+            uploaded = status.resumable_progress
+            percent = uploaded / file_size
+            speed = round(uploaded / end, 2)
+            eta = timedelta(seconds=int(round((file_size - uploaded) / speed)))
+            bullets = "●" * int(round(percent * 10)) + "○"
+            if len(bullets) > 10:
+                bullets = bullets.replace("○", "")
+
+            space = '   ' * (10 - len(bullets))
+            progress = (
+                f"`{file_name}`\nGID: `{gid}`\n"
+                f"Status: **Uploading**\n"
+                f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
+                f"{human(uploaded)} of {human(file_size)} @ "
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n"
+            )
+
+        if response is None:
+            return progress, False
+
+        file_size = response.get("size")
+        mirrorLink = response.get("webContentLink")
+
+        await self._bot.respond(
+            self.api.invoker,
+            f"Link: [{file_name}]({mirrorLink})",
+            mode="reply"
+        )
+
+        self.complete.append(gid)
+
+        return None, True
 
 
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
-    client: _Aria2WebSocket
+    client: Aria2WebSocket
     data: Dict[str, asyncio.Queue]
 
     invoker: pyrogram.types.Message
@@ -184,7 +254,7 @@ class Aria2(module.Module):
 
     async def on_load(self) -> None:
         self.data = {}
-        self.client = await _Aria2WebSocket.init(self)
+        self.client = await Aria2WebSocket.init(self)
 
         self.invoker = None
         self.stopping = False
@@ -219,3 +289,13 @@ class Aria2(module.Module):
 
     async def removeDownload(self, gid: str) -> str:
         return await self.client.remove(gid)
+
+    async def cancelMirror(self, gid: str):
+        await self.pauseDownload(gid)
+        await self.removeDownload(gid)
+
+        async with self.lock:
+            if gid in self.downloads:
+                del self.downloads[gid]
+            if gid in self.uploads:
+                del self.uploads[gid]

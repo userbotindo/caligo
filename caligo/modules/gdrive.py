@@ -37,6 +37,7 @@ class GoogleDrive(module.Module):
             self.bot.unload_module(self)
             return
 
+        self.index_link = self.bot.getConfig.gdrive_index_link
         self.parent_id = self.bot.getConfig.gdrive_folder_id
         self.lock = asyncio.Lock()
 

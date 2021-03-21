@@ -21,17 +21,13 @@ class BotConfig:
         self.db_uri = os.environ.get("DB_URI")
         self.string_session = os.environ.get("STRING_SESSION")
 
-        # Core needed
-        self.log = int(os.environ.get("LOG_GROUP", 0))
-
         # GoogleDrive
         try:
             self.gdrive_secret = json.loads(os.environ.get("G_DRIVE_SECRET"))
-        except TypeError:
-            self.gdrive_secret = None
-        except json.decoder.JSONDecodeError:
+        except (TypeError, json.decoder.JSONDecodeError):
             self.gdrive_secret = None
         self.gdrive_folder_id = os.environ.get("G_DRIVE_FOLDER_ID")
+        self.gdrive_index_link = os.environ.get("G_DRIVE_INDEX_LINK")
 
         # Checker
         self.secret = bool(os.environ.get("CONTAINER") == "True")

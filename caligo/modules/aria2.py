@@ -233,10 +233,17 @@ class Aria2WebSocket:
 
         file_size = response.get("size")
         mirrorLink = response.get("webContentLink")
+        text = f"**GoogleDrive Link**: [{file_name}]({mirrorLink})"
+        if self.drive.index_link is not None:
+            if self.drive.index_link.endswith("/"):
+                link = self.drive.index_link + file_name
+            else:
+                link = self.drive.index_link + "/" + file_name
+            text += f"\n\n__Shareable link__: [{file_name}]({link})"
 
         await self._bot.respond(
             self.api.invoker,
-            f"Link: [{file_name}]({mirrorLink})",
+            text=text,
             mode="reply"
         )
 

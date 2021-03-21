@@ -23,6 +23,7 @@ class GoogleDrive(module.Module):
     lock: asyncio.Lock
     service: Resource
 
+    index_link: str
     parent_id: str
     aria2: Any
 

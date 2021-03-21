@@ -109,7 +109,7 @@ class TelegramBot(Base):
 
         await self.dispatch_event("started")
 
-    async def idle(self: "Bot"):
+    async def idle(self: "Bot") -> None:
         def signal_handler(_, __):
 
             self.log.info(f"Stop signal received ({_}).")
@@ -201,11 +201,8 @@ class TelegramBot(Base):
 
     @staticmethod
     def chat_action() -> Filter:
-        async def func(__, ___, chat):
-            if chat.new_chat_members or chat.left_chat_member:
-                return True
-
-            return False
+        async def func(__, ___, chat: pyrogram.types.Message):
+            return bool(chat.new_chat_members or chat.left_chat_member)
 
         return create(func)
 

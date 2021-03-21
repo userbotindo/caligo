@@ -23,7 +23,7 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
     stop_manual: bool
     stopping: bool
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.log = logging.getLogger("Bot")
         self.loop = asyncio.get_event_loop()
         self.stop_manual = False

@@ -224,7 +224,8 @@ class Aria2WebSocket:
 
         file_size = response.get("size")
         mirrorLink = response.get("webContentLink")
-        text = f"**GoogleDrive Link**: [{file_name}]({mirrorLink}) (__{file_size}__)"
+        text = (f"**GoogleDrive Link**: [{file_name}]({mirrorLink}) "
+                f"(__{human(file_size)}__)")
         if self.drive.index_link is not None:
             if self.drive.index_link.endswith("/"):
                 link = self.drive.index_link + parse.quote(file_name)

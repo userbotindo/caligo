@@ -159,6 +159,7 @@ class GoogleDrive(module.Module):
 
         return file
 
+    @command.desc("Mirror Magnet/Link into GoogleDrive")
     async def cmd_gdmirror(self, ctx: command.Context) -> None:
         if not ctx.input:
             return "Link not found."

@@ -115,18 +115,21 @@ class Aria2WebSocket:
                 del self.downloads[file.gid]
             else:
                 _file = await self.drive.uploadFile(self, file.gid)
-                self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
+                self.uploads[file.gid] = [
+                    _file, file.name, file.gid,
+                    util.time.sec()
+                ]
 
     async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         file = await self.get_download(trigger, gid)
-        await self._bot.respond(self.api.invoker,
-                                f"`{file.name}`\n"
+        await self._bot.respond(self.api.invoker, f"`{file.name}`\n"
                                 f"Status: **{file.status.capitalize()}**\n"
                                 f"Error: __{file.error_message}__\n"
-                                f"Code: **{file.error_code}**", mode="reply")
+                                f"Code: **{file.error_code}**",
+                                mode="reply")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         async with self.lock:
@@ -197,8 +200,8 @@ class Aria2WebSocket:
             await asyncio.sleep(1)
 
     async def _uploadProgress(
-        self, file: List[Union[MediaFileUpload, str]]
-    ) -> Tuple[Union[str, None], bool]:
+        self, file: List[Union[MediaFileUpload,
+                               str]]) -> Tuple[Union[str, None], bool]:
         file_name = file[1]
         gid = file[2]
         start = file[3]
@@ -224,8 +227,7 @@ class Aria2WebSocket:
                 f"Status: **Uploading**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
                 f"{human(uploaded)} of {human(file_size)} @ "
-                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n"
-            )
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n")
 
         if response is None:
             return progress, False
@@ -233,11 +235,9 @@ class Aria2WebSocket:
         file_size = response.get("size")
         mirrorLink = response.get("webContentLink")
 
-        await self._bot.respond(
-            self.api.invoker,
-            f"Link: [{file_name}]({mirrorLink})",
-            mode="reply"
-        )
+        await self._bot.respond(self.api.invoker,
+                                f"Link: [{file_name}]({mirrorLink})",
+                                mode="reply")
 
         self.complete.append(gid)
 

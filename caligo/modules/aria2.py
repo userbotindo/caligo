@@ -167,8 +167,8 @@ class Aria2WebSocket:
                 f"`{file.name}`\nGID: `{file.gid}`\n"
                 f"Status: **{file.status.capitalize()}**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
-                f"{human(downloaded)} of {human(file_size)} @ "
-                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n")
+                f"__{human(downloaded)} of {human(file_size)} @ "
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
 
         return progress_string
 
@@ -225,8 +225,8 @@ class Aria2WebSocket:
                 f"`{file_name}`\nGID: `{gid}`\n"
                 f"Status: **Uploading**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
-                f"{human(uploaded)} of {human(file_size)} @ "
-                f"{human(speed, postfix='/s')}\neta - {time(eta)}\n\n"
+                f"__{human(uploaded)} of {human(file_size)} @ "
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n"
             )
 
         if response is None:
@@ -236,11 +236,10 @@ class Aria2WebSocket:
         mirrorLink = response.get("webContentLink")
         text = f"**GoogleDrive Link**: [{file_name}]({mirrorLink})"
         if self.drive.index_link is not None:
-            file_name = await util.run_sync(parse.quote, file_name)
             if self.drive.index_link.endswith("/"):
-                link = self.drive.index_link + file_name
+                link = self.drive.index_link + parse.quote(file_name)
             else:
-                link = self.drive.index_link + "/" + file_name
+                link = self.drive.index_link + "/" + parse.quote(file_name)
             text += f"\n\n__Shareable link__: [{file_name}]({link})"
 
         await self._bot.respond(

@@ -114,7 +114,7 @@ class Aria2WebSocket:
             if file.metadata is True:
                 del self.downloads[file.gid]
             else:
-                _file = await self.drive.uploadFile(self.drive, self, file.gid)
+                _file = await self.drive.uploadFile(self, file.gid)
                 self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
 
     async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
@@ -143,7 +143,8 @@ class Aria2WebSocket:
             file = await file.update
             if file.failed or file.paused or (file.complete and file.metadata):
                 continue
-            elif file.complete and not file.metadata:
+
+            if file.complete and not file.metadata:
                 file = self.uploads[file.gid]
                 progress, done = await self._uploadProgress(file)
                 if not done:

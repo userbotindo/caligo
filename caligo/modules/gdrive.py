@@ -15,7 +15,7 @@ from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 from .. import command, module, util
 
 if TYPE_CHECKING:
-    from .aria2 import Aria2WebSocket
+    from .aria2 import Aria2WebSocket, Aria2
 
 
 class GoogleDrive(module.Module):
@@ -26,6 +26,9 @@ class GoogleDrive(module.Module):
     db: AsyncIOMotorDatabase
     lock: asyncio.Lock
     service: Resource
+
+    parent_id: str
+    aria2: Aria2
 
     async def on_load(self) -> None:
         self.db = self.bot.get_db("gdrive")
@@ -144,10 +147,7 @@ class GoogleDrive(module.Module):
                 cache_discovery=False
             )
 
-    @staticmethod
-    async def uploadFile(
-        self: "GoogleDrive", aria2: "Aria2WebSocket", gid: str
-    ) -> MediaFileUpload:
+    async def uploadFile(self, aria2: "Aria2WebSocket", gid: str) -> MediaFileUpload:
         download = aria2.downloads[gid]
         file = download.files[0]
         body = {"name": download.name, "mimeType": file.mime_type}
@@ -165,4 +165,4 @@ class GoogleDrive(module.Module):
         if not ctx.input:
             return "Link not found."
 
-        await self.aria2.addDownload(ctx.input)
+        await self.aria2.addDownload(ctx.input, ctx.msg)

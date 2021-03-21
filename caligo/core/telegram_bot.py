@@ -1,6 +1,6 @@
 import asyncio
 import signal
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional
 
 import pyrogram
 from pyrogram import filters, Client
@@ -8,7 +8,6 @@ from pyrogram.filters import Filter, create
 from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
 from pyrogram.handlers.handler import Handler
 
-from ..conversation import Conversation
 from ..util import BotConfig, silent, time, tg
 from .base import Base
 
@@ -30,7 +29,6 @@ class TelegramBot(Base):
         self.getConfig = BotConfig()
 
         self._mevent_handlers = {}
-        self.conv = {}
 
         super().__init__(**kwargs)
 
@@ -210,35 +208,6 @@ class TelegramBot(Base):
             return False
 
         return create(func)
-
-    def conversation_predicate(self: "Bot") -> Filter:
-        async def func(_, __, conv):
-            if (self.conv and conv.chat and
-                    conv.chat.id in self.conv
-                    and not conv.outgoing):
-                return True
-
-            return False
-
-        return create(func)
-
-    async def on_conversation(
-        self: "Bot",
-        _: pyrogram.Client,
-        msg: pyrogram.types.Message
-    ) -> None:
-        cache = self.conv[msg.chat.id]
-        cache.put_nowait(msg)
-        msg.continue_propagation()
-
-    def conversation(
-        self: "Bot",
-        chat_id: Union[str, int],
-        *,
-        timeout: Optional[int] = 7,
-        max_messages: Optional[int] = 7
-    ) -> Conversation:
-        return Conversation(self, chat_id, timeout, max_messages)
 
     async def respond(
         self: "Bot",

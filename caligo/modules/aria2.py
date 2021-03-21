@@ -95,9 +95,7 @@ class Aria2WebSocket:
                                    trigger: aioaria2.Aria2WebsocketTrigger,
                                    data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
-
-        async with self.lock:
-            self.downloads[gid] = await self.get_download(trigger, gid)
+        self.downloads[gid] = await self.get_download(trigger, gid)
         file = self.downloads[gid]
 
         meta = ""

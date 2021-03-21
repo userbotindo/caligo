@@ -106,7 +106,8 @@ class GoogleDrive(module.Module):
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.log.info("Refreshing credentials")
-                await util.run_sync(self.creds.refresh, Request())
+                await util.run_sync(self.creds.refresh,
+                                    await util.run_sync(Request))
 
                 credential = await util.run_sync(pickle.dumps, self.creds)
                 async with self.lock:

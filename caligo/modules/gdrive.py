@@ -140,7 +140,8 @@ class GoogleDrive(module.Module):
 
         media_body = MediaFileUpload(file.path,
                                      mimetype=file.mime_type,
-                                     resumable=True)
+                                     resumable=True,
+                                     chunksize=50 * 1024 * 1024)
         file = self.service.files().create(body=body,
                                            media_body=media_body,
                                            fields="id, size, webContentLink",

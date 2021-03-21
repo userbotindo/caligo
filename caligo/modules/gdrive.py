@@ -160,3 +160,9 @@ class GoogleDrive(module.Module):
             supportsAllDrives=True)
 
         return file
+
+    async def cmd_gdmirror(self, ctx: command.Context) -> None:
+        if not ctx.input:
+            return "Link not found."
+
+        await self.aria2.addDownload(ctx.input)

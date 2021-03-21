@@ -1,3 +1,4 @@
+import socket
 from datetime import datetime, timedelta
 from mimetypes import guess_type
 from pathlib import Path
@@ -57,8 +58,7 @@ class File:
 
     @property
     def mime_type(self) -> str:
-        mimeType = guess_type(self.path)[0]
-        return mimeType if mimeType is not None else "text/plain"
+        return guess_type(self.path)[0]
 
     @property
     def metadata(self) -> bool:
@@ -127,10 +127,6 @@ class Download:
                     except IndexError:
                         pass
         return self._name
-
-    @property
-    def mime_type(self) -> str:
-        return self.files[0].mime_type
 
     @property
     def gid(self) -> str:
@@ -277,3 +273,11 @@ class Download:
             return True
 
         return False
+
+
+def get_free_port():
+    sock = socket.socket()
+    sock.bind(('', 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port

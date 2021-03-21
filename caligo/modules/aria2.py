@@ -193,6 +193,7 @@ class Aria2WebSocket:
             elif len(self.downloads) == 0 and self.api.invoker is not None:
                 self.complete = []  # CHECKME
                 await self.api.invoker.delete()
+                self.api.invoker = None
 
             await asyncio.sleep(1)
 

@@ -3,17 +3,16 @@ import pickle
 from typing import ClassVar, Dict, Union
 
 import pyrogram
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.discovery import Resource
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
-from .aria2 import Aria2WebSocket, Aria2
+from .aria2 import Aria2, Aria2WebSocket
 
 
 class GoogleDrive(module.Module):

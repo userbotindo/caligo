@@ -287,7 +287,7 @@ description = "Google Authentication Library"
 name = "google-auth"
 optional = false
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*"
-version = "1.27.1"
+version = "1.28.0"
 
 [package.dependencies]
 cachetools = ">=2.0.0,<5.0"
@@ -358,10 +358,10 @@ description = "File identification library for Python"
 name = "identify"
 optional = false
 python-versions = ">=3.6.1"
-version = "2.1.3"
+version = "2.2.0"
 
 [package.extras]
-license = ["editdistance"]
+license = ["editdistance-s"]
 
 [[package]]
 category = "main"
@@ -377,7 +377,7 @@ description = "A Python utility / library to sort Python imports."
 name = "isort"
 optional = false
 python-versions = ">=3.6,<4.0"
-version = "5.7.0"
+version = "5.8.0"
 
 [package.extras]
 colors = ["colorama (>=0.4.3,<0.5.0)"]
@@ -561,7 +561,7 @@ description = "Telegram MTProto API Client Library and Framework for Python"
 name = "pyrogram"
 optional = false
 python-versions = "~=3.6"
-version = "1.1.13"
+version = "1.2.3"
 
 [package.dependencies]
 async-lru = "1.0.2"
@@ -673,6 +673,20 @@ version = "2.1.2"
 
 [[package]]
 category = "main"
+description = "Retry code until it succeeds"
+name = "tenacity"
+optional = false
+python-versions = "*"
+version = "7.0.0"
+
+[package.dependencies]
+six = ">=1.9.0"
+
+[package.extras]
+doc = ["reno", "sphinx", "tornado (>=4.5)"]
+
+[[package]]
+category = "main"
 description = "Fast Telegram Crypto Library for Python"
 name = "tgcrypto"
 optional = false
@@ -717,7 +731,7 @@ description = "HTTP library with thread-safe connection pooling, file post, and 
 name = "urllib3"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
-version = "1.26.3"
+version = "1.26.4"
 
 [package.extras]
 brotli = ["brotlipy (>=0.6.0)"]
@@ -730,7 +744,7 @@ description = "Virtual Python Environment builder"
 name = "virtualenv"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
-version = "20.4.2"
+version = "20.4.3"
 
 [package.dependencies]
 appdirs = ">=1.4.3,<2"
@@ -763,7 +777,7 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [metadata]
-content-hash = "f89695ce1ee0fee7bae3da93ea2e864cb21eb1199dd6d85695b979a8fabc7edc"
+content-hash = "efe1626c7eaa4e759ac5f445dfd777fe83351202c1f78681d6b22bcdc762644f"
 lock-version = "1.1"
 python-versions = "^3.8"
 
@@ -914,8 +928,8 @@ google-api-python-client = [
     {file = "google_api_python_client-1.12.8-py2.py3-none-any.whl", hash = "sha256:3c4c4ca46b5c21196bec7ee93453443e477d82cbfa79234d1ce0645f81170eaf"},
 ]
 google-auth = [
-    {file = "google-auth-1.27.1.tar.gz", hash = "sha256:d8958af6968e4ecd599f82357ebcfeb126f826ed0656126ad68416f810f7531e"},
-    {file = "google_auth-1.27.1-py2.py3-none-any.whl", hash = "sha256:63a5636d7eacfe6ef5b7e36e112b3149fa1c5b5ad77dd6df54910459bcd6b89f"},
+    {file = "google-auth-1.28.0.tar.gz", hash = "sha256:9bd436d19ab047001a1340720d2b629eb96dd503258c524921ec2af3ee88a80e"},
+    {file = "google_auth-1.28.0-py2.py3-none-any.whl", hash = "sha256:dcaba3aa9d4e0e96fd945bf25a86b6f878fcb05770b67adbeb50a63ca4d28a5e"},
 ]
 google-auth-httplib2 = [
     {file = "google-auth-httplib2-0.0.4.tar.gz", hash = "sha256:8d092cc60fb16517b12057ec0bba9185a96e3b7169d86ae12eae98e645b7bc39"},
@@ -934,16 +948,16 @@ httplib2 = [
     {file = "httplib2-0.19.0.tar.gz", hash = "sha256:e0d428dad43c72dbce7d163b7753ffc7a39c097e6788ef10f4198db69b92f08e"},
 ]
 identify = [
-    {file = "identify-2.1.3-py2.py3-none-any.whl", hash = "sha256:46d1816c6a4fc2d1e8758f293a5dcc1ae6404ab344179d7c1e73637bf283beb1"},
-    {file = "identify-2.1.3.tar.gz", hash = "sha256:ed4a05fb80e3cbd12e83c959f9ff7f729ba6b66ab8d6178850fd5cb4c1cf6c5d"},
+    {file = "identify-2.2.0-py2.py3-none-any.whl", hash = "sha256:39c0b110c9d0cd2391b6c38cd0ff679ee4b4e98f8db8b06c5d9d9e502711a1e1"},
+    {file = "identify-2.2.0.tar.gz", hash = "sha256:efbf090a619255bc31c4fbba709e2805f7d30913fd4854ad84ace52bd276e2f6"},
 ]
 idna = [
     {file = "idna-2.10-py2.py3-none-any.whl", hash = "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"},
     {file = "idna-2.10.tar.gz", hash = "sha256:b307872f855b18632ce0c21c5e45be78c0ea7ae4c15c828c20788b26921eb3f6"},
 ]
 isort = [
-    {file = "isort-5.7.0-py3-none-any.whl", hash = "sha256:fff4f0c04e1825522ce6949973e83110a6e907750cd92d128b0d14aaaadbffdc"},
-    {file = "isort-5.7.0.tar.gz", hash = "sha256:c729845434366216d320e936b8ad6f9d681aab72dc7cbc2d51bedc3582f3ad1e"},
+    {file = "isort-5.8.0-py3-none-any.whl", hash = "sha256:2bb1680aad211e3c9944dbce1d4ba09a989f04e238296c87fe2139faa26d655d"},
+    {file = "isort-5.8.0.tar.gz", hash = "sha256:0a943902919f65c5684ac4e0154b1ad4fac6dcaa5d9f3426b732f1c8b5419be6"},
 ]
 meval = [
     {file = "meval-2.5-py3-none-any.whl", hash = "sha256:24430865001b5596864a7c28f423294edadaac57af9ab6964dda3eabc8762577"},
@@ -1197,8 +1211,8 @@ pyparsing = [
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
 ]
 pyrogram = [
-    {file = "Pyrogram-1.1.13-py3-none-any.whl", hash = "sha256:7ef6cf917f9c0311c26c817717fa3a95929d6b688d936a6191be1b5f81982add"},
-    {file = "Pyrogram-1.1.13.tar.gz", hash = "sha256:50898f1f77bf0333adbade06d04c0ce35b7be5be2391582a817e9a4bbcc3bc33"},
+    {file = "Pyrogram-1.2.3-py3-none-any.whl", hash = "sha256:88819fac744afae863d7d379ec3e7188ab6eb8a603bf6f9828b85775bfac6dd3"},
+    {file = "Pyrogram-1.2.3.tar.gz", hash = "sha256:5fc8ff1e74ea693482cea24584a68a9eecc6b1302fa58508518d70fa32e69fef"},
 ]
 pysocks = [
     {file = "PySocks-1.7.1-py27-none-any.whl", hash = "sha256:08e69f092cc6dbe92a0fdd16eeb9b9ffbc13cadfe5ca4c7bd92ffb078b293299"},
@@ -1260,6 +1274,10 @@ smmap = [
 speedtest-cli = [
     {file = "speedtest-cli-2.1.2.tar.gz", hash = "sha256:cf1d386222f94c324e3125ba9a0d187e46d4a13dca08c023bdb9a23096be2e54"},
     {file = "speedtest_cli-2.1.2-py2.py3-none-any.whl", hash = "sha256:2335306da12014c2da750db3befa3ddf424a303ddbaa399fbfb6a1bf870a5532"},
+]
+tenacity = [
+    {file = "tenacity-7.0.0-py2.py3-none-any.whl", hash = "sha256:a0ce48587271515db7d3a5e700df9ae69cce98c4b57c23a4886da15243603dd8"},
+    {file = "tenacity-7.0.0.tar.gz", hash = "sha256:5bd16ef5d3b985647fe28dfa6f695d343aa26479a04e8792b9d3c8f49e361ae1"},
 ]
 tgcrypto = [
     {file = "TgCrypto-1.2.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:2073aa6bbc809a56ae3d54e0f496cacaee6e5cb7c08682153c992eae72b4fbb8"},
@@ -1342,12 +1360,12 @@ uritemplate = [
     {file = "uritemplate-3.0.1.tar.gz", hash = "sha256:5af8ad10cec94f215e3f48112de2022e1d5a37ed427fbd88652fa908f2ab7cae"},
 ]
 urllib3 = [
-    {file = "urllib3-1.26.3-py2.py3-none-any.whl", hash = "sha256:1b465e494e3e0d8939b50680403e3aedaa2bc434b7d5af64dfd3c958d7f5ae80"},
-    {file = "urllib3-1.26.3.tar.gz", hash = "sha256:de3eedaad74a2683334e282005cd8d7f22f4d55fa690a2a1020a416cb0a47e73"},
+    {file = "urllib3-1.26.4-py2.py3-none-any.whl", hash = "sha256:2f4da4594db7e1e110a944bb1b551fdf4e6c136ad42e4234131391e21eb5b0df"},
+    {file = "urllib3-1.26.4.tar.gz", hash = "sha256:e7b021f7241115872f92f43c6508082facffbd1c048e3c6e2bb9c2a157e28937"},
 ]
 virtualenv = [
-    {file = "virtualenv-20.4.2-py2.py3-none-any.whl", hash = "sha256:2be72df684b74df0ea47679a7df93fd0e04e72520022c57b479d8f881485dbe3"},
-    {file = "virtualenv-20.4.2.tar.gz", hash = "sha256:147b43894e51dd6bba882cf9c282447f780e2251cd35172403745fc381a0a80d"},
+    {file = "virtualenv-20.4.3-py2.py3-none-any.whl", hash = "sha256:83f95875d382c7abafe06bd2a4cdd1b363e1bb77e02f155ebe8ac082a916b37c"},
+    {file = "virtualenv-20.4.3.tar.gz", hash = "sha256:49ec4eb4c224c6f7dd81bb6d0a28a09ecae5894f4e593c89b0db0885f565a107"},
 ]
 yapf = [
     {file = "yapf-0.30.0-py2.py3-none-any.whl", hash = "sha256:3abf61ba67cf603069710d30acbc88cfe565d907e16ad81429ae90ce9651e0c9"},

@@ -65,6 +65,7 @@ emoji = "^1.2.0"
 aiofile = "^3.5.0"
 Pillow = "^8.1.2"
 async-property = "^0.2.1"
+tenacity = "^7.0.0"
 
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}

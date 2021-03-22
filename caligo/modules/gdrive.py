@@ -133,7 +133,7 @@ class GoogleDrive(module.Module):
                                  cache_discovery=False)
 
     async def uploadFile(self, aria2: Any, gid: str) -> MediaFileUpload:
-        download = aria2.downloads[gid]
+        download = await aria2.downloads[gid].update
         file = download.files[0]
         body = {"name": download.name, "mimeType": file.mime_type}
         if self.parent_id is not None:

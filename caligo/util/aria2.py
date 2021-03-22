@@ -157,6 +157,10 @@ class Download:
         return self.status == "complete"
 
     @property
+    def removed(self) -> bool:
+        return self.status == "removed"
+
+    @property
     def total_length(self) -> int:
         return int(self._data["totalLength"])
 

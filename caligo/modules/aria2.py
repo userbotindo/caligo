@@ -1,7 +1,7 @@
 import asyncio
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Any, AsyncIterator, ClassVar, Dict, List, Optional, Tuple, Union
 from urllib import parse
 
 import aioaria2
@@ -29,7 +29,6 @@ class Aria2WebSocket:
         self.drive = self.bot.modules.get("GoogleDrive")
         self.log = self.api.log
 
-        self.complete: List[str] = []
         self.downloads: Dict[str, util.aria2.Download] = {}
         self.uploads: Dict[str, List[Any]] = {}
 
@@ -88,8 +87,7 @@ class Aria2WebSocket:
     async def on_download_start(self, trigger: aioaria2.Aria2WebsocketTrigger,
                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
-        async with self.api.lock:
-            self.downloads[gid] = await self.get_download(trigger, gid)
+        self.downloads[gid] = await self.get_download(trigger, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
     async def on_download_complete(self,
@@ -100,19 +98,15 @@ class Aria2WebSocket:
         file = self.downloads[gid]
 
         meta = ""
-        async with self.api.lock:
-            if file.metadata is True:
-                meta += " - Metadata"
-                del self.downloads[file.gid]
-            else:
-                _file = await self.drive.uploadFile(self, file.gid)
-                self.uploads[file.gid] = [
-                    _file, file.name, file.gid,
-                    util.time.sec()
-                ]
-                if file.bittorrent:
-                    self.log.info(f"Seeding: [gid: '{gid}']")
-                    self.bot.loop.create_task(self._seedFile(file))
+        if file.metadata is True:
+            meta += " - Metadata"
+            del self.downloads[file.gid]
+        else:
+            _file = await self.drive.uploadFile(self, file.gid)
+            self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
+            if file.bittorrent:
+                self.log.info(f"Seeding: [gid: '{gid}']")
+                self.bot.loop.create_task(self._seedFile(file))
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
 
@@ -128,29 +122,33 @@ class Aria2WebSocket:
                                mode="reply")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
-        async with self.api.lock:
-            del self.downloads[file.gid]
+        del self.downloads[file.gid]
 
-            if len(self.downloads) == 0:
-                self.api.invoker = None
+        if len(self.downloads) == 0:
+            self.api.invoker = None
 
     @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
            stop=stop_after_attempt(5),
            retry=retry_if_exception_type(KeyError))
     async def _checkProgress(self) -> str:
+        completedList: List[str] = []
         progress_string = ""
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes
+
         for file in self.downloads.values():
             file = await file.update
-            if file.failed or file.paused or (file.complete and file.metadata):
+            if (file.failed or file.paused or
+                    (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
-                file = self.uploads[file.gid]
-                progress, done = await self._uploadProgress(file)
+                files = self.uploads[file.gid]
+                progress, done = await self._uploadProgress(files)
                 if not done:
                     progress_string += progress
+                else:
+                    completedList.append(file.gid)
 
                 continue
 
@@ -163,7 +161,7 @@ class Aria2WebSocket:
             if len(bullets) > 10:
                 bullets = bullets.replace("○", "")
 
-            space = '   ' * (10 - len(bullets))
+            space = '    ' * (10 - len(bullets))
             progress_string += (
                 f"`{file.name}`\nGID: `{file.gid}`\n"
                 f"Status: **{file.status.capitalize()}**\n"
@@ -171,19 +169,15 @@ class Aria2WebSocket:
                 f"__{human(downloaded)} of {human(file_size)} @ "
                 f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
 
-        return progress_string
+        return progress_string, self.completed(completedList)
 
     async def _updateProgress(self) -> None:
         while not self.api.stopping:
-            if len(self.complete) != 0:
-                for gid in self.complete:
-                    if gid in self.downloads and gid in self.uploads:
-                        async with self.api.lock:
-                            del self.downloads[gid]
-                            del self.uploads[gid]
-
             if len(self.downloads) >= 1:
-                progress = await self._checkProgress()
+                progress, completed = await self._checkProgress()
+                async for gid in completed:
+                    del self.downloads[gid]
+
                 try:
                     await self.api.invoker.edit(progress)
                 except (MessageNotModified, MessageEmpty):
@@ -193,7 +187,6 @@ class Aria2WebSocket:
                 finally:
                     continue
             elif len(self.downloads) == 0 and self.api.invoker is not None:
-                self.complete = []  # CHECKME
                 await self.api.invoker.delete()
                 self.api.invoker = None
 
@@ -241,7 +234,7 @@ class Aria2WebSocket:
             if len(bullets) > 10:
                 bullets = bullets.replace("○", "")
 
-            space = '   ' * (10 - len(bullets))
+            space = '    ' * (10 - len(bullets))
             progress = (
                 f"`{file_name}`\nGID: `{gid}`\n"
                 f"Status: **Uploading**\n"
@@ -264,10 +257,13 @@ class Aria2WebSocket:
             text += f"\n\n__Shareable link__: [{file_name}]({link})"
 
         await self.bot.respond(self.api.invoker, text=text, mode="reply")
-
-        self.complete.append(gid)
+        del self.uploads[gid]
 
         return None, True
+
+    async def completed(self, completedList: List[str]) -> AsyncIterator[str]:
+        for gid in completedList:
+            yield gid
 
 
 class Aria2(module.Module):
@@ -295,8 +291,7 @@ class Aria2(module.Module):
 
         # Save the message but delete first so we don't spam chat with new download
         if self.invoker is not None:
-            async with self.lock:
-                await self.invoker.delete()
+            await self.invoker.delete()
         self.invoker = msg
 
     async def pauseDownload(self, gid: str) -> str:

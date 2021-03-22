@@ -102,8 +102,9 @@ class Aria2WebSocket:
             meta += " - Metadata"
             del self.downloads[file.gid]
         else:
-            _file = await self.drive.uploadFile(self, file.gid)
-            self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
+            f = await self.drive.uploadFile(self, file.gid)
+            f.name, f.gid, f.start = file.name, file.gid, util.time.sec()
+            self.uploads[file.gid] = f
             if file.bittorrent:
                 self.log.info(f"Seeding: [gid: '{gid}']")
                 self.bot.loop.create_task(self._seedFile(file))
@@ -143,8 +144,8 @@ class Aria2WebSocket:
                 continue
 
             if file.complete and not file.metadata:
-                files = self.uploads[file.gid]
-                progress, done = await self._uploadProgress(files)
+                f = self.uploads[file.gid]
+                progress, done = await self._uploadProgress(f)
                 if not done:
                     progress_string += progress
                 else:
@@ -212,20 +213,15 @@ class Aria2WebSocket:
         stdout, _, ret = await util.system.run_command(*cmd)
         return stdout, ret
 
-    async def _uploadProgress(
-        self, file: List[Union[MediaFileUpload,
-                               str]]) -> Tuple[Union[str, None], bool]:
-        file_name = file[1]
-        gid = file[2]
-        start = file[3]
+    async def _uploadProgress(self, file: MediaFileUpload) -> Tuple[Union[str,
+                                                                    None], bool]:
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes
 
-        file = file[0]
         status, response = await util.run_sync(file.next_chunk)
         if status:
             file_size = status.total_size
-            end = util.time.sec() - start
+            end = util.time.sec() - file.start
             uploaded = status.resumable_progress
             percent = uploaded / file_size
             speed = round(uploaded / end, 2)
@@ -236,7 +232,7 @@ class Aria2WebSocket:
 
             space = '    ' * (10 - len(bullets))
             progress = (
-                f"`{file_name}`\nGID: `{gid}`\n"
+                f"`{file.name}`\nGID: `{file.gid}`\n"
                 f"Status: **Uploading**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
                 f"__{human(uploaded)} of {human(file_size)} @ "
@@ -247,17 +243,17 @@ class Aria2WebSocket:
 
         file_size = response.get("size")
         mirrorLink = response.get("webContentLink")
-        text = (f"**GoogleDrive Link**: [{file_name}]({mirrorLink}) "
+        text = (f"**GoogleDrive Link**: [{file.name}]({mirrorLink}) "
                 f"(__{human(int(file_size))}__)")
         if self.drive.index_link is not None:
             if self.drive.index_link.endswith("/"):
-                link = self.drive.index_link + parse.quote(file_name)
+                link = self.drive.index_link + parse.quote(file.name)
             else:
-                link = self.drive.index_link + "/" + parse.quote(file_name)
-            text += f"\n\n__Shareable link__: [{file_name}]({link})"
+                link = self.drive.index_link + "/" + parse.quote(file.name)
+            text += f"\n\n__Shareable link__: [{file.name}]({link})"
 
         await self.bot.respond(self.api.invoker, text=text, mode="reply")
-        del self.uploads[gid]
+        del self.uploads[file.gid]
 
         return None, True
 

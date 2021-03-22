@@ -8,8 +8,12 @@ import aioaria2
 import pyrogram
 from googleapiclient.http import MediaFileUpload
 from pyrogram.errors import MessageEmpty, MessageNotModified
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_random_exponential)
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from .. import module, util
 

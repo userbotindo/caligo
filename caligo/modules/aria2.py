@@ -50,7 +50,8 @@ class Aria2WebSocket:
             "--seed-time=0.01", "--seed-ratio=0.1", "--max-upload-limit=5K",
             "--max-concurrent-downloads=5", "--min-split-size=10M",
             "--follow-torrent=mem", "--split=10", "--bt-save-metadata=true",
-            f"--bt-tracker={trackers}", "--daemon=true", "--allow-overwrite=true"
+            f"--bt-tracker={trackers}", "--daemon=true",
+            "--allow-overwrite=true"
         ]
         protocol = "http://localhost:8080/jsonrpc"
 
@@ -105,7 +106,10 @@ class Aria2WebSocket:
                 del self.downloads[file.gid]
             else:
                 _file = await self.drive.uploadFile(self, file.gid)
-                self.uploads[file.gid] = [_file, file.name, file.gid, util.time.sec()]
+                self.uploads[file.gid] = [
+                    _file, file.name, file.gid,
+                    util.time.sec()
+                ]
                 if file.bittorrent:
                     self.log.info(f"Seeding: [gid: '{gid}']")
                     self.bot.loop.create_task(self._seedFile(file))
@@ -117,11 +121,11 @@ class Aria2WebSocket:
         gid = data["params"][0]["gid"]
 
         file = await self.get_download(trigger, gid)
-        await self.bot.respond(self.api.invoker,
-                                f"`{file.name}`\n"
-                                f"Status: **{file.status.capitalize()}**\n"
-                                f"Error: __{file.error_message}__\n"
-                                f"Code: **{file.error_code}**", mode="reply")
+        await self.bot.respond(self.api.invoker, f"`{file.name}`\n"
+                               f"Status: **{file.status.capitalize()}**\n"
+                               f"Error: __{file.error_message}__\n"
+                               f"Code: **{file.error_code}**",
+                               mode="reply")
 
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         async with self.api.lock:
@@ -195,8 +199,8 @@ class Aria2WebSocket:
 
             await asyncio.sleep(1)
 
-    async def _seedFile(self, file: util.aria2.Download) -> Tuple[Any,
-                                                                  Optional[int]]:
+    async def _seedFile(self,
+                        file: util.aria2.Download) -> Tuple[Any, Optional[int]]:
         port = util.aria2.get_free_port()
         file_path = Path.home() / "downloads" / file.info_hash
         cmd = [
@@ -216,8 +220,8 @@ class Aria2WebSocket:
         return stdout, ret
 
     async def _uploadProgress(
-        self, file: List[Union[MediaFileUpload, str]]
-    ) -> Tuple[Union[str, None], bool]:
+        self, file: List[Union[MediaFileUpload,
+                               str]]) -> Tuple[Union[str, None], bool]:
         file_name = file[1]
         gid = file[2]
         start = file[3]
@@ -243,8 +247,7 @@ class Aria2WebSocket:
                 f"Status: **Uploading**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
                 f"__{human(uploaded)} of {human(file_size)} @ "
-                f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n"
-            )
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
 
         if response is None:
             return progress, False
@@ -260,11 +263,7 @@ class Aria2WebSocket:
                 link = self.drive.index_link + "/" + parse.quote(file_name)
             text += f"\n\n__Shareable link__: [{file_name}]({link})"
 
-        await self.bot.respond(
-            self.api.invoker,
-            text=text,
-            mode="reply"
-        )
+        await self.bot.respond(self.api.invoker, text=text, mode="reply")
 
         self.complete.append(gid)
 

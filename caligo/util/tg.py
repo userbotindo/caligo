@@ -1,13 +1,17 @@
+import asyncio
 import io
-import os
 import uuid
-from typing import Any, Optional, Tuple, Type, Union
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Optional, Tuple, Union
 
 import aiofile
 import bprint
 import pyrogram
 
 from .. import command
+from .misc import human_readable_bytes as human
+from .time import format_duration_td as time, sec
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"
@@ -58,15 +62,75 @@ def pretty_print_entity(entity) -> str:
 
 
 async def download_file(
-    dest: Union[pyrogram.types.Document, os.PathLike, Type[bytes]] = bytes
-) -> Any:
+    ctx: command.Context,
+    msg: pyrogram.types.Message,
+    text: Optional[bool] = False
+) -> Path:
     """Downloads the file embedded in the given message."""
-    path = await dest.download()
-    async with aiofile.async_open(path, "r") as file:
-        text = await file.read()
+    downloadPath = ctx.bot.getConfig.downloadPath
 
-    os.remove(path)
-    return text
+    if text is True:
+        path = Path(await ctx.bot.client.download_media(msg))
+        async with aiofile.async_open(path, "r") as file:
+            text = await file.read()
+
+        path.unlink()
+        return text
+
+    before = sec()
+    last_update_time = None
+    if msg.document:
+        file_name = msg.document.file_name
+    elif msg.audio:
+        file_name = msg.audio.file_name
+    elif msg.video:
+        file_name = msg.video.file_name
+    elif msg.sticker:
+        file_name = msg.sticker.file_name
+    elif msg.photo:
+        date = datetime.fromtimestamp(msg.photo.date)
+        file_name = f"photo_{date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+    elif msg.voice:
+        date = datetime.fromtimestamp(msg.voice.date)
+        file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+
+    loop = asyncio.get_event_loop()
+
+    def prog_func(current: int, total: int) -> None:
+        nonlocal last_update_time
+
+        if not ctx:
+            return
+
+        percent = current / total
+        after = sec() - before
+        now = datetime.now()
+
+        try:
+            speed = round(current / after, 2)
+            eta = timedelta(seconds=int(round((current - current) / speed)))
+        except ZeroDivisionError:
+            speed = 0
+            eta = timedelta(seconds=0)
+        bullets = "●" * int(round(percent * 10)) + "○"
+        if len(bullets) > 10:
+            bullets = bullets.replace("○", "")
+
+        space = '    ' * (10 - len(bullets))
+        progress = (
+            f"`{file_name}`\n"
+            f"Status: **Downloading**\n"
+            f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
+            f"__{human(current)} of {human(current)} @ "
+            f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
+        # Only edit message once every 5 seconds to avoid ratelimits
+        if last_update_time is None or (now - last_update_time).total_seconds() >= 5:
+            loop.create_task(ctx.respond(progress))
+
+            last_update_time = now
+
+    return Path(await ctx.bot.client.download_media(
+        msg, file_name=str(downloadPath) + "/" + file_name, progress=prog_func))
 
 
 def truncate(text: str) -> str:
@@ -100,14 +164,14 @@ async def get_text_input(
     """Returns input text from various sources in the given command context."""
 
     if ctx.msg.document:
-        text = await download_file(ctx.msg)
+        text = await download_file(ctx, ctx.msg, text=True)
     elif input_arg:
         text = filter_code_block(input_arg)
     elif ctx.msg.reply_to_message:
         reply_msg = ctx.msg.reply_to_message
 
         if reply_msg.document:
-            text = await download_file(reply_msg)
+            text = await download_file(ctx, reply_msg, text=True)
         elif reply_msg.text:
             text = filter_code_block(reply_msg.text)
         else:

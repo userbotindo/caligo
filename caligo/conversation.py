@@ -59,6 +59,13 @@ class Conversation:
 
         return response
 
+    async def mark_read(self, **kwargs) -> None:
+        await asyncio.gather(
+            self.bot.client.send(functions.messages.ReadMentions(
+                peer=await self.bot.client.resolve_peer(self._chat_id))),
+            self.bot.client.read_history(self._chat_id, **kwargs)
+        )
+
     async def _get_message(self, filters=None, **kwargs) -> pyrogram.types.Message:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages")
@@ -81,10 +88,6 @@ class Conversation:
 
             break
 
-        self._counter += 1
-        if kwargs.get("mark_read"):
-            await self._mark_read()
-
         return result
 
     async def _get_result(
@@ -94,16 +97,6 @@ class Conversation:
         **kwargs
     ) -> pyrogram.types.Message:
         return await asyncio.wait_for(future.get(), max(0.1, due))
-
-    async def _mark_read(self, **kwargs) -> None:
-        await asyncio.gather(
-            self.bot.client.send(functions.messages.ReadMentions(
-                peer=await self.bot.client.resolve_peer(
-                    self._chat_id, **kwargs)
-                )
-            ),
-            self.bot.client.read_history(self._chat_id, **kwargs)
-        )
 
     async def __aenter__(self) -> "Conversation":
         self._chat_id = self._input_chat

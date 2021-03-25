@@ -69,8 +69,10 @@ class CommandDispatcher(Base):
             self.unregister_command(cmd)
 
     def command_predicate(self: "Bot") -> Filter:
+
         async def func(_, __, message: pyrogram.types.Message):
-            if message.text is not None and message.text.startswith(self.prefix):
+            if message.text is not None and message.text.startswith(
+                    self.prefix):
                 parts = message.text.split()
                 parts[0] = parts[0][len(self.prefix):]
                 message.segments = parts
@@ -119,8 +121,7 @@ class CommandDispatcher(Base):
                     "**In**:\n"
                     f"{ctx.input if ctx.input is not None else message.text}\n\n"
                     "**Out**:\n⚠️ Error executing command:\n"
-                    f"```{util.error.format_exception(E)}```"
-                )
+                    f"```{util.error.format_exception(E)}```")
 
             await self.dispatch_event("command", cmd, message)
         except Exception as E:  # skipcq: PYL-W0703

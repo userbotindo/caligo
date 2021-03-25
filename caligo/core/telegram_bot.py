@@ -64,29 +64,20 @@ class TelegramBot(Base):
             self.prefix = "."  # Default is '.'-dot you can change later
 
             async with lock:
-                await db.find_one_and_update(
-                    {"_id": "Core"},
-                    {
-                        "$set": {"prefix": self.prefix}
-                    },
-                    upsert=True
-                )
+                await db.find_one_and_update({"_id": "Core"},
+                                             {"$set": {
+                                                 "prefix": self.prefix
+                                             }},
+                                             upsert=True)
 
         self.client.add_handler(
-            MessageHandler(
-                self.on_command,
-                filters=(
-                    self.command_predicate() &
-                    filters.me &
-                    filters.outgoing
-                )
-            ), 0)
+            MessageHandler(self.on_command,
+                           filters=(self.command_predicate() & filters.me &
+                                    filters.outgoing)), 0)
 
         self.client.add_handler(
-            MessageHandler(
-                self.on_conversation,
-                filters=self.conversation_predicate()
-            ), 0)
+            MessageHandler(self.on_conversation,
+                           filters=self.conversation_predicate()), 0)
 
         # Load modules
         self.load_all_modules()
@@ -110,6 +101,7 @@ class TelegramBot(Base):
         await self.dispatch_event("started")
 
     async def idle(self: "Bot") -> None:
+
         def signal_handler(_, __):
 
             self.log.info(f"Stop signal received ({_}).")
@@ -154,18 +146,17 @@ class TelegramBot(Base):
             del self._mevent_handlers[name]
 
     def update_module_events(self: "Bot") -> None:
-        self.update_module_event("message", MessageHandler,
-                                 filters.all & ~filters.edited &
-                                 ~self.command_predicate() &
-                                 ~TelegramBot.chat_action(), 3)
-        self.update_module_event("message_edit", MessageHandler,
-                                 filters.edited, 3)
+        self.update_module_event(
+            "message", MessageHandler, filters.all & ~filters.edited &
+            ~self.command_predicate() & ~TelegramBot.chat_action(), 3)
+        self.update_module_event("message_edit", MessageHandler, filters.edited,
+                                 3)
         self.update_module_event("message_delete", DeletedMessagesHandler,
                                  filters.all, 3)
         self.update_module_event("chat_action", MessageHandler,
                                  TelegramBot.chat_action(), 3)
-        self.update_module_event("user_update", UserStatusHandler,
-                                 filters.all, 5)
+        self.update_module_event("user_update", UserStatusHandler, filters.all,
+                                 5)
 
     @property
     def events_activated(self: "Bot") -> int:
@@ -201,6 +192,7 @@ class TelegramBot(Base):
 
     @staticmethod
     def chat_action() -> Filter:
+
         async def func(__, ___, chat: pyrogram.types.Message):
             return bool(chat.new_chat_members or chat.left_chat_member)
 
@@ -225,11 +217,7 @@ class TelegramBot(Base):
             # send as file if text > 4096
             if len(text) > tg.MESSAGE_CHAR_LIMIT:
                 await msg.edit("Sending output as a file.")
-                response = await tg.send_as_document(
-                    text,
-                    msg,
-                    input_arg
-                )
+                response = await tg.send_as_document(text, msg, input_arg)
 
                 await msg.delete()
                 return response

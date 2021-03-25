@@ -140,7 +140,7 @@ class Aria2WebSocket:
         for file in self.downloads.values():
             file = await file.update
             if (file.failed or file.paused or
-                    (file.complete and file.metadata) or file.removed):
+                (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
@@ -213,8 +213,8 @@ class Aria2WebSocket:
         stdout, _, ret = await util.system.run_command(*cmd)
         return stdout, ret
 
-    async def _uploadProgress(self, file: MediaFileUpload) -> Tuple[Union[str,
-                                                                    None], bool]:
+    async def _uploadProgress(
+            self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes
 

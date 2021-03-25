@@ -60,8 +60,10 @@ class StickerModule(module.Module):
         async with self.bot.conversation(target) as conv:
 
             async def reply_and_ack():
-                # Wait for a response and mark read
-                resp = await conv.get_response(mark_read=True)
+                # Wait for a response
+                resp = await conv.get_response()
+                # Ack the response to suppress its notification
+                await conv.mark_read()
 
                 return resp
 
@@ -128,8 +130,10 @@ class StickerModule(module.Module):
         async with self.bot.conversation(target, max_messages=9) as conv:
 
             async def reply_and_ack():
-                # Wait for a response and mark read
-                resp = await conv.get_response(mark_read=True)
+                # Wait for a response
+                resp = await conv.get_response()
+                # Ack the response to suppress its notification
+                await conv.mark_read()
 
                 return resp
 

@@ -8,6 +8,14 @@ from aioaria2 import Aria2WebsocketTrigger
 from async_property import async_property
 
 
+def get_free_port():
+    sock = socket.socket()
+    sock.bind(('', 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
 class BitTorrent:
 
     def __init__(self, data: Dict[str, Any]) -> None:
@@ -202,6 +210,14 @@ class Download:
         return Path(self._data["dir"])
 
     @property
+    def path(self) -> Path:
+        return self.files[0].path
+
+    @property
+    def mime_type(self) -> str:
+        return self.files[0].mime_type
+
+    @property
     def files(self) -> List[File]:
         if not self._files:
             self._files = [File(data) for data in self._data.get("files", [])]
@@ -277,11 +293,3 @@ class Download:
             return True
 
         return False
-
-
-def get_free_port():
-    sock = socket.socket()
-    sock.bind(('', 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    return port

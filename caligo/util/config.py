@@ -1,6 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -14,6 +15,10 @@ class BotConfig:
     def __init__(self) -> "BotConfig":
         if os.path.isfile("config.env"):
             load_dotenv("config.env")
+
+        # Optional
+        path = os.environ.get("DOWNLOAD_PATH")
+        self.downloadPath = Path(path) if path else Path.home() / "downloads"
 
         # Core config
         self.api_id = int(os.environ.get("API_ID", 0))

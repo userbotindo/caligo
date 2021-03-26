@@ -1,7 +1,7 @@
 import asyncio
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Any, AsyncIterator, ClassVar, Dict, List, Tuple, Union
 from urllib import parse
 
 import aioaria2
@@ -102,9 +102,21 @@ class Aria2WebSocket:
             meta += " - Metadata"
             del self.downloads[file.gid]
         else:
-            f = await self.drive.uploadFile(self, file.gid)
-            f.name, f.gid, f.start = file.name, file.gid, util.time.sec()
-            self.uploads[file.gid] = f
+            if (Path(file.dir) / file.name).is_file():
+                self.uploads[file.gid] = await self.drive.uploadFile(file)
+            elif (Path(file.dir) / file.name).is_dir():
+                folderId = await self.drive.createFolder(file.name)
+                await self.drive.uploadFolder(
+                    Path(file.dir) / file.name, parent_id=folderId, msg=self.api.invoker)
+
+                driveFolderLink = "https://drive.google.com/drive/folders/" + folderId
+                text = f"**GoogleDrive folderLink**: [{file.name}]({driveFolderLink})"
+                if self.drive.index_link is not None:
+                    link = self.drive.index_link + "/" + parse.quote(file.name)
+                    text += f"\n\n__Shareable link__: [Here]({link} + /)."
+
+                await self.api.invoker.reply(text)
+                del self.downloads[file.gid]
             if file.bittorrent:
                 self.log.info(f"Seeding: [gid: '{gid}']")
                 self.bot.loop.create_task(self._seedFile(file))
@@ -144,6 +156,10 @@ class Aria2WebSocket:
                 continue
 
             if file.complete and not file.metadata:
+                # Directory have their own thread
+                if (Path(file.dir) / file.name).is_dir() and len(file.files) > 1:
+                    continue
+
                 f = self.uploads[file.gid]
                 progress, done = await self._uploadProgress(f)
                 if not done:
@@ -172,6 +188,10 @@ class Aria2WebSocket:
 
         return progress_string, self.completed(completedList)
 
+    @property
+    def cancelled(self) -> bool:
+        return self.api.cancelled
+
     async def _updateProgress(self) -> None:
         while not self.api.stopping:
             if len(self.downloads) >= 1:
@@ -193,8 +213,7 @@ class Aria2WebSocket:
 
             await asyncio.sleep(1)
 
-    async def _seedFile(self,
-                        file: util.aria2.Download) -> Tuple[Any, Optional[int]]:
+    async def _seedFile(self, file: util.aria2.Download) -> None:
         port = util.aria2.get_free_port()
         file_path = Path.home() / "downloads" / file.info_hash
         cmd = [
@@ -210,8 +229,8 @@ class Aria2WebSocket:
             cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
             cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
 
-        stdout, _, ret = await util.system.run_command(*cmd)
-        return stdout, ret
+        self.bot.loop.create_task(util.system.run_command(*cmd))
+        return None
 
     async def _uploadProgress(self, file: MediaFileUpload) -> Tuple[Union[str,
                                                                     None], bool]:
@@ -221,7 +240,7 @@ class Aria2WebSocket:
         status, response = await util.run_sync(file.next_chunk)
         if status:
             file_size = status.total_size
-            end = util.time.sec() - file.start
+            end = util.time.sec() - file.start_time
             uploaded = status.resumable_progress
             percent = uploaded / file_size
             speed = round(uploaded / end, 2)
@@ -250,7 +269,7 @@ class Aria2WebSocket:
                 link = self.drive.index_link + parse.quote(file.name)
             else:
                 link = self.drive.index_link + "/" + parse.quote(file.name)
-            text += f"\n\n__Shareable link__: [{file.name}]({link})"
+            text += f"\n\n__Shareable link__: [Here]({link})."
 
         await self.bot.respond(self.api.invoker, text=text, mode="reply")
         del self.uploads[file.gid]
@@ -265,25 +284,30 @@ class Aria2WebSocket:
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
+    cancelled: bool
     client: Aria2WebSocket
     invoker: pyrogram.types.Message
-    lock: asyncio.Lock
     stopping: bool
 
     async def on_load(self) -> None:
+        self.cancelled = False
         self.client = await Aria2WebSocket.init(self)
-
         self.invoker = None
         self.stopping = False
-
-        self.lock = asyncio.Lock()
 
     async def on_stop(self) -> None:
         self.stopping = True
         await self.client.close()
 
-    async def addDownload(self, uri: str, msg: pyrogram.types.Message) -> None:
-        await self.client.addUri([uri])
+    async def addDownload(self, types: Union[str, bytes],
+                          msg: pyrogram.types.Message) -> None:
+        if isinstance(types, str):
+            await self.client.addUri([types])
+        elif isinstance(types, bytes):
+            await self.client.addTorrent(str(types, "utf-8"))
+        else:
+            self.log.error(f"Unknown types of {type(types)}")
+            return
 
         # Save the message but delete first so we don't spam chat with new download
         if self.invoker is not None:
@@ -297,5 +321,8 @@ class Aria2(module.Module):
         return await self.client.remove(gid)
 
     async def cancelMirror(self, gid: str):
-        await self.pauseDownload(gid)
-        await self.removeDownload(gid)
+        try:
+            await self.pauseDownload(gid)
+            await self.removeDownload(gid)
+        except aioaria2.exceptions.Aria2rpcException:
+            pass

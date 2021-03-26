@@ -137,3 +137,4 @@ class File:
 
         if invoker is not None and update is True:
             await invoker.reply(link)
+            await invoker.delete()

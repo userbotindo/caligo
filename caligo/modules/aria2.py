@@ -112,8 +112,9 @@ class Aria2WebSocket:
                 driveFolderLink = "https://drive.google.com/drive/folders/" + folderId
                 text = f"**GoogleDrive folderLink**: [{file.name}]({driveFolderLink})"
                 if self.drive.index_link is not None:
-                    link = self.drive.index_link + "/" + parse.quote(file.name)
-                    text += f"\n\n__Shareable link__: [Here]({link} + /)."
+                    link = self.drive.index_link + "/" + parse.quote(
+                        file.name, safe="[]()") + "/"
+                    text += f"\n\n__Shareable link__: [Here]({link})."
 
                 await self.api.invoker.reply(text)
                 del self.downloads[file.gid]

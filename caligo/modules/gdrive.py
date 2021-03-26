@@ -187,7 +187,6 @@ class GoogleDrive(module.Module):
         if file.path.stat().st_size > 0:
             media_body = MediaFileUpload(file.path,
                                          mimetype=file.mime_type,
-                                         chunksize=50*1024*1024,
                                          resumable=True)
             files = await util.run_sync(self.service.files().create,
                                         body=body,

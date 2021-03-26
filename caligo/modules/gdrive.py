@@ -148,9 +148,9 @@ class GoogleDrive(module.Module):
         elif folderId is None and self.parent_id is not None:
             folder_metadata["parents"] = [self.parent_id]
 
-        Request = await util.run_sync(self.service.files().create,
-                                      body=folder_metadata, fields="id")
-        folder = await util.run_sync(Request.execute)
+        _Request = await util.run_sync(self.service.files().create,
+                                       body=folder_metadata, fields="id")
+        folder = await util.run_sync(_Request.execute)
         return folder["id"]
 
     async def uploadFolder(self, sourceFolder: Path, *,
@@ -196,12 +196,12 @@ class GoogleDrive(module.Module):
                                         supportsAllDrives=True)
         else:
             media_body = MediaFileUpload(file.path, mimetype=file.mime_type)
-            Request = await util.run_sync(self.service.files().create,
-                                          body=body,
-                                          media_body=media_body,
-                                          fields="id, size, webContentLink",
-                                          supportsAllDrives=True)
-            files = await util.run_sync(Request.execute)
+            _Request = await util.run_sync(self.service.files().create,
+                                           body=body,
+                                           media_body=media_body,
+                                           fields="id, size, webContentLink",
+                                           supportsAllDrives=True)
+            files = await util.run_sync(_Request.execute)
 
             return files.get("id")
 

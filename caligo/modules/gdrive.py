@@ -75,7 +75,7 @@ class GoogleDrive(module.Module):
 
             try:
                 response = await conv.get_response()
-            except asyncio.TimeoutError:
+            except conv.Timeout:
                 await request.delete()
                 return "⚠️ Timeout no token receive"
 

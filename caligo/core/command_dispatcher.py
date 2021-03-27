@@ -69,11 +69,11 @@ class CommandDispatcher(Base):
             self.unregister_command(cmd)
 
     def command_predicate(self: "Bot") -> Filter:
-        async def func(_, __, message: pyrogram.types.Message):
-            if message.text is not None and message.text.startswith(self.prefix):
-                parts = message.text.split()
+        async def func(_, __, msg: pyrogram.types.Message):
+            if msg.text is not None and msg.text.startswith(self.prefix):
+                parts = msg.text.split()
                 parts[0] = parts[0][len(self.prefix):]
-                message.segments = parts
+                msg.segments = parts
                 return True
 
             return False
@@ -81,24 +81,26 @@ class CommandDispatcher(Base):
         return create(func)
 
     async def on_command(self: "Bot", _: pyrogram.Client,
-                         message: pyrogram.types.Message) -> None:
+                         msg: pyrogram.types.Message) -> None:
         cmd = None
 
         try:
             try:
-                cmd = self.commands[message.segments[0]]
+                cmd = self.commands[msg.segments[0]]
             except KeyError:
                 return
 
+            msg.reply_to_msg = msg.reply_to_message
+
             ctx = command.Context(
                 self,
-                message,
-                message.segments,
-                len(self.prefix) + len(message.segments[0]) + 1,
+                msg,
+                msg.segments,
+                len(self.prefix) + len(msg.segments[0]) + 1,
             )
 
             if hasattr(cmd.module, "creds") and not cmd.module.disabled:
-                ret = await cmd.module.authorize(message)
+                ret = await cmd.module.authorize(msg)
 
                 if ret is False:
                     return
@@ -112,25 +114,23 @@ class CommandDispatcher(Base):
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
                 )
-            except Exception as E:  # skipcq: PYL-W0703
+            except Exception as e:  # skipcq: PYL-W0703
                 cmd.module.log.error(f"Error in command '{cmd.name}'",
-                                     exc_info=E)
+                                     exc_info=e)
                 await ctx.respond(
                     "**In**:\n"
-                    f"{ctx.input if ctx.input is not None else message.text}\n\n"
+                    f"{ctx.input if ctx.input is not None else msg.text}\n\n"
                     "**Out**:\n⚠️ Error executing command:\n"
-                    f"```{util.error.format_exception(E)}```"
+                    f"```{util.error.format_exception(e)}```"
                 )
 
-            await self.dispatch_event("command", cmd, message)
-        except Exception as E:  # skipcq: PYL-W0703
+            await self.dispatch_event("command", cmd, msg)
+        except Exception as e:  # skipcq: PYL-W0703
             if cmd is not None:
-                cmd.module.log.error("Error in command handler", exc_info=E)
+                cmd.module.log.error("Error in command handler", exc_info=e)
 
             await self.respond(
-                message,
-                "**In**:\n"
-                f"{ctx.input if ctx.input is not None else message.text}\n\n"
-                "**Out**:\n⚠️ Error in command handler:\n"
-                f"```{util.error.format_exception(E)}```",
+                msg,
+                "⚠️ Error in command handler:\n"
+                f"```{util.error.format_exception(e)}```",
             )

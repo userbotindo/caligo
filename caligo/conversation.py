@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import logging
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import pyrogram
 from pyrogram.raw import functions
@@ -12,7 +12,14 @@ if TYPE_CHECKING:
     from .core import Bot
 
 
-class AlreadyInConversation(Exception):
+class ConversationExist(Exception):
+
+    def __init__(self, msg: Optional[str] = None):
+        self.msg = msg
+        super().__init__(self.msg)
+
+
+class _ConversationTimeout(Exception):
     pass
 
 
@@ -77,7 +84,10 @@ class Conversation:
         while True:
             after = util.time.usec()
             el_us = before - after
-            result = await self._get_result(fut, timeout - el_us)
+            try:
+                result = await self._get_result(fut, timeout - el_us)
+            except asyncio.TimeoutError:
+                raise self.Timeout
 
             if filters is not None and callable(filters):
                 ready = filters(self.bot.client, result)
@@ -98,17 +108,22 @@ class Conversation:
     ) -> pyrogram.types.Message:
         return await asyncio.wait_for(future.get(), max(0.1, due))
 
+    @property
+    def Timeout(self):
+        return _ConversationTimeout
+
     async def __aenter__(self) -> "Conversation":
-        self._chat_id = self._input_chat
-        if not isinstance(self._chat_id, int):
-            chat = await self.bot.client.get_chat(self._input_chat)
-            self._chat_id = chat.id
-        self.log.info(f"Opening conversation with '{self._chat_id}'")
+        chat = await self.bot.client.get_chat(self._input_chat)
+        self._chat_id = chat.id
+        if chat.type == "bot" or chat.type == "private":
+            chat_name = chat.first_name
+        else:
+            chat_name = chat.title
 
         if self._chat_id in self.bot.CONVERSATION:
-            self.log.error(f"Conversation with '{self._chat_id}' already open")
-            raise AlreadyInConversation
+            raise ConversationExist(f"Conversation with '{chat_name}' exist")
 
+        self.log.info(f"Opening conversation with '{chat_name}'")
         self.bot.CONVERSATION[self._chat_id] = asyncio.Queue(self._max_incoming)
 
         return self

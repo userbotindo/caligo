@@ -230,6 +230,7 @@ class GoogleDrive(module.Module):
                     file = util.File(path)
                     files = await self.uploadFile(file)
                     file.content, file.invoker = files, ctx.msg
+                    file.start_time = util.time.sec()
                     if self.index_link is not None:
                         file.index_link = self.index_link
 

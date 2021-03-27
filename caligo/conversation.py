@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Optional, Union
 
 import pyrogram
+from async_property import async_cached_property
 from pyrogram.raw import functions
 
 from . import util
@@ -12,14 +13,18 @@ if TYPE_CHECKING:
     from .core import Bot
 
 
-class ConversationExist(Exception):
+class Error(Exception):
+    pass
+
+
+class ConversationExist(Error):
 
     def __init__(self, msg: Optional[str] = None):
         self.msg = msg
         super().__init__(self.msg)
 
 
-class _ConversationTimeout(Exception):
+class ConversationTimeout(Error):
     pass
 
 
@@ -40,18 +45,22 @@ class Conversation:
         self._input_chat = input_chat
         self._timeout = timeout
         self._max_incoming = max_messages
-
         self._counter = 0
 
-        self._chat_id: int
+        self.Exist = ConversationExist
+        self.Timeout = ConversationTimeout
+
+    @async_cached_property
+    async def chat(self) -> pyrogram.types.Chat:
+        return await self.bot.client.get_chat(self._input_chat)
 
     async def send_message(self, text, **kwargs) -> pyrogram.types.Message:
-        sent = await self.bot.client.send_message(self._chat_id, text, **kwargs)
+        sent = await self.bot.client.send_message(self.chat.id, text, **kwargs)
 
         return sent
 
     async def send_file(self, document, **kwargs) -> pyrogram.types.Message:
-        file = await self.bot.client.send_document(self._chat_id, document, **kwargs)
+        file = await self.bot.client.send_document(self.chat.id, document, **kwargs)
 
         return file
 
@@ -69,15 +78,15 @@ class Conversation:
     async def mark_read(self, **kwargs) -> None:
         await asyncio.gather(
             self.bot.client.send(functions.messages.ReadMentions(
-                peer=await self.bot.client.resolve_peer(self._chat_id))),
-            self.bot.client.read_history(self._chat_id, **kwargs)
+                peer=await self.bot.client.resolve_peer(self.chat.id))),
+            self.bot.client.read_history(self.chat.id, **kwargs)
         )
 
     async def _get_message(self, filters=None, **kwargs) -> pyrogram.types.Message:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages")
 
-        fut = self.bot.CONVERSATION[self._chat_id]
+        fut = self.bot.CONVERSATION[self.chat.id]
         timeout = kwargs.get("timeout") or self._timeout
 
         before = util.time.usec()
@@ -108,29 +117,25 @@ class Conversation:
     ) -> pyrogram.types.Message:
         return await asyncio.wait_for(future.get(), max(0.1, due))
 
-    @property
-    def Timeout(self):
-        return _ConversationTimeout
-
     async def __aenter__(self) -> "Conversation":
-        chat = await self.bot.client.get_chat(self._input_chat)
-        self._chat_id = chat.id
-        if chat.type == "bot" or chat.type == "private":
-            chat_name = chat.first_name
+        await self.chat  # Load the chat entity
+
+        if self.chat.type == "bot" or self.chat.type == "private":
+            self.chat.name = self.chat.first_name
         else:
-            chat_name = chat.title
+            self.chat.name = self.chat.title
 
-        if self._chat_id in self.bot.CONVERSATION:
-            raise ConversationExist(f"Conversation with '{chat_name}' exist")
+        if self.chat.id in self.bot.CONVERSATION:
+            raise self.Exist(f"Conversation with '{self.chat.name}' exist")
 
-        self.log.info(f"Opening conversation with '{chat_name}'")
-        self.bot.CONVERSATION[self._chat_id] = asyncio.Queue(self._max_incoming)
+        self.log.info(f"Opening conversation with '{self.chat.name}[{self.chat.id}]'")
+        self.bot.CONVERSATION[self.chat.id] = asyncio.Queue(self._max_incoming)
 
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.log.info(f"Closing conversation with '{self._chat_id}'")
-        conv = self.bot.CONVERSATION[self._chat_id]
+        self.log.info(f"Closing conversation with '{self.chat.name}[{self.chat.id}]'")
+        conv = self.bot.CONVERSATION[self.chat.id]
 
         conv.put_nowait(None)
-        del self.bot.CONVERSATION[self._chat_id]
+        del self.bot.CONVERSATION[self.chat.id]

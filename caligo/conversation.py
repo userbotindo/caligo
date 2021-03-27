@@ -120,7 +120,7 @@ class Conversation:
     async def __aenter__(self) -> "Conversation":
         await self.chat  # Load the chat entity
 
-        if self.chat.type == "bot" or self.chat.type == "private":
+        if self.chat.type in ["bot", "private"]:
             self.chat.name = self.chat.first_name
         else:
             self.chat.name = self.chat.title

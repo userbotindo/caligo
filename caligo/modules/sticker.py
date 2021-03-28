@@ -26,8 +26,6 @@ class StickerModule(module.Module):
     name: ClassVar[str] = "Sticker"
 
     db: AsyncIOMotorDatabase
-    lock: asyncio.Lock
-
     kang_db: AsyncIOMotorCollection
 
     async def on_load(self):

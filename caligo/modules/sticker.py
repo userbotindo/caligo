@@ -32,7 +32,6 @@ class StickerModule(module.Module):
 
     async def on_load(self):
         self.db = self.bot.get_db("stickers")
-        self.lock = asyncio.Lock()
 
         check = await self.db.find_one({"_id": self.name})
         self.kang_db = check.get("pack_name") if check is not None else None
@@ -229,6 +228,7 @@ class StickerModule(module.Module):
             sticker_buf, pack_name, emoji=emoji or reply_msg.sticker.emoji
         )
         if status:
+            await self.on_load()
             await self.bot.log_stat("stickers_created")
             return f"[Sticker copied]({result})."
 
@@ -259,16 +259,15 @@ class StickerModule(module.Module):
 
         emoji = ctx.args[1] if len(ctx.args) > 1 else "❓"
         pack_name = self.bot.user.username + f"_kangPack_VOL{num}"
-        async with self.lock:
-            await self.db.update_one(
-                {"_id": self.name},
-                {
-                    "$set": {
-                        f"pack_name.{num}": pack_name
-                    }
-                },
-                upsert=True
-            )
+        await self.db.update_one(
+            {"_id": self.name},
+            {
+                "$set": {
+                    f"pack_name.{num}": pack_name
+                }
+            },
+            upsert=True
+        )
 
         try:
             await self.bot.client.send(GetStickerSet(

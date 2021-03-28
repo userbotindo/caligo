@@ -48,13 +48,6 @@ class Conversation:
         self._max_incoming = max_messages
         self._timeout = timeout
 
-    @classmethod
-    async def init(cls, *args, **kwargs) -> "Conversation":
-        self = cls(*args, **kwargs)
-        await self.chat
-
-        return self
-
     @async_cached_property
     async def chat(self) -> Chat:
         return await self.client.get_chat(self._input_chat)

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import pyrogram
 from async_property import async_cached_property
-from pyrogram.raw import functions
 from pyrogram.types import Chat, Message
 
 from . import util

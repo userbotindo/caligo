@@ -117,7 +117,7 @@ class Aria2WebSocket:
                     link = self.drive.index_link + "/" + parse.quote(file.name + "/")
                     text += f"\n\n__Shareable link__: [Here]({link})."
 
-                await self.api.invoker.reply(text)
+                await folderProgress.reply(text)
                 await folderProgress.delete()
             if file.bittorrent:
                 self.log.info(f"Seeding: [gid: '{gid}']")

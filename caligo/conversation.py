@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 import pyrogram
 from async_property import async_cached_property
 from pyrogram.raw import functions
+from pyrogram.types import Chat, Message
 
 from . import util
 
@@ -38,63 +39,64 @@ class Conversation:
         input_chat: Union[str, int],
         timeout: int,
         max_messages: int
-    ):
-        self.bot = bot
-        self.log = self.bot.log
-
-        self._input_chat = input_chat
-        self._timeout = timeout
-        self._max_incoming = max_messages
-        self._counter = 0
-
+    ) -> None:
         self.Exist = ConversationExist
         self.Timeout = ConversationTimeout
 
-    @async_cached_property
-    async def chat(self) -> pyrogram.types.Chat:
-        return await self.bot.client.get_chat(self._input_chat)
+        self.bot = bot
+        self.client = self.bot.client
 
-    async def send_message(self, text, **kwargs) -> pyrogram.types.Message:
-        sent = await self.bot.client.send_message(self.chat.id, text, **kwargs)
+        self._counter = 0
+        self._input_chat = input_chat
+        self._max_incoming = max_messages
+        self._timeout = timeout
+
+    @classmethod
+    async def init(cls, *args, **kwargs) -> "Conversation":
+        self = cls(*args, **kwargs)
+        await self.chat
+
+        return self
+
+    @async_cached_property
+    async def chat(self) -> Chat:
+        return await self.client.get_chat(self._input_chat)
+
+    async def send_message(self, text, **kwargs) -> Message:
+        sent = await self.client.send_message(self.chat.id, text, **kwargs)
 
         return sent
 
-    async def send_file(self, document, **kwargs) -> pyrogram.types.Message:
-        file = await self.bot.client.send_document(self.chat.id, document, **kwargs)
+    async def send_file(self, document, **kwargs) -> Message:
+        doc = await self.client.send_document(self.chat.id, document, **kwargs)
 
-        return file
+        return doc
 
-    async def get_response(self, **kwargs) -> pyrogram.types.Message:
-        response = await self._get_message()
+    async def get_response(self, **kwargs) -> Message:
+        response = await self._get_message(**kwargs)
 
         return response
 
-    async def get_reply(self, **kwargs) -> pyrogram.types.Message:
+    async def get_reply(self, **kwargs) -> Message:
         filters = pyrogram.filters.reply
-        response = await self._get_message(filters)
+        response = await self._get_message(filters, **kwargs)
 
         return response
 
-    async def mark_read(self, **kwargs) -> None:
-        await asyncio.gather(
-            self.bot.client.send(functions.messages.ReadMentions(
-                peer=await self.bot.client.resolve_peer(self.chat.id))),
-            self.bot.client.read_history(self.chat.id, **kwargs)
-        )
+    async def mark_read(self, max_id: Optional[int] = 0) -> None:
+        return await self.bot.client.read_history(self.chat.id, max_id)
 
-    async def _get_message(self, filters=None, **kwargs) -> pyrogram.types.Message:
+    async def _get_message(self, filters=None, **kwargs) -> Message:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages")
 
         fut = self.bot.CONVERSATION[self.chat.id]
         timeout = kwargs.get("timeout") or self._timeout
-
         before = util.time.usec()
         while True:
-            after = util.time.usec()
-            el_us = before - after
+            after = before - util.time.usec()
             try:
-                result = await self._get_result(fut, timeout - el_us)
+                result = await asyncio.wait_for(fut.get(), timeout - after)
             except asyncio.TimeoutError:
                 raise self.Timeout
 
@@ -107,35 +109,6 @@ class Conversation:
 
             break
 
+        self._counter += 1
+
         return result
-
-    async def _get_result(
-        self,
-        future: asyncio.Queue,
-        due: Union[int, float],
-        **kwargs
-    ) -> pyrogram.types.Message:
-        return await asyncio.wait_for(future.get(), max(0.1, due))
-
-    async def __aenter__(self) -> "Conversation":
-        await self.chat  # Load the chat entity
-
-        if self.chat.type in ["bot", "private"]:
-            self.chat.name = self.chat.first_name
-        else:
-            self.chat.name = self.chat.title
-
-        if self.chat.id in self.bot.CONVERSATION:
-            raise self.Exist(f"Conversation with '{self.chat.name}' exist")
-
-        self.log.info(f"Opening conversation with '{self.chat.name}[{self.chat.id}]'")
-        self.bot.CONVERSATION[self.chat.id] = asyncio.Queue(self._max_incoming)
-
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.log.info(f"Closing conversation with '{self.chat.name}[{self.chat.id}]'")
-        conv = self.bot.CONVERSATION[self.chat.id]
-
-        conv.put_nowait(None)
-        del self.bot.CONVERSATION[self.chat.id]

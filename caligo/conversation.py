@@ -82,7 +82,7 @@ class Conversation:
 
         return response
 
-    async def mark_read(self, max_id: Optional[int] = 0) -> None:
+    async def mark_read(self, max_id: Optional[int] = 0) -> bool:
         return await self.bot.client.read_history(self.chat.id, max_id)
 
     async def _get_message(self, filters=None, **kwargs) -> Message:

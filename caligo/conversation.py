@@ -30,8 +30,6 @@ class ConversationTimeout(Error):
 
 class Conversation:
 
-    log: logging.Logger
-
     def __init__(
         self,
         bot: "Bot",

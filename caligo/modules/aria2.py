@@ -118,6 +118,7 @@ class Aria2WebSocket:
                     text += f"\n\n__Shareable link__: [Here]({link})."
 
                 await self.api.invoker.reply(text)
+                await folderProgress.delete()
             if file.bittorrent:
                 self.log.info(f"Seeding: [gid: '{gid}']")
                 self.bot.loop.create_task(self._seedFile(file))

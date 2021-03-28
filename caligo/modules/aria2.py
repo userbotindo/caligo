@@ -105,7 +105,7 @@ class Aria2WebSocket:
             if (Path(file.dir) / file.name).is_file():
                 self.uploads[file.gid] = await self.drive.uploadFile(file)
             elif (Path(file.dir) / file.name).is_dir():
-                folderProgress = await self.invoker.reply("Initializing folder upload...")
+                folderProgress = await self.api.invoker.reply("Initializing folder upload...")
                 del self.downloads[file.gid]
                 folderId = await self.drive.createFolder(file.name)
                 await self.drive.uploadFolder(

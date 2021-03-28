@@ -1,6 +1,5 @@
 import asyncio
 import inspect
-import logging
 from typing import TYPE_CHECKING, Optional, Union
 
 import pyrogram

@@ -197,6 +197,7 @@ class StickerModule(module.Module):
 
         if not pack_name:
             ret = await self.cmd_createpack(ctx)
+            await self.on_load()
 
             return ret
 
@@ -226,7 +227,6 @@ class StickerModule(module.Module):
             sticker_buf, pack_name, emoji=emoji or reply_msg.sticker.emoji
         )
         if status:
-            await self.on_load()
             await self.bot.log_stat("stickers_created")
             return f"[Sticker copied]({result})."
 

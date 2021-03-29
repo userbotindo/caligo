@@ -160,7 +160,7 @@ class GoogleDrive(module.Module):
         async for content in folderContent:
             if content.is_dir():
                 childFolder = await self.createFolder(content.name, parent_id)
-                await self.uploadFolder(content, parent_id=childFolder, msg=content)
+                await self.uploadFolder(content, parent_id=childFolder, msg=msg)
             elif content.is_file():
                 file = util.File(content)
                 files = await self.uploadFile(file, parent_id)

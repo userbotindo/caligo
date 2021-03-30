@@ -21,12 +21,10 @@ class SystemModule(module.Module):
     name: ClassVar[str] = "System"
 
     db: AsyncIOMotorDatabase
-    lock: asyncio.Lock
     restart_pending: bool
 
     async def on_load(self):
         self.restart_pending = False
-        self.lock = asyncio.Lock()
 
         self.db = self.bot.get_db("system")
 
@@ -250,21 +248,20 @@ Time: {el_str}"""
         resp_msg = await ctx.respond("Restarting bot...")
 
         # Save time and status message so we can update it after restarting
-        async with self.lock:
-            await self.db.find_one_and_update(
-                {"_id": self.name},
-                {
-                    "$set": {
-                        "restart": {
-                            "status_chat_id": resp_msg.chat.id,
-                            "status_message_id": resp_msg.message_id,
-                            "time": restart_time or util.time.usec(),
-                            "reason": reason
-                        }
+        await self.db.find_one_and_update(
+            {"_id": self.name},
+            {
+                "$set": {
+                    "restart": {
+                        "status_chat_id": resp_msg.chat.id,
+                        "status_message_id": resp_msg.message_id,
+                        "time": restart_time or util.time.usec(),
+                        "reason": reason
                     }
-                },
-                upsert=True
-            )
+                }
+            },
+            upsert=True
+        )
         # Initiate the restart
         self.restart_pending = True
         self.bot.stop_manual = True
@@ -283,8 +280,7 @@ Time: {el_str}"""
             rs_reason: Optional[str] = restart.get("restart_reason")
 
             # Delete DB keys first in case message editing fails
-            async with self.lock:
-                await self.db.delete_one({"_id": self.name})
+            await self.db.delete_one({"_id": self.name})
 
             # Bail out if we're missing necessary values
             if rs_chat_id is None or rs_message_id is None:
@@ -346,7 +342,36 @@ Time: {el_str}"""
         update_time = util.time.usec()
         old_commit = await util.run_sync(repo.commit)
 
-        await ctx.respond("Checking...")
+        # GitHub workflows to push into heroku
+        if flag == "deploy":
+            if not self.bot.getConfig.secret:
+                return "__Deploying only works if your bot is run on container.__"
+
+            if (self.bot.getConfig.github_token and
+                    self.bot.getConfig.github_repo) and (
+                    self.bot.getConfig.heroku_api_key and
+                    self.bot.getConfig.heroku_app_name):
+                ret = await self.run_workflows()
+
+                resp_msg = await ctx.respond("Deploying bot...")
+
+                await self.db.find_one_and_update(
+                    {"_id": self.name},
+                    {
+                        "$set": {
+                            "restart": {
+                                "status_chat_id": resp_msg.chat.id,
+                                "status_message_id": resp_msg.message_id,
+                                "time": update_time,
+                                "reason": "update_deploy"
+                            }
+                        }
+                    },
+                    upsert=True
+                )
+                return
+
+            return "__Deploying needs Heroku and GitHub credential set properly.__"
 
         # Pull from remote
         await ctx.respond(f"Pulling changes from `{remote}`...")
@@ -356,35 +381,6 @@ Time: {el_str}"""
         diff = old_commit.diff()
         if not diff:
             return "No updates found."
-
-        # GitHub workflows to push into heroku
-        if flag == "deploy":
-            if (self.bot.getConfig.secret and
-                    (self.bot.getConfig.github_token and
-                     self.bot.getConfig.github_repo) and
-                    self.bot.getConfig.heroku_api_key):
-                ret = await self.run_workflows()
-
-                resp_msg = await ctx.respond("Deploying bot...")
-
-                async with self.lock:
-                    await self.db.find_one_and_update(
-                        {"_id": self.name},
-                        {
-                            "$set": {
-                                "restart": {
-                                    "status_chat_id": resp_msg.chat.id,
-                                    "status_message_id": resp_msg.message_id,
-                                    "time": update_time,
-                                    "reason": "update_deploy"
-                                }
-                            }
-                        },
-                        upsert=True
-                    )
-                return None  # TO-DO: Maybe block all code while waiting???
-
-            return "__Deploying needs Heroku and GitHub credential set properly.__"
 
         # Check for dependency changes
         if any(change.a_path == "poetry.lock" for change in diff):

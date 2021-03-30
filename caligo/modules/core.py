@@ -1,10 +1,18 @@
-import asyncio
 import platform
+import uuid
 from collections import defaultdict
-from typing import ClassVar, MutableMapping
+from typing import ClassVar, List, MutableMapping
 
 import pyrogram
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pyrogram.types import (
+    CallbackQuery,
+    InlineQuery,
+    InlineQueryResultArticle,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputTextMessageContent
+)
 
 from .. import __version__, command, module, util
 
@@ -13,27 +21,129 @@ class CoreModule(module.Module):
     name: ClassVar[str] = "Core"
 
     db: AsyncIOMotorDatabase
-    lock: asyncio.Lock
 
     async def on_load(self):
         self.db = self.bot.get_db("core")
-        self.lock = asyncio.Lock()
+
+    def build_button(self) -> List[List[InlineKeyboardButton]]:
+        modules = list(self.bot.modules.keys())
+        button: List[InlineKeyboardButton] = []
+        for mod in modules:
+            button.append(InlineKeyboardButton(
+                mod, callback_data=f"menu({mod.lower()})".encode()))
+        buttons = [
+            button[i * 3:(i + 1) * 3]
+            for i in range((len(button) + 3 - 1) // 3)
+        ]
+        return buttons
+
+    async def on_inline_query(self, query: InlineQuery) -> None:
+        repo = self.bot.getConfig.github_repo
+        answer = [
+            InlineQueryResultArticle(
+                id=uuid.uuid4(),
+                title="About Caligo",
+                input_message_content=InputTextMessageContent(
+                    "__Caligo is SelfBot based on Pyrogram library.__"),
+                url=f"https://github.com/{repo}",
+                description="A Selfbot Telegram.",
+                thumb_url=None,
+                reply_markup=InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "⚡️ Repo",
+                                url=f"https://github.com/{repo}"),
+                            InlineKeyboardButton(
+                                "📖️ How To",
+                                url=f"https://github.com/{repo}#How-To"),
+                        ]
+                    ]
+                )
+            )
+        ]
+        if query.from_user and (query.from_user.id == self.bot.uid):
+            button = await util.run_sync(self.build_button)
+            answer.append(
+                InlineQueryResultArticle(
+                    id=uuid.uuid4(),
+                    title="Menu",
+                    input_message_content=InputTextMessageContent(
+                        "**Caligo Menu Helper**"),
+                    url=f"https://github.com/{repo}",
+                    description="Menu Helper.",
+                    thumb_url=None,
+                    reply_markup=InlineKeyboardMarkup(button)
+                )
+            )
+
+        await query.answer(results=answer, cache_time=3)
+        return
+
+    async def on_callback_query(self, query: CallbackQuery) -> None:
+        if query.from_user and query.from_user.id != self.bot.uid:
+            await query.answer("Sorry, you don't have permission to access.",
+                               show_alert=True)
+            return
+
+        mod = query.matches[0].group(1)
+        if mod == "back":
+            button = await util.run_sync(self.build_button)
+            await query.edit_message_text(
+                "**Caligo Menu Helper**",
+                reply_markup=InlineKeyboardMarkup(button))
+            return
+
+        modules: MutableMapping[str, MutableMapping[str, str]] = defaultdict(dict)
+        for _, cmd in self.bot.commands.items():
+            if cmd.module.name.lower() != mod:
+                continue
+
+            desc = cmd.desc if cmd.desc else "__No description provided__"
+            aliases = ""
+            if cmd.aliases:
+                aliases = f' (aliases: {", ".join(cmd.aliases)})'
+
+            mod_name = type(cmd.module).name
+            modules[mod_name][cmd.name] = desc + aliases
+
+        response = None
+        for mod_name, commands in sorted(modules.items()):
+            response = util.text.join_map(commands, heading=mod_name)
+
+        if response is not None:
+            button = [[InlineKeyboardButton(
+                    "⇠ Back", callback_data="menu(back)".encode()
+            )]]
+            await query.edit_message_text(
+                response, reply_markup=InlineKeyboardMarkup(button))
+
+            return
+
+        await query.answer(f"😿️ {mod.capitalize()} doesn't have any commands.")
+        return
+
 
     @command.desc("List the commands")
     @command.usage("[filter: command or module name?]", optional=True)
     async def cmd_help(self, ctx: command.Context):
+        if self.bot.has_bot and not ctx.input:
+            await ctx.msg.delete()
+            response = await self.bot.client.get_inline_bot_results(
+                self.bot.bot_user.username)
+            await self.bot.client.send_inline_bot_result(
+                ctx.msg.chat.id, response.query_id, response.results[1].id)
+
+            return
+
         filt = ctx.input
         modules: MutableMapping[str, MutableMapping[str, str]] = defaultdict(dict)
-
-        # Handle command filters
         if filt and filt not in self.bot.modules:
             if filt in self.bot.commands:
                 cmd = self.bot.commands[filt]
 
-                # Generate aliases section
                 aliases = f"`{'`, `'.join(cmd.aliases)}`" if cmd.aliases else "none"
 
-                # Generate parameters section
                 if cmd.usage is None:
                     args_desc = "none"
                 else:
@@ -44,7 +154,6 @@ class CoreModule(module.Module):
                     if cmd.usage_reply:
                         args_desc += " (also accepts replies)"
 
-                # Show info card
                 return f"""`{cmd.name}`: **{cmd.desc if cmd.desc else '__No description provided.__'}**
 
 Module: {cmd.module.name}
@@ -53,15 +162,11 @@ Expected parameters: {args_desc}"""
 
             return "__That filter didn't match any commands or modules.__"
 
-        # Show full help
         for name, cmd in self.bot.commands.items():
-            # Check if a filter is being used
             if filt:
-                # Ignore commands that aren't part of the filtered module
                 if cmd.module.name != filt:
                     continue
             else:
-                # Don't count aliases as separate commands
                 if name != cmd.name:
                     continue
 
@@ -99,13 +204,12 @@ Expected parameters: {args_desc}"""
             return f"The prefix is `{self.bot.prefix}`"
 
         self.bot.prefix = new_prefix
-        async with self.lock:
-            await self.db.find_one_and_update(
-                {"_id": self.name},
-                {
-                    "$set": {"prefix": new_prefix}
-                }
-            )
+        await self.db.find_one_and_update(
+            {"_id": self.name},
+            {
+                "$set": {"prefix": new_prefix}
+            }
+        )
 
         return f"Prefix set to `{self.bot.prefix}`"
 

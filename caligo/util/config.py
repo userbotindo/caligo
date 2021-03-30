@@ -20,6 +20,8 @@ class BotConfig:
         path = os.environ.get("DOWNLOAD_PATH")
         self.downloadPath = Path(path) if path else Path.home() / "downloads"
 
+        self.token = os.environ.get("BOT_TOKEN")
+
         # Core config
         self.api_id = int(os.environ.get("API_ID", 0))
         self.api_hash = os.environ.get("API_HASH")

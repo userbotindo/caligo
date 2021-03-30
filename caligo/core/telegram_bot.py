@@ -5,7 +5,13 @@ from typing import TYPE_CHECKING, Any, Optional
 import pyrogram
 from pyrogram import filters, Client
 from pyrogram.filters import Filter, create
-from pyrogram.handlers import DeletedMessagesHandler, MessageHandler, UserStatusHandler
+from pyrogram.handlers import (
+    CallbackQueryHandler,
+    DeletedMessagesHandler,
+    InlineQueryHandler,
+    MessageHandler,
+    UserStatusHandler
+)
 from pyrogram.handlers.handler import Handler
 
 from ..util import BotConfig, silent, time, tg
@@ -23,6 +29,9 @@ class TelegramBot(Base):
     user: pyrogram.types.User
     uid: int
     start_time_us: int
+
+    bot_user: pyrogram.types.User
+    bot_uid: int
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
         self.loaded = False
@@ -50,6 +59,16 @@ class TelegramBot(Base):
         self.client = Client(api_id=api_id,
                              api_hash=api_hash,
                              session_name=mode)
+
+        token = self.getConfig.token
+        if token is not None:
+            if not isinstance(token, str):
+                raise TypeError("BOT TOKEN must be a string")
+
+            self.client.bot = Client(api_id=api_id,
+                                     api_hash=api_hash,
+                                     bot_token=token,
+                                     session_name=":memory:")
 
     async def start(self: "Bot") -> None:
         self.log.info("Starting")
@@ -93,6 +112,8 @@ class TelegramBot(Base):
 
         async with silent():
             await self.client.start()
+            if self.has_bot:
+                await self.client.bot.start()
 
         user = await self.client.get_me()
         if not isinstance(user, pyrogram.types.User):
@@ -100,11 +121,17 @@ class TelegramBot(Base):
         self.user = user
         self.uid = user.id
 
+        if self.has_bot:
+            bot = await self.client.bot.get_me()
+            if not isinstance(user, pyrogram.types.User):
+                raise TypeError("Missing full self bot user information")
+            self.bot_user = bot
+            self.bot_uid = bot.id
+
         self.start_time_us = time.usec()
         await self.dispatch_event("start", self.start_time_us)
 
         self.log.info("Bot is ready")
-
         await self.dispatch_event("started")
 
     async def idle(self: "Bot") -> None:
@@ -133,22 +160,38 @@ class TelegramBot(Base):
 
     def update_module_event(self: "Bot",
                             name: str,
-                            handler_type: Handler,
+                            event_type: Handler,
                             filt: Optional[Filter] = None,
                             group: int = 0) -> None:
         if name in self.listeners:
-            # Add if there ARE listeners and it's NOT already registered
             if name not in self._mevent_handlers:
 
-                async def update_handler(_, event) -> None:
+                async def update_event(_, event) -> None:
                     await self.dispatch_event(name, event)
 
-                handler_info = self.client.add_handler(  # skipcq: PYL-E1111
-                    handler_type(update_handler, filt), group)
-                self._mevent_handlers[name] = handler_info
+                event_info = self.client.add_handler(  # skipcq: PYL-E1111
+                    event_type(update_event, filt), group)
+                self._mevent_handlers[name] = event_info
         elif name in self._mevent_handlers:
-            # Remove if there are NO listeners and it's ALREADY registered
             self.client.remove_handler(*self._mevent_handlers[name])
+            del self._mevent_handlers[name]
+
+    def update_bot_module_event(self: "Bot",
+                                name: str,
+                                event_type: Handler,
+                                filt: Optional[Filter] = None,
+                                group: int = 0) -> None:
+        if name in self.listeners:
+            if name not in self._mevent_handlers:
+
+                async def update_event(_, event) -> None:
+                    await self.dispatch_event(name, event)
+
+                event_info = self.client.bot.add_handler(  # skipcq: PYL-E1111
+                    event_type(update_event, filt), group)
+                self._mevent_handlers[name] = event_info
+        elif name in self._mevent_handlers:
+            self.client.bot.remove_handler(*self._mevent_handlers[name])
             del self._mevent_handlers[name]
 
     def update_module_events(self: "Bot") -> None:
@@ -164,10 +207,18 @@ class TelegramBot(Base):
                                  TelegramBot.chat_action(), 3)
         self.update_module_event("user_update", UserStatusHandler,
                                  filters.all, 5)
+        if self.has_bot:
+            self.update_bot_module_event("callback_query", CallbackQueryHandler,
+                                         filters.regex(pattern=r"menu\((\w+)\)"))
+            self.update_bot_module_event("inline_query", InlineQueryHandler)
 
     @property
     def events_activated(self: "Bot") -> int:
         return len(self._mevent_handlers)
+
+    @property
+    def has_bot(self: "Bot") -> bool:
+        return hasattr(self.client, "bot")
 
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"
@@ -177,6 +228,7 @@ class TelegramBot(Base):
         db_uri = self.getConfig.db_uri
         gdrive_secret = self.getConfig.gdrive_secret
         string_session = self.getConfig.string_session
+        token = self.getConfig.token
 
         if api_id in text:
             text = text.replace(api_id, redacted)
@@ -194,6 +246,8 @@ class TelegramBot(Base):
                 text = text.replace(client_secret, redacted)
         if string_session in text:
             text = text.replace(string_session, redacted)
+        if token is not None and token in text:
+            text = text.replace(token, redacted)
 
         return text
 

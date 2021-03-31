@@ -37,7 +37,7 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
     async def create_and_run(cls,
                              *,
                              loop: Optional[asyncio.AbstractEventLoop] = None
-                            ) -> "Bot":
+                             ) -> "Bot":
         bot = None
 
         if loop:
@@ -60,22 +60,16 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
         await self.http.close()
         await self.close_db()
 
-        async def finalize() -> None:
-            lock = asyncio.Lock()
-
-            async with lock:
-                if self.client.is_initialized:
-                    if self.stop_manual:
-                        await self.client.stop(block=False)
-                    else:
-                        await self.client.stop()
-                for task in asyncio.all_tasks():
-                    if task is not asyncio.current_task():
-                        task.cancel()
-                await self.loop.shutdown_asyncgens()
-
         self.log.info("Running post-stop hooks")
         if self.loaded:
-            await finalize()
+            if self.client.is_initialized:
+                if self.stop_manual:
+                    await self.client.stop(block=False)
+                else:
+                    await self.client.stop()
+            for task in asyncio.all_tasks():
+                if task is not asyncio.current_task():
+                    task.cancel()
+            await self.loop.shutdown_asyncgens()
             await self.dispatch_event("stopped")
         self.loop.stop()

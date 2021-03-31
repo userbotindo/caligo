@@ -8,9 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pyrogram.types import (
     CallbackQuery,
     InlineQuery,
-    InlineQueryResultArticle,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InlineQueryResultArticle,
     InputTextMessageContent
 )
 
@@ -30,7 +30,7 @@ class CoreModule(module.Module):
         button: List[InlineKeyboardButton] = []
         for mod in modules:
             button.append(InlineKeyboardButton(
-                mod, callback_data=f"menu({mod.lower()})".encode()))
+                mod, callback_data=f"menu({mod})".encode()))
         buttons = [
             button[i * 3:(i + 1) * 3]
             for i in range((len(button) + 3 - 1) // 3)
@@ -96,7 +96,7 @@ class CoreModule(module.Module):
 
         modules: MutableMapping[str, MutableMapping[str, str]] = defaultdict(dict)
         for _, cmd in self.bot.commands.items():
-            if cmd.module.name.lower() != mod:
+            if cmd.module.name != mod:
                 continue
 
             desc = cmd.desc if cmd.desc else "__No description provided__"

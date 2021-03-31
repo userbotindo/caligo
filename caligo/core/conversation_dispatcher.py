@@ -43,14 +43,11 @@ class ConversationDispatcher(Base):
         chat_name = conv.chat.title if conv.chat.title else conv.chat.first_name
         if conv.chat.id in self.CONVERSATION:
             raise conv.Exist(f"Conversation with '{chat_name}' exist")
-
-        self.log.debug(f"Open conversation with '{chat_name}'")
         self.CONVERSATION[conv.chat.id] = asyncio.Queue(max_messages)
 
         try:
             yield conv
         finally:
-            self.log.debug(f"Close conversation with '{chat_name}'")
             self.CONVERSATION[conv.chat.id].put_nowait(None)
             del self.CONVERSATION[conv.chat.id]
 

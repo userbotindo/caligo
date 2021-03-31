@@ -1,5 +1,5 @@
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 from mimetypes import guess_type
 from pathlib import Path
 from urllib import parse
@@ -125,15 +125,16 @@ class File:
         invoker = self.invoker
 
         done = False
+        last_update_time = None
         while not done:
             progress, done, link = await self.progress_string
+            now = datetime.now()
             if invoker is not None and progress is not None:
-                await invoker.edit(progress)
+                if last_update_time is None or (now - last_update_time
+                                                ).total_seconds() >= 5:
+                    await invoker.edit(progress)
 
-                await asyncio.sleep(5)
-                continue
-
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
 
         if invoker is not None and update is True:
             await invoker.reply(link)

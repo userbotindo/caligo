@@ -203,9 +203,11 @@ class Aria2WebSocket:
                     del self.downloads[gid]
 
                 if last_update_time is None or (now - last_update_time
-                                                ).total_seconds() >= 5:
-                    if progress != "":
-                        await self.api.invoker.edit(progress)
+                                                ).total_seconds() >= 5 and (
+                        progress != ""):
+                    await self.api.invoker.edit(progress)
+
+                    last_update_time = now
             elif len(self.downloads) == 0 and self.api.invoker is not None:
                 await self.api.invoker.delete()
                 self.api.invoker = None

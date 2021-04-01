@@ -178,6 +178,7 @@ class SystemModule(module.Module):
                 "pyrogram": pyrogram,
                 # Custom modules
                 "aria": self.bot.modules.get("Aria2"),
+                "aria2": self.bot.modules.get("Aria2"),
                 "command": command,
                 "module": module,
                 "util": util,

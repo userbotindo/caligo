@@ -92,7 +92,7 @@ async def download_file(
         file_name = f"photo_{date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
     elif msg.voice:
         date = datetime.fromtimestamp(msg.voice.date)
-        file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+        file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.ogg"
 
     loop = asyncio.get_event_loop()
 

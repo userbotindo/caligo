@@ -244,4 +244,7 @@ class GoogleDrive(module.Module):
         else:
             types = ctx.input
 
+        if self.aria2 is None:
+            return "__Mirroring torrent file/url needs aria2 package installed.__"
+
         await self.aria2.addDownload(types, ctx.msg)

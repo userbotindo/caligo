@@ -46,7 +46,7 @@ Upgrade to pip 19 to fix this issue: `pip3 install -U pip`
 * Go to **Settings** > **Reveal Config Vars** and fill the coresponding *Name* and *Value* based on `config.env_sample`
 * After all Variables are met then you can run your dyno
 
-### Configuration
+## Configuration
 
 Copy `config.env_sample` to `config.env` and edit the settings as desired. Each and every setting is documented by the comments above it.
 
@@ -54,10 +54,10 @@ Obtain the *API ID* and *API HASH* from [Telegram's website](https://my.telegram
 
 Configuration must be complete before starting the bot for the first time for it to work properly.
 
-### Usage
+## Usage
 
 To start the bot, type `python3 main.py` or `python3 -m caligo` if you are running it in-place or use command corresponding to your chosen installation method above.
 
-### Support
+## Support
 
 Feel free to join the official support group on Telegram for help or general discussion regarding the bot. You may also open an [issue](https://github.com/adekmaulana/caligo/issues) on GitHub for bugs, suggestions, or anything else relevant to the project.

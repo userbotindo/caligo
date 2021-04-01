@@ -292,7 +292,14 @@ class Aria2(module.Module):
 
     async def on_load(self) -> None:
         self.cancelled = False
-        self.client = await Aria2WebSocket.init(self)
+
+        try:
+            self.client = await Aria2WebSocket.init(self)
+        except FileNotFoundError:
+            self.log.warning("Aria2 package is not installed.")
+            self.bot.unload_module(self)
+            return
+
         self.invoker = None
         self.stopping = False
 

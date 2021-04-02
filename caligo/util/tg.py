@@ -108,7 +108,7 @@ async def download_file(
 
         try:
             speed = round(current / after, 2)
-            eta = timedelta(seconds=int(round((current - current) / speed)))
+            eta = timedelta(seconds=int(round((total - current) / speed)))
         except ZeroDivisionError:
             speed = 0
             eta = timedelta(seconds=0)
@@ -121,7 +121,7 @@ async def download_file(
             f"`{file_name}`\n"
             f"Status: **Downloading**\n"
             f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
-            f"__{human(current)} of {human(current)} @ "
+            f"__{human(current)} of {human(total)} @ "
             f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
         # Only edit message once every 5 seconds to avoid ratelimits
         if last_update_time is None or (now - last_update_time).total_seconds() >= 5:

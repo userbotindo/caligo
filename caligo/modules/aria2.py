@@ -1,7 +1,9 @@
 import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, List, Tuple, Union
+from typing import (
+    Any, AsyncIterator, ClassVar, Dict, List, Tuple, Union
+)
 from urllib import parse
 
 import aioaria2
@@ -29,7 +31,7 @@ class Aria2WebSocket:
         self.log = self.api.log
 
         self.downloads: Dict[str, util.aria2.Download] = {}
-        self.uploads: Dict[str, List[Any]] = {}
+        self.uploads: Dict[str, MediaFileUpload] = {}
 
     @classmethod
     async def init(cls, api: "Aria2") -> "Aria2WebSocket":
@@ -157,10 +159,6 @@ class Aria2WebSocket:
                 continue
 
             if file.complete and not file.metadata:
-                # Directory have their own thread
-                if (Path(file.dir) / file.name).is_dir() and len(file.files) > 1:
-                    continue
-
                 f = self.uploads[file.gid]
                 progress, done = await self._uploadProgress(f)
                 if not done:
@@ -189,13 +187,16 @@ class Aria2WebSocket:
 
         return progress_string, self.completed(completedList)
 
-    @property
-    def cancelled(self) -> bool:
-        return self.api.cancelled
-
     async def _updateProgress(self) -> None:
         last_update_time = None
         while not self.api.stopping:
+            for gid in self.api.cancelled[:]:
+                if gid in self.downloads:
+                    del self.downloads[gid]
+                if gid in self.uploads:
+                    del self.uploads[gid]
+                self.api.cancelled.remove(gid)
+
             if len(self.downloads) >= 1:
                 progress, completed = await self._checkProgress()
                 now = datetime.now()
@@ -230,7 +231,9 @@ class Aria2WebSocket:
             cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
             cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
 
-        self.bot.loop.create_task(util.system.run_command(*cmd))
+        await util.system.run_command(*cmd)
+        self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
+
         return None
 
     async def _uploadProgress(self, file: MediaFileUpload) -> Tuple[Union[str,
@@ -285,13 +288,13 @@ class Aria2WebSocket:
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
 
-    cancelled: bool
+    cancelled: List[str]
     client: Aria2WebSocket
     invoker: pyrogram.types.Message
     stopping: bool
 
     async def on_load(self) -> None:
-        self.cancelled = False
+        self.cancelled = []
 
         try:
             self.client = await Aria2WebSocket.init(self)
@@ -328,9 +331,14 @@ class Aria2(module.Module):
     async def removeDownload(self, gid: str) -> str:
         return await self.client.remove(gid)
 
-    async def cancelMirror(self, gid: str):
-        try:
-            await self.pauseDownload(gid)
-            await self.removeDownload(gid)
-        except aioaria2.exceptions.Aria2rpcException:
-            pass
+    async def cancelMirror(self, gid: str) -> str:
+        status = (await self.client.tellStatus(gid, ["status"]))["status"]
+        if status == "active":
+            await self.client.forcePause(gid)
+            await self.client.forceRemove(gid)
+            ret = f"__Aborted download: [gid: '{gid}']__"
+        elif status == "complete":
+            ret = f"__Aborted upload: [gid: '{gid}']__"
+
+        self.cancelled.append(gid)
+        return ret

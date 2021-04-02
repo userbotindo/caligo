@@ -4,16 +4,15 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import pyrogram
 from pyrogram import filters, Client
-from pyrogram.filters import Filter, create
 from pyrogram.handlers import (
     CallbackQueryHandler,
     DeletedMessagesHandler,
     InlineQueryHandler,
-    MessageHandler,
-    UserStatusHandler
+    MessageHandler
 )
 from pyrogram.handlers.handler import Handler
 
+from ..custom_filter import chat_action
 from ..util import BotConfig, silent, time, tg
 from .base import Base
 
@@ -161,7 +160,7 @@ class TelegramBot(Base):
     def update_module_event(self: "Bot",
                             name: str,
                             event_type: Handler,
-                            filt: Optional[Filter] = None,
+                            filt: Optional[filters.Filter] = None,
                             group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
@@ -179,7 +178,7 @@ class TelegramBot(Base):
     def update_bot_module_event(self: "Bot",
                                 name: str,
                                 event_type: Handler,
-                                filt: Optional[Filter] = None,
+                                filt: Optional[filters.Filter] = None,
                                 group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
@@ -195,18 +194,10 @@ class TelegramBot(Base):
             del self._mevent_handlers[name]
 
     def update_module_events(self: "Bot") -> None:
-        self.update_module_event("message", MessageHandler,
-                                 filters.all & ~filters.edited &
-                                 ~self.command_predicate() &
-                                 ~TelegramBot.chat_action(), 3)
-        self.update_module_event("message_edit", MessageHandler,
-                                 filters.edited, 3)
-        self.update_module_event("message_delete", DeletedMessagesHandler,
-                                 filters.all, 3)
-        self.update_module_event("chat_action", MessageHandler,
-                                 TelegramBot.chat_action(), 3)
-        self.update_module_event("user_update", UserStatusHandler,
-                                 filters.all, 5)
+        self.update_module_event("message", MessageHandler, ~filters.edited)
+        self.update_module_event("message_edit", MessageHandler, filters.edited)
+        self.update_module_event("message_delete", DeletedMessagesHandler)
+        self.update_module_event("chat_action", MessageHandler, chat_action())
         if self.has_bot:
             self.update_bot_module_event("callback_query", CallbackQueryHandler,
                                          filters.regex(pattern=r"menu\((\w+)\)"))
@@ -250,13 +241,6 @@ class TelegramBot(Base):
             text = text.replace(token, redacted)
 
         return text
-
-    @staticmethod
-    def chat_action() -> Filter:
-        async def func(__, ___, chat: pyrogram.types.Message):
-            return bool(chat.new_chat_members or chat.left_chat_member)
-
-        return create(func)
 
     async def respond(
         self: "Bot",

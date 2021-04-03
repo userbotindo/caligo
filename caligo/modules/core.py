@@ -1,7 +1,7 @@
 import platform
 import uuid
 from collections import defaultdict
-from typing import ClassVar, List, MutableMapping
+from typing import ClassVar, Dict, List, MutableMapping
 
 import pyrogram
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -20,9 +20,11 @@ from .. import __version__, command, module, util
 class CoreModule(module.Module):
     name: ClassVar[str] = "Core"
 
+    cache: Dict[int, pyrogram.types.Message]
     db: AsyncIOMotorDatabase
 
     async def on_load(self):
+        self.cache = {}
         self.db = self.bot.get_db("core")
 
     def build_button(self) -> List[List[InlineKeyboardButton]]:
@@ -35,6 +37,15 @@ class CoreModule(module.Module):
             button[i * 3:(i + 1) * 3]
             for i in range((len(button) + 3 - 1) // 3)
         ]
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    "✗ Close",
+                    callback_data="menu(Close)".encode()
+                )
+            ]
+        )
+
         return buttons
 
     async def on_inline_query(self, query: InlineQuery) -> None:
@@ -87,11 +98,29 @@ class CoreModule(module.Module):
             return
 
         mod = query.matches[0].group(1)
-        if mod == "back":
+        if mod == "Back":
             button = await util.run_sync(self.build_button)
             await query.edit_message_text(
                 "**Caligo Menu Helper**",
                 reply_markup=InlineKeyboardMarkup(button))
+            return
+        if mod == "Close":
+            for msg_id, chat_id in list(self.cache.items()):
+                try:
+                    msg = await self.bot.client.get_messages(chat_id, msg_id)
+                except pyrogram.errors.PeerIdInvalid:
+                    await query.answer("😿️ Can't close, chat invalid.")
+                    break
+                await msg.delete()
+                del self.cache[msg_id]
+                break
+            else:
+                await query.answer("😿️ Couldn't close expired message")
+                button = await util.run_sync(self.build_button)
+                await query.edit_message_text(
+                    "**Caligo Menu Helper**",
+                    reply_markup=InlineKeyboardMarkup(button[:-1]))
+
             return
 
         modules: MutableMapping[str, MutableMapping[str, str]] = defaultdict(dict)
@@ -113,7 +142,7 @@ class CoreModule(module.Module):
 
         if response is not None:
             button = [[InlineKeyboardButton(
-                    "⇠ Back", callback_data="menu(back)".encode()
+                    "⇠ Back", callback_data="menu(Back)".encode()
             )]]
             await query.edit_message_text(
                 response, reply_markup=InlineKeyboardMarkup(button))
@@ -131,8 +160,9 @@ class CoreModule(module.Module):
             await ctx.msg.delete()
             response = await self.bot.client.get_inline_bot_results(
                 self.bot.bot_user.username)
-            await self.bot.client.send_inline_bot_result(
+            res = await self.bot.client.send_inline_bot_result(
                 ctx.msg.chat.id, response.query_id, response.results[1].id)
+            self.cache[res.updates[-1].message.id] = ctx.msg.chat.id
 
             return
 

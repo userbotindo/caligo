@@ -105,18 +105,20 @@ class CoreModule(module.Module):
                 reply_markup=InlineKeyboardMarkup(button))
             return
         if mod == "Close":
+            button = await util.run_sync(self.build_button)
             for msg_id, chat_id in list(self.cache.items()):
                 try:
                     msg = await self.bot.client.get_messages(chat_id, msg_id)
                 except pyrogram.errors.PeerIdInvalid:
                     await query.answer("😿️ Can't close, chat invalid.")
-                    break
+                    await query.edit_message_text(
+                        "**Caligo Menu Helper**",
+                        reply_markup=InlineKeyboardMarkup(button[:-1]))
                 await msg.delete()
                 del self.cache[msg_id]
                 break
             else:
                 await query.answer("😿️ Couldn't close expired message")
-                button = await util.run_sync(self.build_button)
                 await query.edit_message_text(
                     "**Caligo Menu Helper**",
                     reply_markup=InlineKeyboardMarkup(button[:-1]))

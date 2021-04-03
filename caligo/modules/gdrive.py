@@ -51,7 +51,9 @@ class GoogleDrive(module.Module):
         if data:
             self.creds = await util.run_sync(pickle.loads, data.get("creds"))
             # service will be overwrite if credentials is expired
-            self.service = await util.run_sync(build, "drive", "v3",
+            self.service = await util.run_sync(build,
+                                               "drive",
+                                               "v3",
                                                credentials=self.creds,
                                                cache_discovery=False)
 
@@ -115,7 +117,9 @@ class GoogleDrive(module.Module):
 
                 credential = await util.run_sync(pickle.dumps, self.creds)
                 await self.db.find_one_and_update(
-                    {"_id": self.name}, {"$set": {"creds": credential}})
+                    {"_id": self.name}, {"$set": {
+                        "creds": credential
+                    }})
             else:
                 await self.bot.respond(message,
                                        "Credential is empty, generating...")
@@ -127,7 +131,9 @@ class GoogleDrive(module.Module):
                 if self.creds is None:
                     return False
 
-            self.service = await util.run_sync(build, "drive", "v3",
+            self.service = await util.run_sync(build,
+                                               "drive",
+                                               "v3",
                                                credentials=self.creds,
                                                cache_discovery=False)
 
@@ -135,7 +141,8 @@ class GoogleDrive(module.Module):
         for content in folderPath.iterdir():
             yield content
 
-    async def createFolder(self, folderName: str,
+    async def createFolder(self,
+                           folderName: str,
                            folderId: Optional[str] = None) -> str:
         folder_metadata = {
             "name": folderName,
@@ -147,13 +154,17 @@ class GoogleDrive(module.Module):
             folder_metadata["parents"] = [self.parent_id]
 
         _Request = await util.run_sync(self.service.files().create,
-                                       body=folder_metadata, fields="id")
+                                       body=folder_metadata,
+                                       fields="id")
         folder = await util.run_sync(_Request.execute)
         return folder["id"]
 
-    async def uploadFolder(self, sourceFolder: Path, *,
-                           parent_id: Optional[str] = None,
-                           msg: Optional[pyrogram.types.Message] = None) -> None:
+    async def uploadFolder(
+            self,
+            sourceFolder: Path,
+            *,
+            parent_id: Optional[str] = None,
+            msg: Optional[pyrogram.types.Message] = None) -> None:
         folderContent = self._iterFolder(sourceFolder)
         async for content in folderContent:
             if content.is_dir():
@@ -174,7 +185,8 @@ class GoogleDrive(module.Module):
 
         return
 
-    async def uploadFile(self, file: Union[util.File, util.aria2.Download],
+    async def uploadFile(self,
+                         file: Union[util.File, util.aria2.Download],
                          parent_id: Optional[str] = None) -> MediaFileUpload:
         body = {"name": file.name, "mimeType": file.mime_type}
         if parent_id is not None:
@@ -262,15 +274,16 @@ class GoogleDrive(module.Module):
                 f"__{human(current)} of {human(total)} @ "
                 f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
             # Only edit message once every 5 seconds to avoid ratelimits
-            if last_update_time is None or (now - last_update_time
-                                            ).total_seconds() >= 5:
+            if last_update_time is None or (
+                    now - last_update_time).total_seconds() >= 5:
                 loop.create_task(ctx.respond(progress))
 
                 last_update_time = now
 
         file_path = str(downloadPath) + "/" + file_name
-        file_path = await ctx.bot.client.download_media(
-            msg, file_name=file_path, progress=prog_func)
+        file_path = await ctx.bot.client.download_media(msg,
+                                                        file_name=file_path,
+                                                        progress=prog_func)
 
         if file_path is not None:
             return Path(file_path)

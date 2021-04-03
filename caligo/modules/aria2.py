@@ -210,7 +210,10 @@ class Aria2WebSocket:
                 if last_update_time is None or (
                         now - last_update_time).total_seconds() >= 5 and (
                             progress != ""):
-                    await self.api.invoker.edit(progress)
+                    try:
+                        await self.api.invoker.edit(progress)
+                    except pyrogram.errors.MessageNotModified:
+                        pass
 
                     last_update_time = now
             elif len(self.downloads) == 0 and self.api.invoker is not None:

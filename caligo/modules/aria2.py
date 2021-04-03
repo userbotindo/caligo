@@ -1,9 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import (
-    Any, AsyncIterator, ClassVar, Dict, List, Tuple, Union
-)
+from typing import Any, AsyncIterator, ClassVar, Dict, List, Tuple, Union
 from urllib import parse
 
 import aioaria2

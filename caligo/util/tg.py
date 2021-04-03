@@ -11,7 +11,8 @@ import pyrogram
 
 from .. import command
 from .misc import human_readable_bytes as human
-from .time import format_duration_td as time, sec
+from .time import format_duration_td as time
+from .time import sec
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"

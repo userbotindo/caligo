@@ -74,14 +74,17 @@ class Misc(module.Module):
                 f"__{human(current)} of {human(current)} @ "
                 f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
             # Only edit message once every 5 seconds to avoid ratelimits
-            if last_update_time is None or (now - last_update_time
-                                            ).total_seconds() >= 5:
+            if last_update_time is None or (
+                    now - last_update_time).total_seconds() >= 5:
                 self.bot.loop.create_task(ctx.respond(progress))
 
                 last_update_time = now
 
-        task = self.bot.loop.create_task(self.bot.client.send_document(
-            ctx.msg.chat.id, file_path, force_document=True, progress=prog_func))
+        task = self.bot.loop.create_task(
+            self.bot.client.send_document(ctx.msg.chat.id,
+                                          file_path,
+                                          force_document=True,
+                                          progress=prog_func))
         self.task[ctx.msg.message_id] = task
         done, _ = await asyncio.wait((task, asyncio.sleep(0.25)))
         del self.task[ctx.msg.message_id]

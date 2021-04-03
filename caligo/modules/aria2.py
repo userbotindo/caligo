@@ -104,16 +104,19 @@ class Aria2WebSocket:
             if (Path(file.dir) / file.name).is_file():
                 self.uploads[file.gid] = await self.drive.uploadFile(file)
             elif (Path(file.dir) / file.name).is_dir():
-                folderProgress = await self.api.invoker.reply("Initializing folder upload...")
+                folderProgress = await self.api.invoker.reply(
+                    "Initializing folder upload...")
                 del self.downloads[file.gid]
                 folderId = await self.drive.createFolder(file.name)
-                await self.drive.uploadFolder(
-                    Path(file.dir) / file.name, parent_id=folderId, msg=folderProgress)
+                await self.drive.uploadFolder(Path(file.dir) / file.name,
+                                              parent_id=folderId,
+                                              msg=folderProgress)
 
                 driveFolderLink = "https://drive.google.com/drive/folders/" + folderId
                 text = f"**GoogleDrive folderLink**: [{file.name}]({driveFolderLink})"
                 if self.drive.index_link is not None:
-                    link = self.drive.index_link + "/" + parse.quote(file.name + "/")
+                    link = self.drive.index_link + "/" + parse.quote(file.name +
+                                                                     "/")
                     text += f"\n\n__Shareable link__: [Here]({link})."
 
                 await folderProgress.reply(text)
@@ -153,7 +156,7 @@ class Aria2WebSocket:
         for file in self.downloads.values():
             file = await file.update
             if (file.failed or file.paused or
-                    (file.complete and file.metadata) or file.removed):
+                (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
@@ -201,9 +204,9 @@ class Aria2WebSocket:
                 async for gid in completed:
                     del self.downloads[gid]
 
-                if last_update_time is None or (now - last_update_time
-                                                ).total_seconds() >= 5 and (
-                        progress != ""):
+                if last_update_time is None or (
+                        now - last_update_time).total_seconds() >= 5 and (
+                            progress != ""):
                     await self.api.invoker.edit(progress)
 
                     last_update_time = now
@@ -234,8 +237,8 @@ class Aria2WebSocket:
 
         return None
 
-    async def _uploadProgress(self, file: MediaFileUpload) -> Tuple[Union[str,
-                                                                    None], bool]:
+    async def _uploadProgress(
+            self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes
 

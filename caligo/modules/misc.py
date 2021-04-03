@@ -102,7 +102,7 @@ class Misc(module.Module):
         return
 
     @command.desc("Abort transmission of upload or download")
-    @command.usage("[file gid] [reply to message]", reply=True)
+    @command.usage("[file gid]", reply=True)
     async def cmd_abort(self, ctx) -> Optional[str]:
         if not ctx.input and not ctx.msg.reply_to_message:
             return "__Pass GID or reply to message of task to abort transmission.__"

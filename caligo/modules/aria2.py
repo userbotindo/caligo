@@ -154,9 +154,12 @@ class Aria2WebSocket:
         human = util.misc.human_readable_bytes
 
         for file in self.downloads.values():
-            file = await file.update
+            try:
+                file = await file.update
+            except aioaria2.exceptions.Aria2rpcException:
+                continue
             if (file.failed or file.paused or
-                (file.complete and file.metadata) or file.removed):
+               (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:

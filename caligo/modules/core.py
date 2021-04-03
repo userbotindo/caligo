@@ -151,7 +151,7 @@ class CoreModule(module.Module):
 
             return
 
-        await query.answer(f"😿️ {mod.capitalize()} doesn't have any commands.")
+        await query.answer(f"😿️ {mod} doesn't have any commands.")
         return
 
 

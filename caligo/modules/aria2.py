@@ -214,6 +214,9 @@ class Aria2WebSocket:
                 now = datetime.now()
                 async for gid in completed:
                     del self.downloads[gid]
+                if len(self.downloads) == 0 and self.api.invoker is not None:
+                    await self.api.invoker.delete()
+                    self.api.invoker = None
 
                 if last_update_time is None or (
                         now - last_update_time).total_seconds() >= 5 and (
@@ -224,9 +227,6 @@ class Aria2WebSocket:
                         pass
 
                     last_update_time = now
-            elif len(self.downloads) == 0 and self.api.invoker is not None:
-                await self.api.invoker.delete()
-                self.api.invoker = None
 
             await asyncio.sleep(0.1)
 

@@ -164,12 +164,14 @@ class GoogleDrive(module.Module):
             sourceFolder: Path,
             *,
             parent_id: Optional[str] = None,
-            msg: Optional[pyrogram.types.Message] = None) -> None:
+            msg: Optional[pyrogram.types.Message] = None) -> AsyncIterator[asyncio.Task]:
         folderContent = self._iterFolder(sourceFolder)
         async for content in folderContent:
             if content.is_dir():
                 childFolder = await self.createFolder(content.name, parent_id)
-                await self.uploadFolder(content, parent_id=childFolder, msg=msg)
+                tasks = self.uploadFolder(content, parent_id=childFolder, msg=msg)
+                async for task in tasks:
+                    yield task
             elif content.is_file():
                 file = util.File(content)
                 files = await self.uploadFile(file, parent_id)
@@ -177,13 +179,8 @@ class GoogleDrive(module.Module):
                     continue
 
                 file.content, file.start_time = files, util.time.sec()
-                if msg is not None:
-                    file.invoker = msg
-
-                # Don't give every single link of file after uploaded
-                await file.progress(update=False)
-
-        return
+                file.invoker = msg if msg is not None else None
+                yield self.bot.loop.create_task(file.progress(update=False))
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],

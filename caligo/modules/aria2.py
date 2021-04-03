@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, List, Tuple, Union
+from typing import Any, AsyncIterator, ClassVar, Dict, List, Literal, Tuple, Union
 from urllib import parse
 
 import aioaria2
@@ -30,6 +30,11 @@ class Aria2WebSocket:
 
         self.downloads: Dict[str, util.aria2.Download] = {}
         self.uploads: Dict[str, MediaFileUpload] = {}
+        self.seedTask: List[asyncio.Task] = []
+
+    async def iterList(self, gidList: List[str]) -> AsyncIterator[str]:
+        for gid in gidList:
+            yield gid
 
     @classmethod
     async def init(cls, api: "Aria2") -> "Aria2WebSocket":
@@ -75,7 +80,8 @@ class Aria2WebSocket:
         for handler, name in trigger:
             client.register(handler, f"aria2.{name}")
 
-        self.bot.loop.create_task(self._updateProgress())
+        self.bot.loop.create_task(self.updateProgress())
+        self.bot.loop.create_task(self.waitSeed())
         return client
 
     async def get_download(self, client: aioaria2.Aria2WebsocketTrigger,
@@ -105,12 +111,14 @@ class Aria2WebSocket:
                 self.uploads[file.gid] = await self.drive.uploadFile(file)
             elif (Path(file.dir) / file.name).is_dir():
                 folderProgress = await self.api.invoker.reply(
-                    "Initializing folder upload...")
+                    "__Initializing folder upload...__")
                 del self.downloads[file.gid]
                 folderId = await self.drive.createFolder(file.name)
-                await self.drive.uploadFolder(Path(file.dir) / file.name,
-                                              parent_id=folderId,
-                                              msg=folderProgress)
+                tasks = self.drive.uploadFolder(Path(file.dir) / file.name,
+                                                parent_id=folderId,
+                                                msg=folderProgress)
+                async for task in tasks:
+                    await task
 
                 driveFolderLink = "https://drive.google.com/drive/folders/" + folderId
                 text = f"**GoogleDrive folderLink**: [{file.name}]({driveFolderLink})"
@@ -122,7 +130,8 @@ class Aria2WebSocket:
                 await folderProgress.reply(text)
                 await folderProgress.delete()
             if file.bittorrent:
-                self.bot.loop.create_task(self._seedFile(file))
+                task = self.bot.loop.create_task(self.seedFile(file))
+                self.seedTask.append(task)
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
 
@@ -146,7 +155,7 @@ class Aria2WebSocket:
     @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
            stop=stop_after_attempt(5),
            retry=retry_if_exception_type(KeyError))
-    async def _checkProgress(self) -> str:
+    async def checkProgress(self) -> str:
         completedList: List[str] = []
         progress_string = ""
         time = util.time.format_duration_td
@@ -163,7 +172,7 @@ class Aria2WebSocket:
 
             if file.complete and not file.metadata:
                 f = self.uploads[file.gid]
-                progress, done = await self._uploadProgress(f)
+                progress, done = await self.uploadProgress(f)
                 if not done:
                     progress_string += progress
                 else:
@@ -188,12 +197,12 @@ class Aria2WebSocket:
                 f"__{human(downloaded)} of {human(file_size)} @ "
                 f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
 
-        return progress_string, self.completed(completedList)
+        return progress_string, self.iterList(completedList)
 
-    async def _updateProgress(self) -> None:
+    async def updateProgress(self) -> None:
         last_update_time = None
         while not self.api.stopping:
-            for gid in self.api.cancelled[:]:
+            async for gid in self.iterList(self.api.cancelled):
                 if gid in self.downloads:
                     del self.downloads[gid]
                 if gid in self.uploads:
@@ -201,7 +210,7 @@ class Aria2WebSocket:
                 self.api.cancelled.remove(gid)
 
             if len(self.downloads) >= 1:
-                progress, completed = await self._checkProgress()
+                progress, completed = await self.checkProgress()
                 now = datetime.now()
                 async for gid in completed:
                     del self.downloads[gid]
@@ -221,7 +230,7 @@ class Aria2WebSocket:
 
             await asyncio.sleep(0.1)
 
-    async def _seedFile(self, file: util.aria2.Download) -> None:
+    async def seedFile(self, file: util.aria2.Download) -> Literal["OK"]:
         self.log.info(f"Seeding: [gid: '{file.gid}']")
         port = util.aria2.get_free_port()
         file_path = Path.home() / "downloads" / file.info_hash
@@ -241,9 +250,19 @@ class Aria2WebSocket:
         await util.system.run_command(*cmd)
         self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
 
-        return None
+        return "OK"
 
-    async def _uploadProgress(
+    async def waitSeed(self) -> None:
+        while not self.api.stopping:
+            if len(self.seedTask) >= 1:
+                tasks = self.seedTask[:]
+                await asyncio.gather(*tasks)
+                if len(tasks) != len(self.seedTask):
+                    self.seedTask = self.seedTask[len(tasks):]
+
+            await asyncio.sleep(0.1)
+
+    async def uploadProgress(
             self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes
@@ -286,10 +305,6 @@ class Aria2WebSocket:
         del self.uploads[file.gid]
 
         return None, True
-
-    async def completed(self, completedList: List[str]) -> AsyncIterator[str]:
-        for gid in completedList:
-            yield gid
 
 
 class Aria2(module.Module):

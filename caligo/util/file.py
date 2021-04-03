@@ -89,7 +89,7 @@ class File:
     @async_property
     async def progress_string(self) -> Tuple[Union[str, None], bool, None]:
         file = self.content
-        status, response = await run_sync(file.next_chunk)
+        status, response = await run_sync(file.next_chunk, num_retries=5)
         if status:
             after = sec() - self.start_time
             size = status.total_size

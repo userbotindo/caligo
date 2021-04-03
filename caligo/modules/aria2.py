@@ -122,7 +122,6 @@ class Aria2WebSocket:
                 await folderProgress.reply(text)
                 await folderProgress.delete()
             if file.bittorrent:
-                self.log.info(f"Seeding: [gid: '{gid}']")
                 self.bot.loop.create_task(self._seedFile(file))
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
@@ -223,6 +222,7 @@ class Aria2WebSocket:
             await asyncio.sleep(0.1)
 
     async def _seedFile(self, file: util.aria2.Download) -> None:
+        self.log.info(f"Seeding: [gid: '{file.gid}']")
         port = util.aria2.get_free_port()
         file_path = Path.home() / "downloads" / file.info_hash
         cmd = [

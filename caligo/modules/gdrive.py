@@ -1,8 +1,9 @@
 import asyncio
 import base64
 import pickle
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, Optional, Union
+from typing import Any, AsyncIterator, ClassVar, Dict, Optional, Set, Union
 
 import aiofile
 import pyrogram
@@ -23,12 +24,13 @@ class GoogleDrive(module.Module):
     configs: Dict[str, str]
     creds: Credentials
     db: AsyncIOMotorDatabase
-    lock: asyncio.Lock
     service: Resource
 
+    aria2: Any
     index_link: str
     parent_id: str
-    aria2: Any
+    task: Dict[int, asyncio.Task]
+    stop_transmission: bool
 
     async def on_load(self) -> None:
         self.db = self.bot.get_db("gdrive")
@@ -43,17 +45,19 @@ class GoogleDrive(module.Module):
 
         self.index_link = self.bot.getConfig.gdrive_index_link
         self.parent_id = self.bot.getConfig.gdrive_folder_id
-        self.lock = asyncio.Lock()
+        self.task = {}
+        self.stop_transmission = False
 
         if data:
             self.creds = await util.run_sync(pickle.loads, data.get("creds"))
             # service will be overwrite if credentials is expired
-            self.service = await util.run_sync(build, "drive", "v3",
+            self.service = await util.run_sync(build,
+                                               "drive",
+                                               "v3",
                                                credentials=self.creds,
                                                cache_discovery=False)
 
-    async def on_started(self) -> None:
-        self.aria2 = self.bot.modules.get("Aria2")
+            self.aria2 = self.bot.modules.get("Aria2")
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
@@ -95,12 +99,11 @@ class GoogleDrive(module.Module):
         self.creds = flow.credentials
         credential = await util.run_sync(pickle.dumps, self.creds)
 
-        async with self.lock:
-            await self.db.find_one_and_update({"_id": self.name},
-                                              {"$set": {
-                                                  "creds": credential
-                                              }},
-                                              upsert=True)
+        await self.db.find_one_and_update({"_id": self.name},
+                                          {"$set": {
+                                              "creds": credential
+                                          }},
+                                          upsert=True)
 
         return "Credentials created."
 
@@ -113,11 +116,10 @@ class GoogleDrive(module.Module):
                                     util.run_sync(Request))
 
                 credential = await util.run_sync(pickle.dumps, self.creds)
-                async with self.lock:
-                    await self.db.find_one_and_update(
-                        {"_id": self.name}, {"$set": {
-                            "creds": credential
-                        }})
+                await self.db.find_one_and_update(
+                    {"_id": self.name}, {"$set": {
+                        "creds": credential
+                    }})
             else:
                 await self.bot.respond(message,
                                        "Credential is empty, generating...")
@@ -129,7 +131,9 @@ class GoogleDrive(module.Module):
                 if self.creds is None:
                     return False
 
-            self.service = await util.run_sync(build, "drive", "v3",
+            self.service = await util.run_sync(build,
+                                               "drive",
+                                               "v3",
                                                credentials=self.creds,
                                                cache_discovery=False)
 
@@ -137,7 +141,8 @@ class GoogleDrive(module.Module):
         for content in folderPath.iterdir():
             yield content
 
-    async def createFolder(self, folderName: str,
+    async def createFolder(self,
+                           folderName: str,
                            folderId: Optional[str] = None) -> str:
         folder_metadata = {
             "name": folderName,
@@ -149,13 +154,17 @@ class GoogleDrive(module.Module):
             folder_metadata["parents"] = [self.parent_id]
 
         _Request = await util.run_sync(self.service.files().create,
-                                       body=folder_metadata, fields="id")
+                                       body=folder_metadata,
+                                       fields="id")
         folder = await util.run_sync(_Request.execute)
         return folder["id"]
 
-    async def uploadFolder(self, sourceFolder: Path, *,
-                           parent_id: Optional[str] = None,
-                           msg: Optional[pyrogram.types.Message] = None) -> None:
+    async def uploadFolder(
+            self,
+            sourceFolder: Path,
+            *,
+            parent_id: Optional[str] = None,
+            msg: Optional[pyrogram.types.Message] = None) -> None:
         folderContent = self._iterFolder(sourceFolder)
         async for content in folderContent:
             if content.is_dir():
@@ -176,7 +185,8 @@ class GoogleDrive(module.Module):
 
         return
 
-    async def uploadFile(self, file: Union[util.File, util.aria2.Download],
+    async def uploadFile(self,
+                         file: Union[util.File, util.aria2.Download],
                          parent_id: Optional[str] = None) -> MediaFileUpload:
         body = {"name": file.name, "mimeType": file.mime_type}
         if parent_id is not None:
@@ -210,6 +220,76 @@ class GoogleDrive(module.Module):
 
         return files
 
+    async def downloadFile(self, ctx: command.Context,
+                           msg: pyrogram.types.Message) -> Union[Path, None]:
+        downloadPath = ctx.bot.getConfig.downloadPath
+
+        before = util.time.sec()
+        last_update_time = None
+        human = util.misc.human_readable_bytes
+        time = util.time.format_duration_td
+        if msg.document:
+            file_name = msg.document.file_name
+        elif msg.audio:
+            file_name = msg.audio.file_name
+        elif msg.video:
+            file_name = msg.video.file_name
+        elif msg.sticker:
+            file_name = msg.sticker.file_name
+        elif msg.photo:
+            date = datetime.fromtimestamp(msg.photo.date)
+            file_name = f"photo_{date.strftime('%Y-%m-%d_%H-%M-%S')}.jpg"
+        elif msg.voice:
+            date = datetime.fromtimestamp(msg.voice.date)
+            file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.ogg"
+
+        loop = self.bot.loop
+
+        def prog_func(current: int, total: int) -> None:
+            nonlocal last_update_time
+
+            if self.stop_transmission:
+                self.stop_transmission = False
+                self.bot.client.stop_transmission()
+
+            percent = current / total
+            after = util.time.sec() - before
+            now = datetime.now()
+
+            try:
+                speed = round(current / after, 2)
+                eta = timedelta(seconds=int(round((total - current) / speed)))
+            except ZeroDivisionError:
+                speed = 0
+                eta = timedelta(seconds=0)
+            bullets = "●" * int(round(percent * 10)) + "○"
+            if len(bullets) > 10:
+                bullets = bullets.replace("○", "")
+
+            space = '    ' * (10 - len(bullets))
+            progress = (
+                f"`{file_name}`\n"
+                f"Status: **Downloading**\n"
+                f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
+                f"__{human(current)} of {human(total)} @ "
+                f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
+            # Only edit message once every 5 seconds to avoid ratelimits
+            if last_update_time is None or (
+                    now - last_update_time).total_seconds() >= 5:
+                loop.create_task(ctx.respond(progress))
+
+                last_update_time = now
+
+        file_path = str(downloadPath) + "/" + file_name
+        file_path = await ctx.bot.client.download_media(msg,
+                                                        file_name=file_path,
+                                                        progress=prog_func)
+
+        if file_path is not None:
+            return Path(file_path)
+
+        return
+
     @command.desc("Mirror Magnet/Torrent/Link into GoogleDrive")
     @command.usage("[Magnet/Torrent/Link or reply to message]")
     async def cmd_gdmirror(self, ctx: command.Context) -> None:
@@ -222,7 +302,10 @@ class GoogleDrive(module.Module):
             reply_msg = ctx.msg.reply_to_message
 
             if reply_msg.media:
-                path = await util.tg.download_file(ctx, reply_msg)
+                path = await self.downloadFile(ctx, reply_msg)
+                if path is None:
+                    return "__Transmission aborted.__"
+
                 if path.suffix == ".torrent":
                     async with aiofile.async_open(path, "rb") as afp:
                         types = base64.b64encode(await afp.read())
@@ -234,7 +317,15 @@ class GoogleDrive(module.Module):
                     if self.index_link is not None:
                         file.index_link = self.index_link
 
-                    self.bot.loop.create_task(file.progress())
+                    done: Set[asyncio.Future]
+                    task = self.bot.loop.create_task(file.progress())
+                    self.task[ctx.msg.message_id] = task
+                    done, _ = await asyncio.wait((task, asyncio.sleep(0.25)))
+                    for fut in done:
+                        try:
+                            fut.result()
+                        except asyncio.CancelledError:
+                            return "__Transmission aborted.__"
 
                     return
             elif reply_msg.text:

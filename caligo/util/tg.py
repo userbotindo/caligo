@@ -11,7 +11,8 @@ import pyrogram
 
 from .. import command
 from .misc import human_readable_bytes as human
-from .time import format_duration_td as time, sec
+from .time import format_duration_td as time
+from .time import sec
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"
@@ -48,24 +49,20 @@ def filter_code_block(inp: str) -> str:
 
 
 def _bprint_skip_predicate(name: str, value: Any) -> bool:
-    return (
-        name.startswith("_")
-        or value is None
-        or callable(value)
-    )
+    return (name.startswith("_") or value is None or callable(value))
 
 
 def pretty_print_entity(entity) -> str:
     """Pretty-prints the given Telegram entity with recursive details."""
 
-    return bprint.bprint(entity, stream=str, skip_predicate=_bprint_skip_predicate)
+    return bprint.bprint(entity,
+                         stream=str,
+                         skip_predicate=_bprint_skip_predicate)
 
 
-async def download_file(
-    ctx: command.Context,
-    msg: pyrogram.types.Message,
-    text: Optional[bool] = False
-) -> Path:
+async def download_file(ctx: command.Context,
+                        msg: pyrogram.types.Message,
+                        text: Optional[bool] = False) -> Path:
     """Downloads the file embedded in the given message."""
     downloadPath = ctx.bot.getConfig.downloadPath
 
@@ -108,7 +105,7 @@ async def download_file(
 
         try:
             speed = round(current / after, 2)
-            eta = timedelta(seconds=int(round((current - current) / speed)))
+            eta = timedelta(seconds=int(round((total - current) / speed)))
         except ZeroDivisionError:
             speed = 0
             eta = timedelta(seconds=0)
@@ -117,14 +114,14 @@ async def download_file(
             bullets = bullets.replace("○", "")
 
         space = '    ' * (10 - len(bullets))
-        progress = (
-            f"`{file_name}`\n"
-            f"Status: **Downloading**\n"
-            f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
-            f"__{human(current)} of {human(current)} @ "
-            f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
+        progress = (f"`{file_name}`\n"
+                    f"Status: **Downloading**\n"
+                    f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
+                    f"__{human(current)} of {human(total)} @ "
+                    f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
         # Only edit message once every 5 seconds to avoid ratelimits
-        if last_update_time is None or (now - last_update_time).total_seconds() >= 5:
+        if last_update_time is None or (now -
+                                        last_update_time).total_seconds() >= 5:
             loop.create_task(ctx.respond(progress))
 
             last_update_time = now
@@ -140,16 +137,14 @@ def truncate(text: str) -> str:
         suffix += "```"
 
     if len(text) > MESSAGE_CHAR_LIMIT:
-        return text[: MESSAGE_CHAR_LIMIT - len(suffix)] + suffix
+        return text[:MESSAGE_CHAR_LIMIT - len(suffix)] + suffix
 
     return text
 
 
-async def send_as_document(
-    content: Union[bytes, str],
-    msg: pyrogram.types.Message,
-    caption: str
-) -> pyrogram.types.Message:
+async def send_as_document(content: Union[bytes,
+                                          str], msg: pyrogram.types.Message,
+                           caption: str) -> pyrogram.types.Message:
     with io.BytesIO(str.encode(content)) as o:
         o.name = str(uuid.uuid4()).split("-")[0].upper() + ".TXT"
         return await msg.reply_document(
@@ -159,8 +154,8 @@ async def send_as_document(
 
 
 async def get_text_input(
-    ctx: command.Context, input_arg: Optional[str]
-) -> Tuple[bool, Optional[Union[str, bytes]]]:
+        ctx: command.Context,
+        input_arg: Optional[str]) -> Tuple[bool, Optional[Union[str, bytes]]]:
     """Returns input text from various sources in the given command context."""
 
     if ctx.msg.document:

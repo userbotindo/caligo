@@ -45,7 +45,7 @@ class Aria2WebSocket:
             "aria2c", f"--dir={str(path)}", "--enable-rpc",
             "--rpc-listen-all=false", "--rpc-listen-port=8080",
             "--max-connection-per-server=10", "--rpc-max-request-size=1024M",
-            "--seed-time=0.01", "--seed-ratio=0.1", "--max-upload-limit=5K",
+            "--seed-time=0.01", "--seed-ratio=0.1",
             "--max-concurrent-downloads=5", "--min-split-size=10M",
             "--follow-torrent=mem", "--split=10", "--bt-save-metadata=true",
             f"--bt-tracker={trackers}", "--daemon=true",

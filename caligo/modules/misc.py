@@ -17,6 +17,11 @@ class Misc(module.Module):
         self.stop_transmission = False
         self.task = {}
 
+        if (not self.bot.modules.get("Aria2") and
+           not self.bot.modules.get("GoogleDrive")):
+            del self.bot.commands["abort"]
+            del self.bot.commands["upload"]
+
     @command.desc("Generate a LMGTFY link (Let Me Google That For You)")
     @command.usage("[search query]")
     async def cmd_lmgtfy(self, ctx: command.Context) -> str:
@@ -96,6 +101,8 @@ class Misc(module.Module):
 
         return
 
+    @command.desc("Abort transmission of upload or download")
+    @command.usage("[file gid] [reply to message]", reply=True)
     async def cmd_abort(self, ctx) -> Optional[str]:
         if not ctx.input and not ctx.msg.reply_to_message:
             return "__Pass GID or reply to message of task to abort transmission.__"

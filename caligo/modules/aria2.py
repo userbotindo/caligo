@@ -340,6 +340,8 @@ class Aria2(module.Module):
             ret = f"__Aborted download: [gid: '{gid}']__"
         elif status == "complete":
             ret = f"__Aborted upload: [gid: '{gid}']__"
+        else:
+            ret = f"__Aborted: [gid: '{gid}']__"
 
         self.cancelled.append(gid)
         return ret

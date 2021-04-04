@@ -137,7 +137,7 @@ class GoogleDrive(module.Module):
                                                credentials=self.creds,
                                                cache_discovery=False)
 
-    async def _iterFolder(self, folderPath: Path) -> AsyncIterator[Path]:
+    async def iterFolder(self, folderPath: Path) -> AsyncIterator[Path]:
         for content in folderPath.iterdir():
             yield content
 
@@ -164,13 +164,13 @@ class GoogleDrive(module.Module):
             sourceFolder: Path,
             *,
             parent_id: Optional[str] = None,
-            msg: Optional[pyrogram.types.Message] = None) -> AsyncIterator[asyncio.Task]:
-        folderContent = self._iterFolder(sourceFolder)
-        async for content in folderContent:
+            msg: Optional[pyrogram.types.Message] = None
+    ) -> AsyncIterator[asyncio.Task]:
+        async for content in self.iterFolder(sourceFolder):
             if content.is_dir():
                 childFolder = await self.createFolder(content.name, parent_id)
-                tasks = self.uploadFolder(content, parent_id=childFolder, msg=msg)
-                async for task in tasks:
+                async for task in self.uploadFolder(
+                        content, parent_id=childFolder, msg=msg):
                     yield task
             elif content.is_file():
                 file = util.File(content)
@@ -290,7 +290,7 @@ class GoogleDrive(module.Module):
 
     @command.desc("Mirror Magnet/Torrent/Link into GoogleDrive")
     @command.usage("[Magnet/Torrent/Link or reply to message]")
-    async def cmd_gdmirror(self, ctx: command.Context) -> None:
+    async def cmd_gdmirror(self, ctx: command.Context) -> Optional[str]:
         if not ctx.input and not ctx.msg.reply_to_message:
             return "__Either link nor media found.__"
         if ctx.input and ctx.msg.reply_to_message:
@@ -336,4 +336,6 @@ class GoogleDrive(module.Module):
         if self.aria2 is None:
             return "__Mirroring torrent file/url needs aria2 package installed.__"
 
-        await self.aria2.addDownload(types, ctx.msg)
+        ret = await self.aria2.addDownload(types, ctx.msg)
+        if ret is not None:
+            return ret

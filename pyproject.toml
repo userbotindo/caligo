@@ -39,7 +39,7 @@ aiorun = "^2020.12.1"
 colorlog = "^4.7.2"
 motor = "^2.3.1"
 Pyrogram = "^1.2.7"
-python-dotenv = "^0.15.0"
+python-dotenv = "^0.17.0"
 TgCrypto = "^1.2.2"
 
 # Core Extra

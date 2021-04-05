@@ -71,7 +71,7 @@ tenacity = "^7.0.0"
 isort = {version = "^5.7.0", extras = ["pyproject"]}
 mypy = "^0.812"
 pre-commit = "^2.10.1"
-yapf = "^0.30.0"
+yapf = "^0.31.0"
 
 [tool.poetry.scripts]
 caligo = "caligo.main:main"

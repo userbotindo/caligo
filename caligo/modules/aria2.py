@@ -27,7 +27,7 @@ class Aria2WebSocket:
         self.bot = self.api.bot
         self.drive = self.bot.modules.get("GoogleDrive")
         self.index_link = self.drive.index_link
-        self.lock = asyncio.Lock()
+        self.lock = self.api.lock
         self.log = self.api.log
 
         self.counter: Dict[str, int] = {}
@@ -83,6 +83,10 @@ class Aria2WebSocket:
         self.bot.loop.create_task(self.waitSeed())
         return client
 
+    @property
+    def count(self) -> int:
+        return len(self.downloads)
+
     async def get_download(self, client: aioaria2.Aria2WebsocketTrigger,
                            gid: str) -> util.aria2.Download:
         res = await client.tellStatus(gid)
@@ -136,7 +140,7 @@ class Aria2WebSocket:
                 async with self.lock:
                     del self.counter[file.gid]
                     del self.downloads[file.gid]
-                    if len(self.downloads) == 0:
+                    if self.count == 0:
                         await asyncio.gather(self.api.invoker.reply(folderLink),
                                              self.api.invoker.delete())
                         self.api.invoker = None
@@ -162,7 +166,7 @@ class Aria2WebSocket:
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         async with self.lock:
             del self.downloads[file.gid]
-            if len(self.downloads) == 0:
+            if self.count == 0:
                 await self.api.invoker.delete()
                 self.api.invoker = None
 
@@ -198,8 +202,7 @@ class Aria2WebSocket:
                 else:
                     async with self.lock:
                         del self.downloads[file.gid]
-                        if (len(self.downloads) == 0 and
-                                self.api.invoker is not None):
+                        if self.count == 0 and self.api.invoker is not None:
                             await self.api.invoker.delete()
                             self.api.invoker = None
 
@@ -234,7 +237,7 @@ class Aria2WebSocket:
                     if gid in self.uploads:
                         del self.uploads[gid]
                     self.api.cancelled.remove(gid)
-                    if len(self.downloads) == 0 and self.api.invoker is not None:
+                    if self.count == 0 and self.api.invoker is not None:
                         await self.api.invoker.delete()
                         self.api.invoker = None
 
@@ -339,11 +342,13 @@ class Aria2(module.Module):
     cancelled: List[str]
     client: Aria2WebSocket
     invoker: pyrogram.types.Message
+    lock: asyncio.Lock
     stopping: bool
 
     async def on_load(self) -> None:
         self.cancelled = []
         self.invoker = None
+        self.lock = asyncio.Lock()
         self.stopping = False
 
     async def on_started(self) -> None:

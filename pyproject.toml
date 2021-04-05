@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "caligo"
-version = "0.1.0"
+version = "0.1.1"
 description = "selfbot for Telegram."
 authors = ["Adek Maulana <adek@techdro.id>"]
 license = "MIT"
@@ -15,7 +15,7 @@ documentation = "https://github.com/adekmaulana/caligo/blob/master/README.md"
 # Search info
 keywords = ["chat", "telegram", "selfbot", "telegram-bot", "pyrogram"]
 classifiers = [
-    "Development Status :: 1 - Alpha",
+    "Development Status :: 2 - Staging",
     "Environment :: Console",
     "Environment :: No Input/Output (Daemon)",
     "Framework :: AsyncIO",
@@ -38,7 +38,7 @@ aiohttp = "^3.7.4"
 aiorun = "^2020.12.1"
 colorlog = "^4.7.2"
 motor = "^2.3.1"
-Pyrogram = "^1.1.13"
+Pyrogram = "^1.2.7"
 python-dotenv = "^0.15.0"
 TgCrypto = "^1.2.2"
 
@@ -46,7 +46,7 @@ TgCrypto = "^1.2.2"
 dnspython = "^2.1.0"
 
 # Aria
-aioaria2 = "^1.3.0"
+aioaria2 = "^1.3.1"
 
 # System
 meval = "^2.5"
@@ -58,12 +58,12 @@ beauty-print = "^0.6.1"
 # GoogleDrive
 google-api-python-client = "^1.12.8"
 google-auth-httplib2 = "^0.0.4"
-google-auth-oauthlib = "^0.4.2"
+google-auth-oauthlib = "^0.4.4"
 
 # Util
 emoji = "^1.2.0"
 aiofile = "^3.5.0"
-Pillow = "^8.1.2"
+Pillow = "^8.2.0"
 async-property = "^0.2.1"
 tenacity = "^7.0.0"
 

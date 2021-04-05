@@ -397,12 +397,17 @@ class Aria2(module.Module):
 
     async def cancelMirror(self, gid: str) -> str:
         status = (await self.client.tellStatus(gid, ["status"]))["status"]
+        metadata = bool((await self.client.tellStatus(gid, ["followedBy"])
+                    ).get("followedBy"))
         if status == "active":
             await self.client.forcePause(gid)
             await self.client.forceRemove(gid)
             ret = f"**Aborted download: [gid: '{gid}']**"
         elif status == "complete":
-            ret = f"**Aborted upload: [gid: '{gid}']**"
+            if metadata is True:
+                ret = "__That GID belongs to finished Metadata, can't be abort.__"
+            else:
+                ret = f"**Aborted upload: [gid: '{gid}']**"
         else:
             ret = f"**Aborted: [gid: '{gid}']**"
 

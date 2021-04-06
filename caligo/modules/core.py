@@ -110,10 +110,7 @@ class CoreModule(module.Module):
                 try:
                     msg = await self.bot.client.get_messages(chat_id, msg_id)
                 except pyrogram.errors.PeerIdInvalid:
-                    await query.answer("😿️ Can't close, chat invalid.")
-                    await query.edit_message_text(
-                        "**Caligo Menu Helper**",
-                        reply_markup=InlineKeyboardMarkup(button[:-1]))
+                    continue
                 await msg.delete()
                 del self.cache[msg_id]
                 break

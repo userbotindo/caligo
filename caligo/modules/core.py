@@ -67,7 +67,7 @@ class CoreModule(module.Module):
                                 url=f"https://github.com/{repo}"),
                             InlineKeyboardButton(
                                 "📖️ How To",
-                                url=f"https://github.com/{repo}#How-To"),
+                                url=f"https://github.com/{repo}#Installation"),
                         ]
                     ]
                 )

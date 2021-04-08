@@ -87,16 +87,6 @@ RUN git clone https://github.com/adekmaulana/caligo /home/caligo
 RUN chmod +x /home/caligo/bot
 RUN cp /home/caligo/bot /usr/local/bin
 
-RUN mkdir -p /home/caligo/.cache/caligo/.certs
-
-# Initialize mkcert
-RUN curl -LJO https://github.com/FiloSottile/mkcert/releases/download/v1.4.3/mkcert-v1.4.3-linux-amd64
-RUN mv mkcert-v1.4.3-linux-amd64 /usr/local/bin/mkcert
-RUN chmod +x /usr/local/bin/mkcert
-
-RUN mkcert -install
-RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost
-
 # Download aria with sftp and gzip support
 RUN curl -LJO https://techdro.id/techdroid/aria2-1.35.0-r3.apk
 RUN apk add --allow-untrusted --no-cache aria2-1.35.0-r3.apk

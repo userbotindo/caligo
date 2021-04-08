@@ -55,22 +55,12 @@ class Aria2WebSocket:
             f"--bt-tracker={trackers}", "--daemon=true",
             "--allow-overwrite=true"
         ]
-        protocol = "http://localhost:8080/jsonrpc"
-
-        cpath = Path.home() / ".cache" / "caligo" / ".certs"
-        if (Path(cpath / "cert.pem").is_file() and
-                Path(cpath / "key.pem").is_file()):
-            cmd.insert(3, "--rpc-secure=true")
-            cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
-            cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
-            protocol = "https://localhost:8080/jsonrpc"
-
         server = aioaria2.AsyncAria2Server(*cmd, daemon=True)
-
         await server.start()
         await server.wait()
 
         self = cls(api)
+        protocol = "http://127.0.0.1:8080/jsonrpc"
         client = await aioaria2.Aria2WebsocketTrigger.new(url=protocol)
 
         trigger = [(self.on_download_start, "onDownloadStart"),
@@ -267,13 +257,6 @@ class Aria2WebSocket:
             f"--rpc-listen-port={port}", "--bt-seed-unverified=true",
             "--seed-ratio=1", f"-i {str(file_path) + '.torrent'}"
         ]
-
-        cpath = Path.home() / ".cache" / "caligo" / ".certs"
-        if (Path(cpath / "cert.pem").is_file() and
-                Path(cpath / "key.pem").is_file()):
-            cmd.insert(3, "--rpc-secure=true")
-            cmd.insert(3, f"--rpc-private-key={str(cpath / 'key.pem')}")
-            cmd.insert(3, f"--rpc-certificate={str(cpath / 'cert.pem')}")
 
         await util.system.run_command(*cmd)
         self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")

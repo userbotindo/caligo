@@ -361,6 +361,7 @@ class Aria2(module.Module):
 
     async def on_stop(self) -> None:
         self.stopping = True
+        await self.client.shutdown()
         await self.client.close()
 
     async def on_stopped(self) -> None:

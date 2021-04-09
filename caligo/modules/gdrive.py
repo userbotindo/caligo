@@ -150,7 +150,8 @@ class GoogleDrive(module.Module):
             folder_metadata["parents"] = [self.parent_id]
 
         folder = await util.run_sync(self.service.files().create(
-                                     body=folder_metadata, fields="id"
+                                     body=folder_metadata, fields="id",
+                                     supportsAllDrives=True
                                      ).execute)
         return folder["id"]
 

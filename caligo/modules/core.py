@@ -111,9 +111,10 @@ class CoreModule(module.Module):
                     msg = await self.bot.client.get_messages(chat_id, msg_id)
                 except pyrogram.errors.PeerIdInvalid:
                     continue
-                await msg.delete()
-                del self.cache[msg_id]
-                break
+                else:
+                    await msg.delete()
+                    del self.cache[msg_id]
+                    break
             else:
                 await query.answer("😿️ Couldn't close expired message")
                 await query.edit_message_text(

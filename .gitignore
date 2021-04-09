@@ -4,6 +4,8 @@
 *.pyc
 *.log
 *.session
+*.env
+config.env
 
 caligo/downloads
 downloads

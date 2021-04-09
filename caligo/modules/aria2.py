@@ -419,9 +419,8 @@ class Aria2(module.Module):
         if status == "active":
             await self.client.forcePause(gid)
             await self.client.forceRemove(gid)
-        elif status == "complete":
-            if metadata is True:
-                ret = "__GID belongs to finished Metadata, can't be abort.__"
+        elif status == "complete" and metadata is True:
+            ret = "__GID belongs to finished Metadata, can't be abort.__"
 
         self.cancelled.append(gid)
         return ret

@@ -17,11 +17,6 @@ class Misc(module.Module):
         self.stop_transmission = False
         self.task = {}
 
-        if (not self.bot.modules.get("Aria2") and
-           not self.bot.modules.get("GoogleDrive")):
-            del self.bot.commands["abort"]
-            del self.bot.commands["upload"]
-
     @command.desc("Generate a LMGTFY link (Let Me Google That For You)")
     @command.usage("[search query]")
     async def cmd_lmgtfy(self, ctx: command.Context) -> str:
@@ -113,15 +108,16 @@ class Misc(module.Module):
 
         if ctx.msg.reply_to_message:
             reply_msg = ctx.msg.reply_to_message
-            if (reply_msg.text.split("\n")[1].split(":")[-1].strip()
-                    == "Downloading" and "GID" not in reply_msg.text):
-                drive.stop_transmission = True
+            msg_id = reply_msg.message_id
+
+            if msg_id in self.task:
+                self.stop_transmission = True
                 await ctx.msg.delete()
                 return
 
-            msg_id = reply_msg.message_id
-            if msg_id in self.task:
-                self.stop_transmission = True
+            if (reply_msg.text.split("\n")[1].split(":")[-1].strip()
+                    == "Downloading" and "GID" not in reply_msg.text):
+                drive.stop_transmission = True
                 await ctx.msg.delete()
                 return
 
@@ -138,6 +134,9 @@ class Misc(module.Module):
             return
 
         gid = ctx.input
+        if aria2 is None and gid:
+            return "__Aria2 is not installed in system.__"
+
         ret = await aria2.cancelMirror(gid)
         if ret is None:
             await ctx.msg.delete()

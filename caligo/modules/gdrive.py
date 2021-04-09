@@ -155,7 +155,7 @@ class GoogleDrive(module.Module):
 
         _Request = await util.run_sync(self.service.files().create,
                                        body=folder_metadata,
-                                       fields="id")
+                                       fields="id", supportsAllDrives=True)
         folder = await util.run_sync(_Request.execute)
         return folder["id"]
 

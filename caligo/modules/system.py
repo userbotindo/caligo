@@ -364,7 +364,7 @@ Time: {el_str}"""
                                 "status_chat_id": resp_msg.chat.id,
                                 "status_message_id": resp_msg.message_id,
                                 "time": update_time,
-                                "reason": "update_deploy"
+                                "reason": "update"
                             }
                         }
                     },

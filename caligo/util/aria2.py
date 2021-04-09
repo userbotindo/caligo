@@ -210,6 +210,14 @@ class Download:
         return Path(self._data["dir"])
 
     @property
+    def is_file(self) -> bool:
+        return (self.dir / self.name).is_file()
+
+    @property
+    def is_dir(self) -> bool:
+        return (self.dir / self.name).is_dir()
+
+    @property
     def path(self) -> Path:
         return self.files[0].path
 

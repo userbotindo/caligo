@@ -37,7 +37,10 @@ class Aria2WebSocket:
 
     @classmethod
     async def init(cls, api: "Aria2") -> "Aria2WebSocket":
-        path = Path.home() / "downloads"
+        if api.bot.getConfig.downloadPath is None:
+            path = Path.home() / "downloads"
+        else:
+            path = Path(api.bot.getConfig.downloadPath)
         path.mkdir(parents=True, exist_ok=True)
 
         link = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"

@@ -211,7 +211,8 @@ class Aria2WebSocket:
                         f"[{self.counter[file.gid]}/{len(file.files)}]\n\n")
                     continue
 
-                f = self.uploads[file.gid]
+                async with self.lock:
+                    f = self.uploads[file.gid]
                 progress, done = await self.uploadProgress(f)
                 if not done:
                     progress_string += progress

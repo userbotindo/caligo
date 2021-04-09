@@ -1,4 +1,5 @@
 import asyncio
+import ast
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple, Union
@@ -66,9 +67,11 @@ class Aria2WebSocket:
         protocol = "http://127.0.0.1:8080/jsonrpc"
         client = await aioaria2.Aria2WebsocketTrigger.new(url=protocol)
 
-        trigger = [(self.on_download_start, "onDownloadStart"),
-                   (self.on_download_complete, "onDownloadComplete"),
-                   (self.on_download_error, "onDownloadError")]
+        trigger = [(self.onDownloadStart, "onDownloadStart"),
+                   (self.onDownloadComplete, "onDownloadComplete"),
+                   (self.onDownloadPause, "onDownloadPause"),
+                   (self.onDownloadStop, "onDownloadStop"),
+                   (self.onDownloadError, "onDownloadError")]
         for handler, name in trigger:
             client.register(handler, f"aria2.{name}")
 
@@ -80,24 +83,29 @@ class Aria2WebSocket:
     def count(self) -> int:
         return len(self.downloads)
 
-    async def get_download(self, client: aioaria2.Aria2WebsocketTrigger,
-                           gid: str) -> util.aria2.Download:
-        res = await client.tellStatus(gid)
-        return await util.run_sync(util.aria2.Download, client, res)
+    async def checkDelete(self) -> None:
+        if self.count == 0 and self.api.invoker is not None:
+            await self.api.invoker.delete()
+            self.api.invoker = None
 
-    async def on_download_start(self, trigger: aioaria2.Aria2WebsocketTrigger,
-                                data: Union[Dict[str, str], Any]) -> None:
+    async def getDownload(self, client: aioaria2.Aria2WebsocketTrigger,
+                          gid: str) -> util.aria2.Download:
+        res = await client.tellStatus(gid)
+        return util.aria2.Download(client, res)
+
+    async def onDownloadStart(self, client: aioaria2.Aria2WebsocketTrigger,
+                              data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
         async with self.lock:
-            self.downloads[gid] = await self.get_download(trigger, gid)
+            self.downloads[gid] = await self.getDownload(client, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
-    async def on_download_complete(self,
-                                   trigger: aioaria2.Aria2WebsocketTrigger,
-                                   data: Union[Dict[str, str], Any]) -> None:
+    async def onDownloadComplete(self,
+                                 client: aioaria2.Aria2WebsocketTrigger,
+                                 data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
         async with self.lock:
-            self.downloads[gid] = await self.get_download(trigger, gid)
+            self.downloads[gid] = await self.getDownload(client, gid)
         file = self.downloads[gid]
 
         meta = ""
@@ -110,14 +118,12 @@ class Aria2WebSocket:
                 async with self.lock:
                     self.uploads[file.gid] = await self.drive.uploadFile(file)
             elif (Path(file.dir) / file.name).is_dir():
-                async with self.lock:
-                    self.counter[file.gid] = 0
+                self.counter[file.gid] = 0
                 folderId = await self.drive.createFolder(file.name)
                 async for task in self.drive.uploadFolder(
                         Path(file.dir) / file.name, parent_id=folderId):
                     await task
-                    async with self.lock:
-                        self.counter[file.gid] += 1
+                    self.counter[file.gid] += 1
 
                 folderLink = (
                     f"**GoogleDrive folderLink**: [{file.name}]"
@@ -145,11 +151,31 @@ class Aria2WebSocket:
 
         self.log.info(f"Complete download: [gid: '{gid}']{meta}")
 
-    async def on_download_error(self, trigger: aioaria2.Aria2WebsocketTrigger,
-                                data: Union[Dict[str, str], Any]) -> None:
+    async def onDownloadPause(self, _: aioaria2.Aria2WebsocketTrigger,
+                              data: Union[Dict[str, str], Any]) -> None:
+        gid = data["params"][0]["gid"]
+        async with self.lock:
+            if gid in self.downloads:
+                del self.downloads[gid]
+                await self.checkDelete()
+
+        self.log.info(f"Paused download: [gid '{gid}']")
+
+    async def onDownloadStop(self, _: aioaria2.Aria2WebsocketTrigger,
+                             data: Union[Dict[str, str], Any]) -> None:
+        gid = data["params"][0]["gid"]
+        async with self.lock:
+            if gid in self.downloads:
+                del self.downloads[gid]
+                await self.checkDelete()
+
+        self.log.info(f"Stopped download: [gid '{gid}']")
+
+    async def onDownloadError(self, client: aioaria2.Aria2WebsocketTrigger,
+                              data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
-        file = await self.get_download(trigger, gid)
+        file = await self.getDownload(client, gid)
         await self.bot.respond(self.api.invoker, f"`{file.name}`\n"
                                f"Status: **{file.status.capitalize()}**\n"
                                f"Error: __{file.error_message}__\n"
@@ -159,9 +185,7 @@ class Aria2WebSocket:
         self.log.warning(f"[gid: '{gid}']: {file.error_message}")
         async with self.lock:
             del self.downloads[file.gid]
-            if self.count == 0:
-                await self.api.invoker.delete()
-                self.api.invoker = None
+            await self.checkDelete()
 
     @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
            stop=stop_after_attempt(5),
@@ -195,9 +219,7 @@ class Aria2WebSocket:
                 else:
                     async with self.lock:
                         del self.downloads[file.gid]
-                        if self.count == 0 and self.api.invoker is not None:
-                            await self.api.invoker.delete()
-                            self.api.invoker = None
+                        await self.checkDelete()
 
                 continue
 
@@ -230,9 +252,7 @@ class Aria2WebSocket:
                     if gid in self.uploads:
                         del self.uploads[gid]
                     self.api.cancelled.remove(gid)
-                    if self.count == 0 and self.api.invoker is not None:
-                        await self.api.invoker.delete()
-                        self.api.invoker = None
+                    await self.checkDelete()
 
             progress = await self.checkProgress()
             now = datetime.now()
@@ -353,16 +373,18 @@ class Aria2(module.Module):
     async def on_stopped(self) -> None:
         self.invoker = None
 
+    async def _formatSE(self, err: Exception) -> str:
+        res = await util.run_sync(
+            ast.literal_eval, str(err).split(":", 2)[-1].strip())
+        return "__" + res["error"]["message"] + "__"
+
     async def addDownload(self, types: Union[str, bytes],
                           msg: pyrogram.types.Message) -> Optional[str]:
         if isinstance(types, str):
             try:
                 await self.client.addUri([types])
             except aioaria2.exceptions.Aria2rpcException as e:
-                if "No URI to download" in str(e):
-                    return "__Invalid URI.__"
-
-                return str(e)
+                return await self._formatSE(e)
         elif isinstance(types, bytes):
             await self.client.addTorrent(str(types, "utf-8"))
         else:
@@ -382,21 +404,24 @@ class Aria2(module.Module):
     async def removeDownload(self, gid: str) -> str:
         return await self.client.remove(gid)
 
-    async def cancelMirror(self, gid: str) -> str:
-        status = (await self.client.tellStatus(gid, ["status"]))["status"]
-        metadata = bool((await self.client.tellStatus(gid, ["followedBy"])
-                    ).get("followedBy"))
+    async def cancelMirror(self, gid: str) -> Optional[str]:
+        try:
+            res = await self.client.tellStatus(gid, ["status", "followedBy"])
+        except aioaria2.exceptions.Aria2rpcException as e:
+            res = await self._formatSE(e)
+            if gid in res:
+                res = res.replace(gid, f"'{gid}'")
+            return res
+
+        status = res["status"]
+        metadata = bool(res.get("followedBy"))
+        ret = None
         if status == "active":
             await self.client.forcePause(gid)
             await self.client.forceRemove(gid)
-            ret = f"**Aborted download: [gid: '{gid}']**"
         elif status == "complete":
             if metadata is True:
-                ret = "__That GID belongs to finished Metadata, can't be abort.__"
-            else:
-                ret = f"**Aborted upload: [gid: '{gid}']**"
-        else:
-            ret = f"**Aborted: [gid: '{gid}']**"
+                ret = "__GID belongs to finished Metadata, can't be abort.__"
 
         self.cancelled.append(gid)
         return ret

@@ -80,8 +80,8 @@ class CommandDispatcher(Base):
 
         return create(func)
 
-    def command_outgoing_flt(self: "Bot") -> Filter:
-
+    @staticmethod
+    def command_outgoing_flt() -> Filter:
         return create(
             lambda _, __, msg: msg.via_bot is None
             and not msg.scheduled

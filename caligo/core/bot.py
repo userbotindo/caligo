@@ -12,6 +12,11 @@ from .event_dispatcher import EventDispatcher
 from .module_extender import ModuleExtender
 from .telegram_bot import TelegramBot
 
+try:
+    import ujson as json
+except ModuleNotFoundError:
+    import json
+
 
 class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
           ConversationDispatcher, ModuleExtender):
@@ -31,7 +36,7 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
 
         super().__init__()
 
-        self.http = aiohttp.ClientSession()
+        self.http = aiohttp.ClientSession(json_serialize=json.dumps)
 
     @classmethod
     async def create_and_run(cls,

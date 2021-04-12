@@ -162,7 +162,8 @@ class CoreModule(module.Module):
                 self.bot.bot_user.username)
             res = await self.bot.client.send_inline_bot_result(
                 ctx.msg.chat.id, response.query_id, response.results[1].id)
-            self.cache[res.updates[-1].message.id] = ctx.msg.chat.id
+            if hasattr(res.updates[-1], "message"):
+                self.cache[res.updates[-1].message.id] = ctx.msg.chat.id
 
             return
 

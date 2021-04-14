@@ -42,7 +42,7 @@ class Bot(TelegramBot, CommandDispatcher, DataBase, EventDispatcher,
     async def create_and_run(cls,
                              *,
                              loop: Optional[asyncio.AbstractEventLoop] = None
-                             ) -> "Bot":
+                            ) -> "Bot":
         bot = None
 
         if loop:

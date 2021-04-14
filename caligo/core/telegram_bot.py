@@ -80,29 +80,20 @@ class TelegramBot(Base):
         except TypeError:
             self.prefix = "."  # Default is '.'-dot you can change later
 
-            await db.find_one_and_update(
-                {"_id": "Core"},
-                {
-                    "$set": {"prefix": self.prefix}
-                },
-                upsert=True
-            )
+            await db.find_one_and_update({"_id": "Core"},
+                                         {"$set": {
+                                             "prefix": self.prefix
+                                         }},
+                                         upsert=True)
 
         self.client.add_handler(
-            MessageHandler(
-                self.on_command,
-                filters=(
-                    self.command_predicate()
-                    &
-                    self.command_outgoing_flt()
-                )
-            ), 0)
+            MessageHandler(self.on_command,
+                           filters=(self.command_predicate() &
+                                    self.command_outgoing_flt())), 0)
 
         self.client.add_handler(
-            MessageHandler(
-                self.on_conversation,
-                filters=self.conversation_predicate()
-            ), 0)
+            MessageHandler(self.on_conversation,
+                           filters=self.conversation_predicate()), 0)
 
         # Load modules
         self.load_all_modules()
@@ -134,6 +125,7 @@ class TelegramBot(Base):
         await self.dispatch_event("started")
 
     async def idle(self: "Bot") -> None:
+
         def signal_handler(_, __):
 
             self.log.info(f"Stop signal received ({_}).")
@@ -199,8 +191,9 @@ class TelegramBot(Base):
         self.update_module_event("message_delete", DeletedMessagesHandler)
         self.update_module_event("chat_action", MessageHandler, chat_action())
         if self.has_bot:
-            self.update_bot_module_event("callback_query", CallbackQueryHandler,
-                                         filters.regex(pattern=r"menu\((\w+)\)"))
+            self.update_bot_module_event(
+                "callback_query", CallbackQueryHandler,
+                filters.regex(pattern=r"menu\((\w+)\)"))
             self.update_bot_module_event("inline_query", InlineQueryHandler)
 
     @property
@@ -261,11 +254,7 @@ class TelegramBot(Base):
             # send as file if text > 4096
             if len(text) > tg.MESSAGE_CHAR_LIMIT:
                 await msg.edit("Sending output as a file.")
-                response = await tg.send_as_document(
-                    text,
-                    msg,
-                    input_arg
-                )
+                response = await tg.send_as_document(text, msg, input_arg)
 
                 await msg.delete()
                 return response

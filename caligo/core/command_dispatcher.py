@@ -85,13 +85,11 @@ class CommandDispatcher(Base):
     @staticmethod
     def command_outgoing_flt() -> Filter:
         return create(
-            lambda _, __, msg: msg.via_bot is None
-            and not msg.scheduled
-            and not (msg.forward_from or msg.forward_sender_name)
-            and not (msg.from_user and msg.from_user.is_bot)
-            and (msg.outgoing or (msg.from_user and msg.from_user.is_self))
-            and not (msg.chat and msg.chat.type == "channel" and msg.edit_date)
-        )
+            lambda _, __, msg: msg.via_bot is None and not msg.scheduled and
+            not (msg.forward_from or msg.forward_sender_name) and not (
+                msg.from_user and msg.from_user.is_bot) and
+            (msg.outgoing or (msg.from_user and msg.from_user.is_self)) and
+            not (msg.chat and msg.chat.type == "channel" and msg.edit_date))
 
     async def on_command(self: "Bot", _: pyrogram.Client,
                          msg: pyrogram.types.Message) -> None:

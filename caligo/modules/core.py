@@ -7,11 +7,11 @@ import pyrogram
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pyrogram.types import (
     CallbackQuery,
-    InlineQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InlineQuery,
     InlineQueryResultArticle,
-    InputTextMessageContent
+    InputTextMessageContent,
 )
 
 from .. import __version__, command, module, util

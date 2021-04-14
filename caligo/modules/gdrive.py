@@ -150,18 +150,16 @@ class GoogleDrive(module.Module):
             folder_metadata["parents"] = [self.parent_id]
 
         folder = await util.run_sync(self.service.files().create(
-                                     body=folder_metadata, fields="id",
-                                     supportsAllDrives=True
-                                     ).execute)
+            body=folder_metadata, fields="id", supportsAllDrives=True).execute)
         return folder["id"]
 
     async def uploadFolder(
-            self,
-            sourceFolder: Path,
-            *,
-            gid: Optional[str] = None,
-            parent_id: Optional[str] = None,
-            msg: Optional[pyrogram.types.Message] = None
+        self,
+        sourceFolder: Path,
+        *,
+        gid: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        msg: Optional[pyrogram.types.Message] = None
     ) -> AsyncIterator[asyncio.Task]:
         for content in sourceFolder.iterdir():
             if content.is_dir():
@@ -180,8 +178,8 @@ class GoogleDrive(module.Module):
                 file.content, file.start_time = files, util.time.sec()
                 file.invoker = msg if msg is not None else None
 
-                yield self.bot.loop.create_task(
-                    file.progress(update=False), name=gid)
+                yield self.bot.loop.create_task(file.progress(update=False),
+                                                name=gid)
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],
@@ -205,10 +203,10 @@ class GoogleDrive(module.Module):
         else:
             media_body = MediaFileUpload(file.path, mimetype=file.mime_type)
             files = await util.run_sync(self.service.files().create(
-                                        body=body,
-                                        media_body=media_body,
-                                        fields="id, size, webContentLink",
-                                        supportsAllDrives=True).execute)
+                body=body,
+                media_body=media_body,
+                fields="id, size, webContentLink",
+                supportsAllDrives=True).execute)
 
             return files.get("id")
 

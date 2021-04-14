@@ -1,5 +1,5 @@
-import asyncio
 import ast
+import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple, Union
@@ -31,12 +31,14 @@ class Aria2WebSocket:
         self.lock = self.api.lock
         self.log = self.api.log
 
-        self.counter: Dict[str, int] = {}
         self.downloads: Dict[str, util.aria2.Download] = {}
         self.uploads: Dict[str, MediaFileUpload] = {}
         self.seedTask: List[asyncio.Task] = []
 
     @classmethod
+    @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
+           stop=stop_after_attempt(5),
+           retry=retry_if_exception_type(ConnectionRefusedError))
     async def init(cls, api: "Aria2") -> "Aria2WebSocket":
         if api.bot.getConfig.downloadPath is None:
             path = Path.home() / "downloads"
@@ -100,74 +102,86 @@ class Aria2WebSocket:
             self.downloads[gid] = await self.getDownload(client, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
-    async def onDownloadComplete(self,
-                                 client: aioaria2.Aria2WebsocketTrigger,
+    async def onDownloadComplete(self, client: aioaria2.Aria2WebsocketTrigger,
                                  data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
+
         async with self.lock:
             self.downloads[gid] = await self.getDownload(client, gid)
-        file = self.downloads[gid]
+            file = self.downloads[gid]
+            if file.metadata is True:
+                del self.downloads[gid]
+                self.log.info(f"Complete download: [gid: '{gid}'] - Metadata")
+                return
 
-        meta = ""
-        if file.metadata is True:
+        if file.is_file:
             async with self.lock:
-                del self.downloads[file.gid]
-            meta += " - Metadata"
-        else:
-            if (Path(file.dir) / file.name).is_file():
-                async with self.lock:
-                    self.uploads[file.gid] = await self.drive.uploadFile(file)
-            elif (Path(file.dir) / file.name).is_dir():
-                self.counter[file.gid] = 0
-                folderId = await self.drive.createFolder(file.name)
-                async for task in self.drive.uploadFolder(
-                        Path(file.dir) / file.name, parent_id=folderId):
+                self.uploads[gid] = await self.drive.uploadFile(file)
+        elif file.is_dir:
+            folderId = await self.drive.createFolder(file.name)
+            folderTasks = self.drive.uploadFolder(file.dir / file.name,
+                                                  gid=gid,
+                                                  parent_id=folderId)
+
+            async with self.lock:
+                self.uploads[gid] = {"generator": folderTasks, "counter": 0}
+
+            cancelled = False
+            async for task in folderTasks:
+                try:
                     await task
-                    self.counter[file.gid] += 1
+                except asyncio.CancelledError:
+                    cancelled = True
+                    break
+                else:
+                    async with self.lock:
+                        self.uploads[gid]["counter"] += 1
+
+            if not cancelled:
+                async with self.lock:
+                    del self.uploads[gid]
+                    del self.downloads[gid]
 
                 folderLink = (
                     f"**GoogleDrive folderLink**: [{file.name}]"
                     f"(https://drive.google.com/drive/folders/{folderId})")
                 if self.index_link is not None:
                     if self.index_link.endswith("/"):
-                        indexLink = self.index_link + parse.quote(file.name +
-                                                                  "/")
+                        indexLink = self.index_link + parse.quote(file.name
+                                                                  + "/")
                     else:
                         indexLink = self.index_link + "/" + parse.quote(
-                                                            file.name + "/")
+                            file.name + "/")
                     folderLink += f"\n\n__IndexLink__: [Here]({indexLink})."
-                async with self.lock:
-                    del self.counter[file.gid]
-                    del self.downloads[file.gid]
-                    if self.count == 0:
-                        await asyncio.gather(self.api.invoker.reply(folderLink),
-                                             self.api.invoker.delete())
-                        self.api.invoker = None
-                    else:
-                        await self.api.invoker.reply(folderLink)
-            if file.bittorrent:
-                task = self.bot.loop.create_task(self.seedFile(file))
-                self.seedTask.append(task)
 
-        self.log.info(f"Complete download: [gid: '{gid}']{meta}")
+                if self.count == 0:
+                    await asyncio.gather(self.api.invoker.reply(folderLink),
+                                         self.api.invoker.delete())
+                    self.api.invoker = None
+                else:
+                    await self.api.invoker.reply(folderLink)
+
+        else:
+            async with self.lock:
+                del self.downloads[gid]
+            self.log.warning(f"Can't upload '{file.name}', "
+                             f"due to '{file.dir}' is not accessible")
+
+        if file.bittorrent:
+            task = self.bot.loop.create_task(self.seedFile(file))
+            self.seedTask.append(task)
+
+        self.log.info(f"Complete download: [gid: '{gid}']")
 
     async def onDownloadPause(self, _: aioaria2.Aria2WebsocketTrigger,
                               data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
-        async with self.lock:
-            if gid in self.downloads:
-                del self.downloads[gid]
-                await self.checkDelete()
 
         self.log.info(f"Paused download: [gid '{gid}']")
 
     async def onDownloadStop(self, _: aioaria2.Aria2WebsocketTrigger,
                              data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
-        async with self.lock:
-            if gid in self.downloads:
-                del self.downloads[gid]
-                await self.checkDelete()
 
         self.log.info(f"Stopped download: [gid '{gid}']")
 
@@ -201,25 +215,32 @@ class Aria2WebSocket:
             except aioaria2.exceptions.Aria2rpcException:
                 continue
             if (file.failed or file.paused or
-               (file.complete and file.metadata) or file.removed):
+                (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
-                if (file.dir / file.name).is_dir():
-                    progress_string += (
-                        f"`{file.name}`\nComputing Upload: "
-                        f"[{self.counter[file.gid]}/{len(file.files)}]\n\n")
-                    continue
-
                 async with self.lock:
-                    f = self.uploads[file.gid]
-                progress, done = await self.uploadProgress(f)
-                if not done:
-                    progress_string += progress
-                else:
-                    async with self.lock:
-                        del self.downloads[file.gid]
-                        await self.checkDelete()
+                    if file.is_dir:
+                        counter = self.uploads[file.gid]["counter"]
+                        length = len(file.files)
+                        try:
+                            percent = counter / length
+                        except ZeroDivisionError:
+                            percent = 0
+                        finally:
+                            percent = round(percent * 100)
+                        progress_string += (
+                            f"`{file.name}`\nGID: `{file.gid}`\n"
+                            f"__ComputingFolder: [{counter}/{length}] "
+                            f"{percent}%__\n\n")
+                    elif file.is_file:
+                        f = self.uploads[file.gid]
+                        progress, done = await self.uploadProgress(f)
+                        if not done:
+                            progress_string += progress
+                        else:
+                            del self.downloads[file.gid]
+                            await self.checkDelete()
 
                 continue
 
@@ -247,9 +268,16 @@ class Aria2WebSocket:
         while not self.api.stopping:
             for gid in self.api.cancelled[:]:
                 async with self.lock:
+                    file = self.downloads[gid]
                     if gid in self.downloads:
                         del self.downloads[gid]
-                    if gid in self.uploads:
+                    if file.is_file and gid in self.uploads:
+                        del self.uploads[gid]
+                    elif file.is_dir and gid in self.uploads:
+                        for task in asyncio.all_tasks():
+                            if task.get_name() == gid:
+                                task.cancel()
+                        await self.uploads[gid]["generator"].aclose()
                         del self.uploads[gid]
                     self.api.cancelled.remove(gid)
                     await self.checkDelete()
@@ -259,10 +287,10 @@ class Aria2WebSocket:
 
             if last_update_time is None or (
                     now - last_update_time).total_seconds() >= 5 and (
-                        progress != "") and self.api.invoker is not None:
+                        progress != ""):
                 try:
-                    if self.api.invoker is not None:
-                        async with self.lock:
+                    async with self.lock:
+                        if self.api.invoker is not None:
                             await self.api.invoker.edit(progress)
                 except pyrogram.errors.MessageNotModified:
                     pass
@@ -271,17 +299,27 @@ class Aria2WebSocket:
 
             await asyncio.sleep(0.1)
 
-    async def seedFile(self, file: util.aria2.Download) -> Literal["OK"]:
+    async def seedFile(
+            self,
+            file: util.aria2.Download) -> Union[Literal["OK"], Literal["BAD"]]:
+        file_path = Path(str(file.dir / file.info_hash) + ".torrent")
+        if not file_path.is_file():
+            return "BAD"
+
         self.log.info(f"Seeding: [gid: '{file.gid}']")
         port = util.aria2.get_free_port()
-        file_path = Path.home() / "downloads" / file.info_hash
         cmd = [
             "aria2c", "--enable-rpc", "--rpc-listen-all=false",
             f"--rpc-listen-port={port}", "--bt-seed-unverified=true",
-            "--seed-ratio=1", f"-i {str(file_path) + '.torrent'}"
+            "--seed-ratio=1", f"-i {str(file_path)}"
         ]
 
-        await util.system.run_command(*cmd)
+        try:
+            await util.system.run_command(*cmd)
+        except Exception as e:  # skipcq: PYL-W0703
+            self.log.warning(e)
+            return "BAD"
+
         self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
 
         return "OK"
@@ -374,8 +412,8 @@ class Aria2(module.Module):
         self.invoker = None
 
     async def _formatSE(self, err: Exception) -> str:
-        res = await util.run_sync(
-            ast.literal_eval, str(err).split(":", 2)[-1].strip())
+        res = await util.run_sync(ast.literal_eval,
+                                  str(err).split(":", 2)[-1].strip())
         return "__" + res["error"]["message"] + "__"
 
     async def addDownload(self, types: Union[str, bytes],
@@ -420,7 +458,7 @@ class Aria2(module.Module):
             await self.client.forcePause(gid)
             await self.client.forceRemove(gid)
         elif status == "complete" and metadata is True:
-            ret = "__GID belongs to finished Metadata, can't be abort.__"
+            return "__GID belongs to finished Metadata, can't be abort.__"
 
         self.cancelled.append(gid)
         return ret

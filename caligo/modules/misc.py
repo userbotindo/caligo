@@ -58,7 +58,7 @@ class Misc(module.Module):
 
             try:
                 speed = round(current / after, 2)
-                eta = timedelta(seconds=int(round((current - current) / speed)))
+                eta = timedelta(seconds=int(round((total - current) / speed)))
             except ZeroDivisionError:
                 speed = 0
                 eta = timedelta(seconds=0)
@@ -71,7 +71,7 @@ class Misc(module.Module):
                 f"`{file_path.name}`\n"
                 f"Status: **Uploading**\n"
                 f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
-                f"__{human(current)} of {human(current)} @ "
+                f"__{human(current)} of {human(total)} @ "
                 f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
             # Only edit message once every 5 seconds to avoid ratelimits
             if last_update_time is None or (
@@ -94,6 +94,7 @@ class Misc(module.Module):
         if task.result() is None:
             return "__Transmission aborted.__"
 
+        await ctx.msg.delete()
         return
 
     @command.desc("Abort transmission of upload or download")
@@ -135,7 +136,7 @@ class Misc(module.Module):
 
         gid = ctx.input
         if aria2 is None and gid:
-            return "__Aria2 is not installed in system.__"
+            return "__Aria2 is not loaded.__"
 
         ret = await aria2.cancelMirror(gid)
         if ret is None:

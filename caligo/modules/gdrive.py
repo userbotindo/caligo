@@ -137,10 +137,6 @@ class GoogleDrive(module.Module):
                                                credentials=self.creds,
                                                cache_discovery=False)
 
-    async def iterFolder(self, folderPath: Path) -> AsyncIterator[Path]:
-        for content in folderPath.iterdir():
-            yield content
-
     async def createFolder(self,
                            folderName: str,
                            folderId: Optional[str] = None) -> str:
@@ -153,24 +149,25 @@ class GoogleDrive(module.Module):
         elif folderId is None and self.parent_id is not None:
             folder_metadata["parents"] = [self.parent_id]
 
-        _Request = await util.run_sync(self.service.files().create,
-                                       body=folder_metadata,
-                                       fields="id", supportsAllDrives=True)
-        folder = await util.run_sync(_Request.execute)
+        folder = await util.run_sync(self.service.files().create(
+            body=folder_metadata, fields="id", supportsAllDrives=True).execute)
         return folder["id"]
 
     async def uploadFolder(
-            self,
-            sourceFolder: Path,
-            *,
-            parent_id: Optional[str] = None,
-            msg: Optional[pyrogram.types.Message] = None
+        self,
+        sourceFolder: Path,
+        *,
+        gid: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        msg: Optional[pyrogram.types.Message] = None
     ) -> AsyncIterator[asyncio.Task]:
-        async for content in self.iterFolder(sourceFolder):
+        for content in sourceFolder.iterdir():
             if content.is_dir():
                 childFolder = await self.createFolder(content.name, parent_id)
-                async for task in self.uploadFolder(
-                        content, parent_id=childFolder, msg=msg):
+                async for task in self.uploadFolder(content,
+                                                    gid=gid,
+                                                    parent_id=childFolder,
+                                                    msg=msg):
                     yield task
             elif content.is_file():
                 file = util.File(content)
@@ -180,7 +177,9 @@ class GoogleDrive(module.Module):
 
                 file.content, file.start_time = files, util.time.sec()
                 file.invoker = msg if msg is not None else None
-                yield self.bot.loop.create_task(file.progress(update=False))
+
+                yield self.bot.loop.create_task(file.progress(update=False),
+                                                name=gid)
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],
@@ -203,12 +202,11 @@ class GoogleDrive(module.Module):
                                         supportsAllDrives=True)
         else:
             media_body = MediaFileUpload(file.path, mimetype=file.mime_type)
-            _Request = await util.run_sync(self.service.files().create,
-                                           body=body,
-                                           media_body=media_body,
-                                           fields="id, size, webContentLink",
-                                           supportsAllDrives=True)
-            files = await util.run_sync(_Request.execute)
+            files = await util.run_sync(self.service.files().create(
+                body=body,
+                media_body=media_body,
+                fields="id, size, webContentLink",
+                supportsAllDrives=True).execute)
 
             return files.get("id")
 
@@ -333,7 +331,7 @@ class GoogleDrive(module.Module):
         else:
             types = ctx.input
 
-        if self.aria2 is None:
+        if not self.bot.modules.get("Aria2"):
             return "__Mirroring torrent file/url needs aria2 package installed.__"
 
         ret = await self.aria2.addDownload(types, ctx.msg)

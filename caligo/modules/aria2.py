@@ -232,7 +232,7 @@ class Aria2WebSocket:
                         progress_string += (
                             f"`{file.name}`\nGID: `{file.gid}`\n"
                             f"__ComputingFolder: [{counter}/{length}] "
-                            f"{percent}%__")
+                            f"{percent}%__\n\n")
                     elif file.is_file:
                         f = self.uploads[file.gid]
                         progress, done = await self.uploadProgress(f)

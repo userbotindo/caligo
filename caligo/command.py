@@ -1,5 +1,13 @@
 from typing import (
-    TYPE_CHECKING, Any, Callable, Coroutine, Match, Optional, Sequence, Union)
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Coroutine,
+    Match,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import pyrogram
 

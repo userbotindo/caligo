@@ -102,8 +102,7 @@ class Aria2WebSocket:
             self.downloads[gid] = await self.getDownload(client, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
-    async def onDownloadComplete(self,
-                                 client: aioaria2.Aria2WebsocketTrigger,
+    async def onDownloadComplete(self, client: aioaria2.Aria2WebsocketTrigger,
                                  data: Union[Dict[str, str], Any]) -> None:
         gid = data["params"][0]["gid"]
 
@@ -218,7 +217,7 @@ class Aria2WebSocket:
             except aioaria2.exceptions.Aria2rpcException:
                 continue
             if (file.failed or file.paused or
-               (file.complete and file.metadata) or file.removed):
+                (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
@@ -303,8 +302,9 @@ class Aria2WebSocket:
 
             await asyncio.sleep(0.1)
 
-    async def seedFile(self, file: util.aria2.Download
-                       ) -> Union[Literal["OK"], Literal["BAD"]]:
+    async def seedFile(
+            self,
+            file: util.aria2.Download) -> Union[Literal["OK"], Literal["BAD"]]:
         file_path = Path(str(file.dir / file.info_hash) + ".torrent")
         if not file_path.is_file():
             return "BAD"
@@ -410,8 +410,8 @@ class Aria2(module.Module):
         self.invoker = None
 
     async def _formatSE(self, err: Exception) -> str:
-        res = await util.run_sync(
-            ast.literal_eval, str(err).split(":", 2)[-1].strip())
+        res = await util.run_sync(ast.literal_eval,
+                                  str(err).split(":", 2)[-1].strip())
         return "__" + res["error"]["message"] + "__"
 
     async def addDownload(self, types: Union[str, bytes],

@@ -100,14 +100,9 @@ class Context:
     args: Sequence[str]
     matches: Union[Match[str], None]
 
-    def __init__(
-        self,
-        bot: "Bot",
-        msg: pyrogram.types.Message,
-        segments: Sequence[str],
-        cmd_len: int,
-        matches: Union[Match[str], None]
-    ) -> None:
+    def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
+                 segments: Sequence[str], cmd_len: int,
+                 matches: Union[Match[str], None]) -> None:
         self.bot = bot
         self.msg = msg
         self.segments = segments
@@ -125,8 +120,7 @@ class Context:
             return self._get_args()
 
         raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
+            f"'{type(self).__name__}' object has no attribute '{name}'")
 
     # Argument segments
     def _get_args(self) -> Sequence[str]:
@@ -177,6 +171,8 @@ class Context:
             if reuse_response is None:
                 reuse_response = False
 
-        return await self.respond(
-            *args, mode=mode, msg=msg, reuse_response=reuse_response, **kwargs
-        )
+        return await self.respond(*args,
+                                  mode=mode,
+                                  msg=msg,
+                                  reuse_response=reuse_response,
+                                  **kwargs)

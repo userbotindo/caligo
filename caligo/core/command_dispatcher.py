@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING, Any, MutableMapping
 
 import pyrogram
@@ -69,6 +70,7 @@ class CommandDispatcher(Base):
             self.unregister_command(cmd)
 
     def command_predicate(self: "Bot") -> Filter:
+
         async def func(_, __, msg: pyrogram.types.Message):
             if msg.text is not None and msg.text.startswith(self.prefix):
                 parts = msg.text.split()
@@ -90,20 +92,21 @@ class CommandDispatcher(Base):
             except KeyError:
                 return
 
-            msg.reply_to_msg = msg.reply_to_message
-
-            ctx = command.Context(
-                self,
-                msg,
-                msg.segments,
-                len(self.prefix) + len(msg.segments[0]) + 1,
-            )
-
-            if hasattr(cmd.module, "creds") and not cmd.module.disabled:
+            if cmd.module.name == "GoogleDrive" and not cmd.module.disabled:
                 ret = await cmd.module.authorize(msg)
 
                 if ret is False:
                     return
+
+            cmd_len = len(self.prefix) + len(msg.segments[0]) + 1
+            if cmd.pattern and msg.reply_to_message:
+                matches = re.match(cmd.pattern, msg.reply_to_message.text)
+            elif cmd.pattern and not msg.reply_to_message:
+                matches = re.match(cmd.pattern, msg.text[cmd_len:])
+            else:
+                matches = None
+
+            ctx = command.Context(self, msg, msg.segments, cmd_len, matches)
 
             try:
                 ret = await cmd.func(ctx)
@@ -121,8 +124,7 @@ class CommandDispatcher(Base):
                     "**In**:\n"
                     f"{ctx.input if ctx.input is not None else msg.text}\n\n"
                     "**Out**:\n⚠️ Error executing command:\n"
-                    f"```{util.error.format_exception(e)}```"
-                )
+                    f"```{util.error.format_exception(e)}```")
 
             await self.dispatch_event("command", cmd, msg)
         except Exception as e:  # skipcq: PYL-W0703

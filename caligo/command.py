@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING, Any, Callable, Coroutine, Match, Optional, Sequence, Union)
 
 import pyrogram
 
@@ -44,6 +45,16 @@ def alias(*aliases: str) -> Decorator:
     return alias_decorator
 
 
+def pattern(_pattern: str) -> Decorator:
+    """Sets regex pattern on a command function."""
+
+    def pattern_decorator(func: CommandFunc) -> CommandFunc:
+        setattr(func, "_cmd_pattern", _pattern)
+        return func
+
+    return pattern_decorator
+
+
 class Command:
     name: str
     desc: str
@@ -51,6 +62,7 @@ class Command:
     usage_optional: bool
     usage_reply: bool
     aliases: Sequence[str]
+    pattern: str
     module: Any
     func: CommandFunc
 
@@ -61,6 +73,7 @@ class Command:
         self.usage_optional = getattr(func, "_cmd_usage_optional", False)
         self.usage_reply = getattr(func, "_cmd_usage_reply", False)
         self.aliases = getattr(func, "_cmd_aliases", [])
+        self.pattern = getattr(func, "_cmd_pattern", None)
         self.module = mod
         self.func = func
 
@@ -77,6 +90,7 @@ class Context:
 
     input: Optional[Union[str, None]]
     args: Sequence[str]
+    matches: Union[Match[str], None]
 
     def __init__(
         self,
@@ -84,6 +98,7 @@ class Context:
         msg: pyrogram.types.Message,
         segments: Sequence[str],
         cmd_len: int,
+        matches: Union[Match[str], None]
     ) -> None:
         self.bot = bot
         self.msg = msg
@@ -95,6 +110,7 @@ class Context:
         self.response_mode = None
 
         self.input = self.msg.text[self.cmd_len:]
+        self.matches = matches
 
     def __getattr__(self, name: str) -> Any:
         if name == "args":

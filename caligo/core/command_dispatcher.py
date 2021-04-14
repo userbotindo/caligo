@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING, Any, MutableMapping
 
 import pyrogram
@@ -90,20 +91,27 @@ class CommandDispatcher(Base):
             except KeyError:
                 return
 
-            msg.reply_to_msg = msg.reply_to_message
+            if cmd.module.name == "GoogleDrive" and not cmd.module.disabled:
+                ret = await cmd.module.authorize(msg)
+
+                if ret is False:
+                    return
+
+            cmd_len = len(self.prefix) + len(msg.segments[0]) + 1
+            if cmd.pattern and msg.reply_to_message:
+                matches = re.match(cmd.pattern, msg.reply_to_message.text)
+            elif cmd.pattern and not msg.reply_to_message:
+                matches = re.match(cmd.pattern, msg.text[cmd_len:])
+            else:
+                matches = None
 
             ctx = command.Context(
                 self,
                 msg,
                 msg.segments,
-                len(self.prefix) + len(msg.segments[0]) + 1,
+                cmd_len,
+                matches
             )
-
-            if hasattr(cmd.module, "creds") and not cmd.module.disabled:
-                ret = await cmd.module.authorize(msg)
-
-                if ret is False:
-                    return
 
             try:
                 ret = await cmd.func(ctx)

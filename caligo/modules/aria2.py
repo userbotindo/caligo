@@ -131,41 +131,39 @@ class Aria2WebSocket:
                 try:
                     await task
                 except asyncio.CancelledError:
-                    if not cancelled:
-                        cancelled = True
+                    cancelled = True
+                    break
                 else:
                     async with self.lock:
                         self.uploads[gid]["counter"] += 1
 
-            async with self.lock:
-                if gid in self.uploads:
+            if not cancelled:
+                async with self.lock:
                     del self.uploads[gid]
-                if gid in self.downloads:
                     del self.downloads[gid]
-                if not cancelled:
-                    folderLink = (
-                        f"**GoogleDrive folderLink**: [{file.name}]"
-                        f"(https://drive.google.com/drive/folders/{folderId})")
-                    if self.index_link is not None:
-                        if self.index_link.endswith("/"):
-                            indexLink = self.index_link + parse.quote(
-                                file.name + "/")
-                        else:
-                            indexLink = self.index_link + "/" + parse.quote(
-                                file.name + "/")
-                        folderLink += f"\n\n__IndexLink__: [Here]({indexLink})."
 
-                    if self.count == 0:
-                        await asyncio.gather(self.api.invoker.reply(folderLink),
-                                             self.api.invoker.delete())
-                        self.api.invoker = None
+                folderLink = (
+                    f"**GoogleDrive folderLink**: [{file.name}]"
+                    f"(https://drive.google.com/drive/folders/{folderId})")
+                if self.index_link is not None:
+                    if self.index_link.endswith("/"):
+                        indexLink = self.index_link + parse.quote(file.name
+                                                                  + "/")
                     else:
-                        await self.api.invoker.reply(folderLink)
+                        indexLink = self.index_link + "/" + parse.quote(
+                            file.name + "/")
+                    folderLink += f"\n\n__IndexLink__: [Here]({indexLink})."
+
+                if self.count == 0:
+                    await asyncio.gather(self.api.invoker.reply(folderLink),
+                                         self.api.invoker.delete())
+                    self.api.invoker = None
+                else:
+                    await self.api.invoker.reply(folderLink)
 
         else:
             async with self.lock:
-                if gid in self.download:
-                    del self.downloads[gid]
+                del self.downloads[gid]
             self.log.warning(f"Can't upload '{file.name}', "
                              f"due to '{file.dir}' is not accessible")
 
@@ -241,8 +239,7 @@ class Aria2WebSocket:
                         if not done:
                             progress_string += progress
                         else:
-                            if file.gid in self.downloads:
-                                del self.downloads[file.gid]
+                            del self.downloads[file.gid]
                             await self.checkDelete()
 
                 continue
@@ -278,7 +275,7 @@ class Aria2WebSocket:
                         del self.uploads[gid]
                     elif file.is_dir and gid in self.uploads:
                         for task in asyncio.all_tasks():
-                            if task.get_name() == gid and not task.done():
+                            if task.get_name() == gid:
                                 task.cancel()
                         await self.uploads[gid]["generator"].aclose()
                         del self.uploads[gid]
@@ -290,10 +287,10 @@ class Aria2WebSocket:
 
             if last_update_time is None or (
                     now - last_update_time).total_seconds() >= 5 and (
-                        progress != "") and self.api.invoker is not None:
+                        progress != ""):
                 try:
-                    if self.api.invoker is not None:
-                        async with self.lock:
+                    async with self.lock:
+                        if self.api.invoker is not None:
                             await self.api.invoker.edit(progress)
                 except pyrogram.errors.MessageNotModified:
                     pass
@@ -317,7 +314,12 @@ class Aria2WebSocket:
             "--seed-ratio=1", f"-i {str(file_path)}"
         ]
 
-        await util.system.run_command(*cmd)
+        try:
+            await util.system.run_command(*cmd)
+        except Exception as e:  # skipcq: PYL-W0703
+            self.log.warning(e)
+            return "BAD"
+
         self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
 
         return "OK"

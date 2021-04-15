@@ -152,12 +152,16 @@ class Aria2WebSocket:
                             file.name + "/")
                     folderLink += f"\n\n__IndexLink__: [Here]({indexLink})."
 
-                if self.count == 0:
-                    await asyncio.gather(self.api.invoker.reply(folderLink),
-                                         self.api.invoker.delete())
-                    self.api.invoker = None
-                else:
-                    await self.api.invoker.reply(folderLink)
+                async with self.lock:
+                    if self.count == 0:
+                        await asyncio.gather(
+                            self.bot.respond(self.api.invoker, folderLink,
+                                             mode="reply"),
+                            self.api.invoker.delete())
+                        self.api.invoker = None
+                    else:
+                        await self.bot.respond(self.api.invoker, folderLink,
+                                               mode="reply")
 
         else:
             async with self.lock:
@@ -211,33 +215,30 @@ class Aria2WebSocket:
                 file = await file.update
             except aioaria2.exceptions.Aria2rpcException:
                 continue
+
             if (file.failed or file.paused or
                (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
-                async with self.lock:
-                    if file.is_dir:
-                        counter = self.uploads[file.gid]["counter"]
-                        length = len(file.files)
-                        try:
-                            percent = counter / length
-                        except ZeroDivisionError:
-                            percent = 0
-                        finally:
-                            percent = round(percent * 100)
-                        progress_string += (
-                            f"`{file.name}`\nGID: `{file.gid}`\n"
-                            f"__ComputingFolder: [{counter}/{length}] "
-                            f"{percent}%__\n\n")
-                    elif file.is_file:
-                        f = self.uploads[file.gid]
-                        progress, done = await self.uploadProgress(f)
-                        if not done:
-                            progress_string += progress
-                        else:
-                            del self.downloads[file.gid]
-                            await self.checkDelete()
+                if file.is_dir:
+                    counter = self.uploads[file.gid]["counter"]
+                    length = len(file.files)
+                    try:
+                        percent = counter / length
+                    except ZeroDivisionError:
+                        percent = 0
+                    finally:
+                        percent = round(percent * 100)
+                    progress_string += (
+                        f"`{file.name}`\nGID: `{file.gid}`\n"
+                        f"__ComputingFolder: [{counter}/{length}] "
+                        f"{percent}%__\n\n")
+                elif file.is_file:
+                    f = self.uploads[file.gid]
+                    progress, done = await self.uploadProgress(f)
+                    if not done:
+                        progress_string += progress
 
                 continue
 
@@ -288,7 +289,7 @@ class Aria2WebSocket:
                 try:
                     async with self.lock:
                         if self.api.invoker is not None:
-                            await self.api.invoker.edit(progress)
+                            await self.bot.respond(self.api.invoker, progress)
                 except pyrogram.errors.MessageNotModified:
                     pass
                 finally:
@@ -364,9 +365,12 @@ class Aria2WebSocket:
                 link = self.index_link + "/" + parse.quote(file.name)
             fileLink += f"\n\n__IndexLink__: [Here]({link})."
 
-        await self.bot.respond(self.api.invoker, text=fileLink, mode="reply")
         async with self.lock:
+            await self.bot.respond(self.api.invoker, text=fileLink,
+                                   mode="reply")
             del self.uploads[file.gid]
+            del self.downloads[file.gid]
+            await self.checkDelete()
 
         return None, True
 

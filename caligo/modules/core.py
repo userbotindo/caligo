@@ -152,7 +152,6 @@ class CoreModule(module.Module):
         await query.answer(f"😿️ {mod} doesn't have any commands.")
         return
 
-
     @command.desc("List the commands")
     @command.usage("[filter: command or module name?]", optional=True)
     async def cmd_help(self, ctx: command.Context):
@@ -162,7 +161,7 @@ class CoreModule(module.Module):
                 self.bot.bot_user.username)
             res = await self.bot.client.send_inline_bot_result(
                 ctx.msg.chat.id, response.query_id, response.results[1].id)
-            self.cache[res.updates[-1].message.id] = ctx.msg.chat.id
+            self.cache[res.updates[0].id] = ctx.msg.chat.id
 
             return
 

@@ -13,7 +13,7 @@ from pyrogram.handlers import (
 from pyrogram.handlers.handler import Handler
 
 from ..custom_filter import chat_action
-from ..util import BotConfig, silent, time, tg
+from ..util import BotConfig, time, tg
 from .base import Base
 
 if TYPE_CHECKING:
@@ -109,10 +109,9 @@ class TelegramBot(Base):
         await self.dispatch_event("load")
         self.loaded = True
 
-        async with silent():
-            await self.client.start()
-            if self.has_bot:
-                await self.client.bot.start()
+        await self.client.start()
+        if self.has_bot:
+            await self.client.bot.start()
 
         user = await self.client.get_me()
         if not isinstance(user, pyrogram.types.User):

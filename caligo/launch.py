@@ -3,6 +3,7 @@ import logging
 import sys
 
 import aiorun
+from pyrogram.session import Session
 
 from .core import Bot
 
@@ -25,6 +26,7 @@ def main() -> None:
             uvloop.install()
             log.info("Using uvloop event loop")
 
+    Session.notice_displayed = True
     log.info("Initializing bot")
     loop = asyncio.new_event_loop()
     aiorun.run(Bot.create_and_run(loop=loop), loop=loop)

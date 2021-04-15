@@ -169,10 +169,15 @@ class Aria2WebSocket:
             self.log.warning(f"Can't upload '{file.name}', "
                              f"due to '{file.dir}' is not accessible")
 
-        if file.bittorrent:
-            self.bot.loop.create_task(self.seedFile(file), name=f"Seed-{gid}")
-
         self.log.info(f"Complete download: [gid: '{gid}']")
+
+        if file.bittorrent:
+            task = self.bot.loop.create_task(self.seedFile(file),
+                                             name=f"Seed-{gid}")
+            done, _ = await asyncio.wait((task, asyncio.sleep(0.25)))
+            for fut in done:
+                fut.result()
+            self.log.info("Seeding: [gid: '{gid}' | {task.result()}]")
 
     async def onDownloadPause(self, _: aioaria2.Aria2WebsocketTrigger,
                               data: Union[Dict[str, str], Any]) -> None:

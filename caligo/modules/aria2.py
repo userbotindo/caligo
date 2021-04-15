@@ -172,12 +172,8 @@ class Aria2WebSocket:
         self.log.info(f"Complete download: [gid: '{gid}']")
 
         if file.bittorrent:
-            task = self.bot.loop.create_task(self.seedFile(file),
-                                             name=f"Seed-{gid}")
-            done, _ = await asyncio.wait((task, asyncio.sleep(0.25)))
-            for fut in done:
-                fut.result()
-            self.log.info("Seeding: [gid: '{gid}' | {task.result()}]")
+            ret = await self.seedFile(file)
+            self.log.info(f"Seeding: [gid: '{gid}' | {ret}]")
 
     async def onDownloadPause(self, _: aioaria2.Aria2WebsocketTrigger,
                               data: Union[Dict[str, str], Any]) -> None:

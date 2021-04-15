@@ -33,7 +33,6 @@ class Aria2WebSocket:
 
         self.downloads: Dict[str, util.aria2.Download] = {}
         self.uploads: Dict[str, MediaFileUpload] = {}
-        self.seedTask: List[asyncio.Task] = []
 
     @classmethod
     @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
@@ -78,7 +77,6 @@ class Aria2WebSocket:
             client.register(handler, f"aria2.{name}")
 
         self.bot.loop.create_task(self.updateProgress())
-        self.bot.loop.create_task(self.waitSeed())
         return client
 
     @property
@@ -168,8 +166,7 @@ class Aria2WebSocket:
                              f"due to '{file.dir}' is not accessible")
 
         if file.bittorrent:
-            task = self.bot.loop.create_task(self.seedFile(file))
-            self.seedTask.append(task)
+            self.bot.loop.create_task(self.seedFile(file), name=f"Seed-{gid}")
 
         self.log.info(f"Complete download: [gid: '{gid}']")
 
@@ -215,7 +212,7 @@ class Aria2WebSocket:
             except aioaria2.exceptions.Aria2rpcException:
                 continue
             if (file.failed or file.paused or
-                (file.complete and file.metadata) or file.removed):
+               (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
@@ -315,24 +312,18 @@ class Aria2WebSocket:
         ]
 
         try:
-            await util.system.run_command(*cmd)
+            _, stderr, ret = await util.system.run_command(*cmd)
         except Exception as e:  # skipcq: PYL-W0703
             self.log.warning(e)
             return "BAD"
 
+        if ret != 0:
+            self.log.info("Seeding: [gid: '{file.gid}'] - Failed to complete")
+            self.log.warning(stderr)
+            return "BAD"
+
         self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
-
         return "OK"
-
-    async def waitSeed(self) -> None:
-        while not self.api.stopping:
-            if len(self.seedTask) >= 1:
-                tasks = self.seedTask[:]
-                await asyncio.gather(*tasks)
-                if len(tasks) != len(self.seedTask):
-                    self.seedTask = self.seedTask[len(tasks):]
-
-            await asyncio.sleep(1)
 
     async def uploadProgress(
             self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:

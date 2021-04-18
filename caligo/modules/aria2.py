@@ -20,9 +20,6 @@ from .. import module, util
 
 class Aria2WebSocket:
 
-    server: aioaria2.AsyncAria2Server
-    client: aioaria2.Aria2WebsocketTrigger
-
     def __init__(self, api: "Aria2") -> None:
         self.api = api
         self.bot = self.api.bot
@@ -35,10 +32,7 @@ class Aria2WebSocket:
         self.uploads: Dict[str, MediaFileUpload] = {}
 
     @classmethod
-    @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
-           stop=stop_after_attempt(5),
-           retry=retry_if_exception_type(ConnectionRefusedError))
-    async def init(cls, api: "Aria2") -> "Aria2WebSocket":
+    async def init(cls, api: "Aria2") -> aioaria2.Aria2WebsocketTrigger:
         if api.bot.getConfig.downloadPath is None:
             path = Path.home() / "downloads"
         else:
@@ -52,21 +46,32 @@ class Aria2WebSocket:
 
         cmd = [
             "aria2c", f"--dir={str(path)}", "--enable-rpc",
-            "--rpc-listen-all=false", "--rpc-listen-port=8080",
-            "--max-connection-per-server=10", "--rpc-max-request-size=1024M",
-            "--seed-time=0.01", "--seed-ratio=0.1",
-            "--max-concurrent-downloads=5", "--min-split-size=10M",
-            "--follow-torrent=mem", "--split=10", "--bt-save-metadata=true",
-            f"--bt-tracker={trackers}", "--daemon=true",
-            "--allow-overwrite=true"
+            "--rpc-listen-all=false", "--max-connection-per-server=10",
+            "--rpc-max-request-size=1024M", "--seed-time=0.01",
+            "--seed-ratio=0.1", "--max-concurrent-downloads=5",
+            "--min-split-size=10M", "--follow-torrent=mem", "--split=10",
+            "--bt-save-metadata=true", f"--bt-tracker={trackers}",
+            "--daemon=true", "--allow-overwrite=true"
         ]
+        key_path = Path.home() / ".cache" / "caligo" / ".certs"
+        if (key_path / "cert.pem").is_file(
+                                 ) and (key_path / "key.pem").is_file():
+            cmd.insert(4, "--rpc-listen-port=8443")
+            cmd.insert(3, "--rpc-secure=true")
+            cmd.insert(3, "--rpc-private-key=" + str(key_path / "key.pem"))
+            cmd.insert(3, "--rpc-certificate=" + str(key_path / "cert.pem"))
+            protocol = "https://localhost:8443/jsonrpc"
+        else:
+            cmd.insert(4, "--rpc-listen-port=8100")
+            protocol = "http://127.0.0.1:8100/jsonrpc"
+
         server = aioaria2.AsyncAria2Server(*cmd, daemon=True)
+
         await server.start()
         await server.wait()
 
-        self = cls(api)
-        protocol = "http://127.0.0.1:8080/jsonrpc"
         client = await aioaria2.Aria2WebsocketTrigger.new(url=protocol)
+        self = cls(api)
 
         trigger = [(self.onDownloadStart, "onDownloadStart"),
                    (self.onDownloadComplete, "onDownloadComplete"),
@@ -94,14 +99,14 @@ class Aria2WebSocket:
         return util.aria2.Download(client, res)
 
     async def onDownloadStart(self, client: aioaria2.Aria2WebsocketTrigger,
-                              data: Union[Dict[str, str], Any]) -> None:
+                              data: Union[Dict[str, Any], Any]) -> None:
         gid = data["params"][0]["gid"]
         async with self.lock:
             self.downloads[gid] = await self.getDownload(client, gid)
         self.log.info(f"Starting download: [gid: '{gid}']")
 
     async def onDownloadComplete(self, client: aioaria2.Aria2WebsocketTrigger,
-                                 data: Union[Dict[str, str], Any]) -> None:
+                                 data: Union[Dict[str, Any], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         async with self.lock:
@@ -176,19 +181,19 @@ class Aria2WebSocket:
             self.log.info(f"Seeding: [gid: '{gid}' | {ret}]")
 
     async def onDownloadPause(self, _: aioaria2.Aria2WebsocketTrigger,
-                              data: Union[Dict[str, str], Any]) -> None:
+                              data: Union[Dict[str, Any], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         self.log.info(f"Paused download: [gid '{gid}']")
 
     async def onDownloadStop(self, _: aioaria2.Aria2WebsocketTrigger,
-                             data: Union[Dict[str, str], Any]) -> None:
+                             data: Union[Dict[str, Any], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         self.log.info(f"Stopped download: [gid '{gid}']")
 
     async def onDownloadError(self, client: aioaria2.Aria2WebsocketTrigger,
-                              data: Union[Dict[str, str], Any]) -> None:
+                              data: Union[Dict[str, Any], Any]) -> None:
         gid = data["params"][0]["gid"]
 
         file = await self.getDownload(client, gid)

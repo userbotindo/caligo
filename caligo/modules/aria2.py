@@ -7,6 +7,7 @@ from urllib import parse
 
 import aioaria2
 import pyrogram
+from aiohttp.client_exceptions import ClientConnectorError
 from googleapiclient.http import MediaFileUpload
 from tenacity import (
     retry,
@@ -396,6 +397,9 @@ class Aria2(module.Module):
         self.lock = asyncio.Lock()
         self.stopping = False
 
+    @retry(wait=wait_random_exponential(multiplier=2, min=3, max=12),
+           stop=stop_after_attempt(10),
+           retry=retry_if_exception_type(ClientConnectorError))
     async def on_started(self) -> None:
         try:
             self.client = await Aria2WebSocket.init(self)

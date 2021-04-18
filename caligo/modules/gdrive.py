@@ -104,6 +104,7 @@ class GoogleDrive(module.Module):
                                               "creds": credential
                                           }},
                                           upsert=True)
+        await self.on_load()
 
         return "Credentials created."
 
@@ -131,11 +132,7 @@ class GoogleDrive(module.Module):
                 if self.creds is None:
                     return False
 
-            self.service = await util.run_sync(build,
-                                               "drive",
-                                               "v3",
-                                               credentials=self.creds,
-                                               cache_discovery=False)
+            await self.on_load()
 
     async def createFolder(self,
                            folderName: str,

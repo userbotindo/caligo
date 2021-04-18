@@ -178,8 +178,7 @@ class Aria2WebSocket:
         self.log.info(f"Complete download: [gid: '{gid}']")
 
         if file.bittorrent:
-            ret = await self.seedFile(file)
-            self.log.info(f"Seeding: [gid: '{gid}' | {ret}]")
+            asyncio.create_task(self.seedFile(file))
 
     async def onDownloadPause(self, _: aioaria2.Aria2WebsocketTrigger,
                               data: Union[Dict[str, Any], Any]) -> None:
@@ -304,12 +303,10 @@ class Aria2WebSocket:
 
             await asyncio.sleep(0.1)
 
-    async def seedFile(
-            self,
-            file: util.aria2.Download) -> Union[Literal["OK"], Literal["BAD"]]:
+    async def seedFile(self, file: util.aria2.Download) -> None:
         file_path = Path(str(file.dir / file.info_hash) + ".torrent")
         if not file_path.is_file():
-            return "BAD"
+            return
 
         self.log.info(f"Seeding: [gid: '{file.gid}']")
         port = util.aria2.get_free_port()
@@ -323,15 +320,14 @@ class Aria2WebSocket:
             _, stderr, ret = await util.system.run_command(*cmd)
         except Exception as e:  # skipcq: PYL-W0703
             self.log.warning(e)
-            return "BAD"
+            return
 
         if ret != 0:
-            self.log.info("Seeding: [gid: '{file.gid}'] - Failed to complete")
+            self.log.info("Seeding: [gid: '{file.gid}'] - Failed")
             self.log.warning(stderr)
-            return "BAD"
+            return
 
         self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
-        return "OK"
 
     async def uploadProgress(
             self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:

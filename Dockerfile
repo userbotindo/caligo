@@ -102,6 +102,9 @@ RUN chmod +x /usr/local/bin/mkcert
 RUN mkcert -install
 RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost 127.0.0.1
 
+# Change permission of home folder
+RUN chown -hR caligo /home/caligo
+
 # Set runtime settings
 USER caligo
 WORKDIR /home/caligo

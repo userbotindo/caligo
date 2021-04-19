@@ -5,6 +5,7 @@ from typing import (
     Coroutine,
     Match,
     Optional,
+    Pattern,
     Sequence,
     Union,
 )
@@ -53,7 +54,7 @@ def alias(*aliases: str) -> Decorator:
     return alias_decorator
 
 
-def pattern(_pattern: str) -> Decorator:
+def pattern(_pattern: Pattern[str]) -> Decorator:
     """Sets regex pattern on a command function."""
 
     def pattern_decorator(func: CommandFunc) -> CommandFunc:
@@ -70,7 +71,7 @@ class Command:
     usage_optional: bool
     usage_reply: bool
     aliases: Sequence[str]
-    pattern: str
+    pattern: Pattern[str]
     module: Any
     func: CommandFunc
 

@@ -1,6 +1,9 @@
 import asyncio
 import bisect
-from typing import TYPE_CHECKING, Any, MutableMapping, MutableSequence
+import re
+from typing import TYPE_CHECKING, Any, MutableMapping, MutableSequence, Pattern
+
+from pyrogram.types import Message, CallbackQuery, InlineQuery
 
 from .. import module, util
 from ..listener import Listener, ListenerFunc
@@ -24,8 +27,9 @@ class EventDispatcher(Base):
         event: str,
         func: ListenerFunc,
         priority: int = 100,
+        pattern: Pattern[str] = None
     ) -> None:
-        listener = Listener(event, func, mod, priority)
+        listener = Listener(event, func, mod, priority, pattern)
 
         if event in self.listeners:
             bisect.insort(self.listeners[event], listener)
@@ -50,7 +54,10 @@ class EventDispatcher(Base):
                                        func,
                                        priority=getattr(func,
                                                         "_listener_priority",
-                                                        100))
+                                                        100),
+                                       pattern=getattr(func,
+                                                       "_listener_pattern",
+                                                       None))
                 done = True
             finally:
                 if not done:
@@ -83,6 +90,22 @@ class EventDispatcher(Base):
             return
 
         for lst in listeners:
+            if lst.pattern is not None:
+                update = args[0]
+                if isinstance(update, Message):
+                    value = update.text or args[0].caption
+                elif isinstance(update, CallbackQuery):
+                    value = update.data
+                elif isinstance(update, InlineQuery):
+                    value = update.query
+                else:
+                    self.log.error(f"Regex pattern '{event}' doesn't work "
+                                   f"with {type(update)}")
+                    continue
+
+                if value:
+                    update.matches = re.match(lst.pattern, value) or None
+
             task = self.loop.create_task(lst.func(*args, **kwargs))
             tasks.add(task)
 

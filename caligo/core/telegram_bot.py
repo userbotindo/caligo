@@ -198,8 +198,7 @@ class TelegramBot(Base):
         self.update_module_event("message_delete", DeletedMessagesHandler)
         self.update_module_event("chat_action", MessageHandler, chat_action())
         if self.has_bot:
-            self.update_bot_module_event("callback_query", CallbackQueryHandler,
-                                         filters.regex(pattern=r"menu\((\w+)\)"))
+            self.update_bot_module_event("callback_query", CallbackQueryHandler)
             self.update_bot_module_event("inline_query", InlineQueryHandler)
 
     @property

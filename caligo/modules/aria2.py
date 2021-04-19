@@ -233,8 +233,7 @@ class Aria2WebSocketServer:
 
     @retry(wait=wait_random_exponential(multiplier=2, min=3, max=6),
            stop=stop_after_attempt(5),
-           retry=retry_if_exception_type(KeyError),
-           before=before_log(log, logging.DEBUG))
+           retry=retry_if_exception_type(KeyError))
     async def checkProgress(self) -> str:
         progress_string = ""
         time = util.time.format_duration_td

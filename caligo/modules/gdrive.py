@@ -113,8 +113,7 @@ class GoogleDrive(module.Module):
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.log.info("Refreshing credentials")
-                await util.run_sync(self.creds.refresh, await
-                                    util.run_sync(Request))
+                await util.run_sync(self.creds.refresh, Request())
 
                 credential = await util.run_sync(pickle.dumps, self.creds)
                 await self.db.find_one_and_update(
@@ -173,7 +172,7 @@ class GoogleDrive(module.Module):
                     continue
 
                 file.content, file.start_time = files, util.time.sec()
-                file.invoker = msg if msg is not None else None
+                file.invoker = msg
 
                 yield self.bot.loop.create_task(file.progress(update=False),
                                                 name=gid)

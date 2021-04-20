@@ -64,6 +64,16 @@ class GoogleDrive(module.Module):
     async def cmd_gdcheck(self, ctx: command.Context) -> None:
         await ctx.respond("You are all set.")
 
+    @command.desc("Clear/Reset your GoogleDrive credentials")
+    @command.alias("gdreset")
+    async def cmd_gdclear(self, ctx: command.Context) -> None:
+        if not self.creds:
+            return "__Credentials already empty.__"
+
+        await self.db.delete_one({"_id": self.name})
+        await self.on_load()
+        return "__Credentials cleared.__"
+
     async def getAccessToken(self, message: pyrogram.types.Message) -> str:
         flow = InstalledAppFlow.from_client_config(
             self.configs, ["https://www.googleapis.com/auth/drive"],
@@ -109,7 +119,7 @@ class GoogleDrive(module.Module):
         return "Credentials created."
 
     async def authorize(self,
-                        message: pyrogram.types.Message) -> Union[None, bool]:
+                        message: pyrogram.types.Message) -> Optional[bool]:
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.log.info("Refreshing credentials")
@@ -121,9 +131,9 @@ class GoogleDrive(module.Module):
                         "creds": credential
                     }})
             else:
-                await self.bot.respond(message,
-                                       "Credential is empty, generating...")
-                await asyncio.sleep(1.5)  # give people time to read
+                await asyncio.gather(self.bot.respond(message,
+                                     "Credential is empty, generating..."),
+                                     asyncio.sleep(2.5))
 
                 ret = await self.getAccessToken(message)
 
@@ -235,8 +245,6 @@ class GoogleDrive(module.Module):
             date = datetime.fromtimestamp(msg.voice.date)
             file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.ogg"
 
-        loop = self.bot.loop
-
         def prog_func(current: int, total: int) -> None:
             nonlocal last_update_time
 
@@ -268,7 +276,7 @@ class GoogleDrive(module.Module):
             # Only edit message once every 5 seconds to avoid ratelimits
             if last_update_time is None or (
                     now - last_update_time).total_seconds() >= 5:
-                loop.create_task(ctx.respond(progress))
+                self.bot.loop.create_task(ctx.respond(progress))
 
                 last_update_time = now
 
@@ -282,7 +290,7 @@ class GoogleDrive(module.Module):
 
         return
 
-    @command.desc("Mirror Magnet/Torrent/Link into GoogleDrive")
+    @command.desc("Mirror Magnet/Torrent/Link/Message Media into GoogleDrive")
     @command.usage("[Magnet/Torrent/Link or reply to message]")
     async def cmd_gdmirror(self, ctx: command.Context) -> Optional[str]:
         if not ctx.input and not ctx.msg.reply_to_message:
@@ -328,7 +336,7 @@ class GoogleDrive(module.Module):
             types = ctx.input
 
         if not self.bot.modules.get("Aria2"):
-            return "__Mirroring torrent file/url needs aria2 package installed.__"
+            return "__Mirroring torrent file/url needs Aria2 loaded.__"
 
         ret = await self.aria2.addDownload(types, ctx.msg)
         if ret is not None:

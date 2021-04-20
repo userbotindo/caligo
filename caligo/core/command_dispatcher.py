@@ -92,7 +92,8 @@ class CommandDispatcher(Base):
             except KeyError:
                 return
 
-            if cmd.module.name == "GoogleDrive" and not cmd.module.disabled:
+            if ((cmd.module.name == "GoogleDrive" and not cmd.module.disabled)
+               and cmd.name not in ["gdreset", "gdclear"]):
                 ret = await cmd.module.authorize(msg)
 
                 if ret is False:

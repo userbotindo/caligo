@@ -71,8 +71,8 @@ class GoogleDrive(module.Module):
             return "__Credentials already empty.__"
 
         await self.db.delete_one({"_id": self.name})
-        await self.on_load()
-        return "__Credentials cleared.__"
+        await asyncio.gather(self.on_load(), ctx.respond(
+                             "__Credentials cleared.__"))
 
     async def getAccessToken(self, message: pyrogram.types.Message) -> str:
         flow = InstalledAppFlow.from_client_config(

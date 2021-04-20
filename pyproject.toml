@@ -34,7 +34,7 @@ classifiers = [
 python = "^3.8"
 
 # Core
-aiohttp = {extras = ["speedups"], version = "^3.7.4"}
+aiohttp = "^3.7.4"
 aiorun = "^2020.12.1"
 colorlog = "^5.0.1"
 motor = "^2.4.0"

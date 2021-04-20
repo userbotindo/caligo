@@ -1,7 +1,14 @@
 import asyncio
 import bisect
 import re
-from typing import TYPE_CHECKING, Any, MutableMapping, MutableSequence, Pattern
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Pattern
+)
 
 from pyrogram.types import Message, CallbackQuery, InlineQuery
 
@@ -26,8 +33,9 @@ class EventDispatcher(Base):
         mod: module.Module,
         event: str,
         func: ListenerFunc,
-        priority: int = 100,
-        pattern: Pattern[str] = None
+        *,
+        priority: Optional[int] = 100,
+        pattern: Optional[Pattern[str]] = None
     ) -> None:
         listener = Listener(event, func, mod, priority, pattern)
 
@@ -91,6 +99,9 @@ class EventDispatcher(Base):
 
         for lst in listeners:
             if lst.pattern is not None:
+                if isinstance(lst.pattern, str):
+                    lst.pattern = re.compile(lst.pattern)
+
                 update = args[0]
                 if isinstance(update, Message):
                     value = update.text or args[0].caption
@@ -104,7 +115,7 @@ class EventDispatcher(Base):
                     continue
 
                 if value:
-                    update.matches = re.match(lst.pattern, value) or None
+                    update.matches = list(lst.pattern.finditer(value)) or None
 
             task = self.loop.create_task(lst.func(*args, **kwargs))
             tasks.add(task)

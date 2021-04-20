@@ -3,6 +3,7 @@ from typing import (
     Any,
     Callable,
     Coroutine,
+    List,
     Match,
     Optional,
     Pattern,
@@ -99,7 +100,7 @@ class Context:
 
     input: Optional[Union[str, None]]
     args: Sequence[str]
-    matches: Union[Match[str], None]
+    matches: Union[List[Match], None]
 
     def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
                  segments: Sequence[str], cmd_len: int,

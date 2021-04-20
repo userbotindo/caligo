@@ -98,7 +98,7 @@ class CoreModule(module.Module):
                                show_alert=True)
             return
 
-        mod = query.matches.group(1)
+        mod = query.matches[0].group(1)
         if mod == "Back":
             button = await util.run_sync(self.build_button)
             await query.edit_message_text(

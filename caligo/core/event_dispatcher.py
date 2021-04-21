@@ -116,6 +116,8 @@ class EventDispatcher(Base):
 
                 if value:
                     update.matches = list(lst.pattern.finditer(value)) or None
+                    if not update.matches:
+                        continue
 
             task = self.loop.create_task(lst.func(*args, **kwargs))
             tasks.add(task)

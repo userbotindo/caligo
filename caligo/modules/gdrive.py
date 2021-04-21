@@ -3,7 +3,16 @@ import base64
 import pickle
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, Optional, Set, Union
+from typing import (
+    Any,
+    AsyncIterator,
+    ClassVar,
+    Dict,
+    Optional,
+    Set,
+    Tuple,
+    Union
+)
 
 import aiofile
 import pyrogram
@@ -29,8 +38,7 @@ class GoogleDrive(module.Module):
     aria2: Any
     index_link: str
     parent_id: str
-    task: Dict[int, asyncio.Task]
-    stop_transmission: bool
+    task: Set[Tuple[int, asyncio.Task]]
 
     async def on_load(self) -> None:
         self.db = self.bot.get_db("gdrive")
@@ -45,8 +53,7 @@ class GoogleDrive(module.Module):
 
         self.index_link = self.bot.getConfig.gdrive_index_link
         self.parent_id = self.bot.getConfig.gdrive_folder_id
-        self.task = {}
-        self.stop_transmission = False
+        self.task = set()
 
         if data:
             self.creds = await util.run_sync(pickle.loads, data.get("creds"))
@@ -246,10 +253,6 @@ class GoogleDrive(module.Module):
         def prog_func(current: int, total: int) -> None:
             nonlocal last_update_time
 
-            if self.stop_transmission:
-                self.stop_transmission = False
-                self.bot.client.stop_transmission()
-
             percent = current / total
             after = util.time.sec() - before
             now = datetime.now()
@@ -300,9 +303,16 @@ class GoogleDrive(module.Module):
             reply_msg = ctx.msg.reply_to_message
 
             if reply_msg.media:
-                path = await self.downloadFile(ctx, reply_msg)
-                if path is None:
+                task = self.bot.loop.create_task(self.downloadFile(ctx,
+                                                                   reply_msg))
+                self.task.add((ctx.msg.message_id, task))
+                try:
+                    await task
+                except asyncio.CancelledError:
                     return "__Transmission aborted.__"
+                else:
+                    path = task.result()
+                    self.task.remove((ctx.msg.message_id, task))
 
                 if path.suffix == ".torrent":
                     async with aiofile.async_open(path, "rb") as afp:
@@ -315,15 +325,14 @@ class GoogleDrive(module.Module):
                     if self.index_link is not None:
                         file.index_link = self.index_link
 
-                    done: Set[asyncio.Future]
                     task = self.bot.loop.create_task(file.progress())
-                    self.task[ctx.msg.message_id] = task
-                    done, _ = await asyncio.wait((task, asyncio.sleep(0.25)))
-                    for fut in done:
-                        try:
-                            fut.result()
-                        except asyncio.CancelledError:
-                            return "__Transmission aborted.__"
+                    self.task.add((ctx.msg.message_id, task))
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        return "__Transmission aborted.__"
+                    else:
+                        self.task.remove((ctx.msg.message_id, task))
 
                     return
             elif reply_msg.text:

@@ -1,8 +1,9 @@
 import asyncio
 import urllib.parse
 from datetime import datetime, timedelta
+from itertools import zip_longest
 from pathlib import Path
-from typing import ClassVar, Dict, Optional
+from typing import ClassVar, Optional, Set, Tuple
 
 from .. import command, module, util
 
@@ -10,12 +11,10 @@ from .. import command, module, util
 class Misc(module.Module):
     name: ClassVar[str] = "Misc"
 
-    stop_transmission: bool
-    task: Dict[int, asyncio.Task]
+    task: Set[Tuple[int, asyncio.Task]]
 
     async def on_load(self) -> None:
-        self.stop_transmission = False
-        self.task = {}
+        self.task = set()
 
     @command.desc("Generate a LMGTFY link (Let Me Google That For You)")
     @command.usage("[search query]")
@@ -47,10 +46,6 @@ class Misc(module.Module):
 
         def prog_func(current: int, total: int) -> None:
             nonlocal last_update_time
-
-            if self.stop_transmission:
-                self.stop_transmission = False
-                self.bot.client.stop_transmission()
 
             percent = current / total
             after = util.time.sec() - before
@@ -85,14 +80,13 @@ class Misc(module.Module):
                                           file_path,
                                           force_document=True,
                                           progress=prog_func))
-        self.task[ctx.msg.message_id] = task
-        done, _ = await asyncio.wait((task, asyncio.sleep(0.25)))
-        del self.task[ctx.msg.message_id]
-        for fut in done:
-            fut.result()
-
-        if task.result() is None:
+        self.task.add((ctx.msg.message_id, task))
+        try:
+            await task
+        except asyncio.CancelledError:
             return "__Transmission aborted.__"
+        else:
+            self.task.remove((ctx.msg.message_id, task))
 
         await ctx.msg.delete()
         return
@@ -111,22 +105,24 @@ class Misc(module.Module):
             reply_msg = ctx.msg.reply_to_message
             msg_id = reply_msg.message_id
 
-            if msg_id in self.task:
-                self.stop_transmission = True
-                await ctx.msg.delete()
-                return
+            i: Set[Tuple[int, asyncio.Task]]
+            j: Set[Tuple[int, asyncio.Task]]
+            for i, j in zip_longest(drive.task.copy(), self.task.copy()):
+                if i is not None:
+                    m_id = i[0]
+                    task = i[1]
+                    if m_id == msg_id:
+                        task.cancel()
+                        drive.task.remove((m_id, task))
+                        break
 
-            if (reply_msg.text.split("\n")[1].split(":")[-1].strip()
-                    == "Downloading" and "GID" not in reply_msg.text):
-                drive.stop_transmission = True
-                await ctx.msg.delete()
-                return
-
-            for task in list(drive.task.keys()):
-                if task == msg_id:
-                    drive.task[task].cancel()
-                    del drive.task[task]
-                    break
+                if j is not None:
+                    m_id = j[0]
+                    task = j[1]
+                    if m_id == msg_id:
+                        task.cancel()
+                        self.task.remove((m_id, task))
+                        break
             else:
                 return "__The message you choose is not in task.__"
 

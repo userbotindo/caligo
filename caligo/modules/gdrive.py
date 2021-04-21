@@ -91,20 +91,18 @@ class GoogleDrive(module.Module):
                 response = await conv.get_response()
             except conv.Timeout:
                 await request.delete()
-                return "⚠️ Timeout no token receive"
+                return "⚠️ <u>Timeout no token receive</u>"
 
         await self.bot.respond(message, "Token received...")
         token = response.text
 
-        await request.delete()
-        await response.delete()
-
         try:
-            await util.run_sync(flow.fetch_token, code=token)
+            await asyncio.gather(request.delete(), response.delete(),
+                                 util.run_sync(flow.fetch_token, code=token))
         except InvalidGrantError:
-            return ("⚠️ Error fetching token\n\n"
-                    "Refresh token is invalid, expired, revoked, "
-                    "or does not match the redirection URI.")
+            return ("⚠️ **Error fetching token**\n\n"
+                    "__Refresh token is invalid, expired, revoked, "
+                    "or does not match the redirection URI.__")
 
         self.creds = flow.credentials
         credential = await util.run_sync(pickle.dumps, self.creds)
@@ -223,7 +221,7 @@ class GoogleDrive(module.Module):
         return files
 
     async def downloadFile(self, ctx: command.Context,
-                           msg: pyrogram.types.Message) -> Union[Path, None]:
+                           msg: pyrogram.types.Message) -> Optional[Path]:
         downloadPath = ctx.bot.getConfig.downloadPath
 
         before = util.time.sec()
@@ -280,7 +278,7 @@ class GoogleDrive(module.Module):
 
                 last_update_time = now
 
-        file_path = str(downloadPath) + "/" + file_name
+        file_path = downloadPath / file_name
         file_path = await ctx.bot.client.download_media(msg,
                                                         file_name=file_path,
                                                         progress=prog_func)

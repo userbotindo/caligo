@@ -3,7 +3,7 @@ import urllib.parse
 from datetime import datetime, timedelta
 from itertools import zip_longest
 from pathlib import Path
-from typing import ClassVar, Optional, Set, Tuple
+from typing import ClassVar, Optional, Set, Tuple, Union
 
 from .. import command, module, util
 
@@ -105,8 +105,8 @@ class Misc(module.Module):
             reply_msg = ctx.msg.reply_to_message
             msg_id = reply_msg.message_id
 
-            i: Set[Tuple[int, asyncio.Task]]
-            j: Set[Tuple[int, asyncio.Task]]
+            i: Union[Tuple[int, asyncio.Task], None]
+            j: Union[Tuple[int, asyncio.Task], None]
             for i, j in zip_longest(drive.task.copy(), self.task.copy()):
                 if i is not None:
                     m_id = i[0]

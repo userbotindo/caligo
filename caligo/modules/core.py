@@ -113,9 +113,15 @@ class CoreModule(module.Module):
                 except pyrogram.errors.PeerIdInvalid:
                     continue
                 else:
-                    await msg.delete()
-                    del self.cache[msg_id]
-                    break
+                    try:
+                        await msg.delete()
+                    except AttributeError:
+                        # Trying to delete the deleted message already
+                        del self.cache[msg_id]
+                        continue
+                    else:
+                        del self.cache[msg_id]
+                        break
             else:
                 await query.answer("😿️ Couldn't close expired message")
                 await query.edit_message_text(

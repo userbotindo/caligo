@@ -212,7 +212,7 @@ class TelegramBot(Base):
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"
 
-        api_id = self.getConfig.api_hash
+        api_id = str(self.getConfig.api_id)
         api_hash = self.getConfig.api_hash
         db_uri = self.getConfig.db_uri
         gdrive_secret = self.getConfig.gdrive_secret
@@ -257,7 +257,7 @@ class TelegramBot(Base):
                 text = self.redact_message(text)
 
             # send as file if text > 4096
-            if len(text) > tg.MESSAGE_CHAR_LIMIT:
+            if len(str(text)) > tg.MESSAGE_CHAR_LIMIT:
                 await msg.edit("Sending output as a file.")
                 response = await tg.send_as_document(
                     text,

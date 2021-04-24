@@ -1,9 +1,10 @@
 """ Purge module is a function to delete messages easily. """
 import asyncio
-
-from typing import ClassVar
 from datetime import datetime
+from typing import ClassVar
+
 from pyrogram.errors import MessageDeleteForbidden
+
 from .. import command, module
 
 

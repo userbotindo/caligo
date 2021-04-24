@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import ClassVar, List, Optional
 
 import pyrogram
+from pyrogram.errors import MessageDeleteForbidden
 
 from .. import command, module, util
 
@@ -166,3 +167,62 @@ class ModerationModule(module.Module):
 
         percent_pruned = int(pruned_count / total_count * 100)
         return f"Pruned {pruned_count} deleted users{_chat_name2} — {percent_pruned}% of the original member count."
+
+    @command.desc("reply to a message, mark as start until your purge command.")
+    @command.usage("purge", reply=True)
+    async def cmd_purge(self, ctx: command.Context):
+        """ This function need permission to delete messages. """
+        if not ctx.msg.reply_to_message:
+            return "__Reply to a message.__"
+
+        if ctx.msg.chat.type in ["group", "supergroup"]:
+            perm = (await
+                    ctx.bot.client.get_chat_member(ctx.msg.chat.id,
+                                                   "me")).can_delete_messages
+            if perm is not True:
+                return "__You can't delete message in this chat.__"
+
+        await ctx.respond("Purging...")
+
+        msg_ids = []
+        purged = 0
+        before = datetime.now()
+        for msg_id in range(ctx.msg.reply_to_message.message_id,
+                            ctx.msg.message_id):
+            msg_ids.append(msg_id)
+            if len(msg_ids) == 100:
+                await ctx.bot.client.delete_messages(
+                    chat_id=ctx.msg.chat.id,
+                    message_ids=msg_ids,
+                    revoke=True,
+                )
+                purged += len(msg_ids)
+                msg_ids = []
+
+        if msg_ids:
+            await ctx.bot.client.delete_messages(
+                chat_id=ctx.msg.chat.id,
+                message_ids=msg_ids,
+                revoke=True,
+            )
+            purged += len(msg_ids)
+
+        after = datetime.now()
+        run_time = (after - before).seconds
+        time = "second" if run_time <= 1 else "seconds"
+        msg = "message" if purged <= 1 else "messages"
+
+        await ctx.respond(f"__Purged {purged} {msg} in {run_time} {time}...__")
+
+    @command.desc("Delete the replied message.")
+    @command.usage("del", reply=True)
+    async def cmd_del(self, ctx: command.Context):
+        """ reply to message as target, this function will delete that. """
+        if not ctx.msg.reply_to_message:
+            return "__Reply to a message.__"
+
+        try:
+            await ctx.msg.reply_to_message.delete(revoke=True)
+        except MessageDeleteForbidden:
+            pass
+        await ctx.msg.delete()

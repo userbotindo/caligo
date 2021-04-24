@@ -20,7 +20,7 @@ class PurgeModule(module.Module):
             perm = (await ctx.bot.client.get_chat_member(ctx.msg.chat.id, "me")).can_delete_messages
             if perm is not True:
                 return "**You can't delete message in this chat..**"
-        await ctx.msg.edit("Purging...")
+        await ctx.respond("Purging...")
         msg_ids = []
         purging = 0
         t_s = datetime.now()
@@ -44,7 +44,7 @@ class PurgeModule(module.Module):
             purging += len(msg_ids)
         t_e = datetime.now()
         run_time = (t_e - t_s).seconds
-        await ctx.msg.edit_text("`Purged {} messages in {} second...`".format(purging, run_time))
+        await ctx.respond("`Purged {} messages in {} second...`".format(purging, run_time))
         await asyncio.sleep(5)
         await ctx.msg.delete()
 

@@ -1,3 +1,4 @@
+import asyncio
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -137,6 +138,7 @@ class Context:
         redact: Optional[bool] = None,
         msg: Optional[pyrogram.types.Message] = None,
         reuse_response: bool = False,
+        delete_after: Optional[Union[int, float]] = None,
         **kwargs: Any,
     ) -> pyrogram.types.Message:
 
@@ -151,6 +153,15 @@ class Context:
             **kwargs,
         )
         self.response_mode = mode
+
+        if delete_after is not None:
+
+            async def delete() -> bool:
+                await asyncio.sleep(delete_after)
+                return await self.response.delete()
+
+            self.bot.loop.create_task(delete())
+
         return self.response
 
     async def respond_multi(

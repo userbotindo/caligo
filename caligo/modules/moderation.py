@@ -212,7 +212,8 @@ class ModerationModule(module.Module):
         time = "second" if run_time <= 1 else "seconds"
         msg = "message" if purged <= 1 else "messages"
 
-        await ctx.respond(f"__Purged {purged} {msg} in {run_time} {time}...__")
+        await ctx.respond(f"__Purged {purged} {msg} in {run_time} {time}...__",
+                          delete_after=5)
 
     @command.desc("Delete the replied message.")
     @command.usage("del", reply=True)

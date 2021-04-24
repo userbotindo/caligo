@@ -1,6 +1,7 @@
 **/__pycache__/**
 
 # file
+*.env
 *.pyc
 *.log
 *.session

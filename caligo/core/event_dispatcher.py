@@ -1,16 +1,15 @@
 import asyncio
 import bisect
-import re
 from typing import (
     TYPE_CHECKING,
     Any,
     MutableMapping,
     MutableSequence,
     Optional,
-    Pattern
 )
 
-from pyrogram.types import Message, CallbackQuery, InlineQuery
+from pyrogram.filters import Filter
+from pyrogram.types import CallbackQuery, InlineQuery, Message
 
 from .. import module, util
 from ..listener import Listener, ListenerFunc
@@ -35,9 +34,9 @@ class EventDispatcher(Base):
         func: ListenerFunc,
         *,
         priority: Optional[int] = 100,
-        pattern: Optional[Pattern[str]] = None
+        regex: Filter = None
     ) -> None:
-        listener = Listener(event, func, mod, priority, pattern)
+        listener = Listener(event, func, mod, priority, regex)
 
         if event in self.listeners:
             bisect.insort(self.listeners[event], listener)
@@ -63,9 +62,9 @@ class EventDispatcher(Base):
                                        priority=getattr(func,
                                                         "_listener_priority",
                                                         100),
-                                       pattern=getattr(func,
-                                                       "_listener_pattern",
-                                                       None))
+                                       regex=getattr(func,
+                                                     "_listener_regex",
+                                                     None))
                 done = True
             finally:
                 if not done:
@@ -98,29 +97,16 @@ class EventDispatcher(Base):
             return
 
         for lst in listeners:
-            if lst.pattern is not None:
-                if isinstance(lst.pattern, str):
-                    lst.pattern = re.compile(lst.pattern)
+            if lst.regex is not None:
+                for arg in args:
+                    if isinstance(arg, (CallbackQuery, InlineQuery, Message)):
+                        match = await lst.regex(self.client, arg)
+                        if not match:
+                            continue
 
-                for index, arg in enumerate(args):
-                    i = index
-                    if isinstance(arg, Message):
-                        value = arg.text or arg.text
-                        break
-
-                    if isinstance(arg, CallbackQuery):
-                        value = arg.data
-                        break
-
-                    if isinstance(arg, InlineQuery):
-                        value = arg.query
                         break
                 else:
-                    self.log.error(f"'{event}' can't be used with Regex pattern")
-                    continue
-
-                args[i].matches = list(lst.pattern.finditer(value)) or None
-                if not args[i].matches:
+                    self.log.error(f"'{event}' can't be used with pattern")
                     continue
 
             task = self.loop.create_task(lst.func(*args, **kwargs))

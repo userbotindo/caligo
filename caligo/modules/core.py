@@ -91,7 +91,7 @@ class CoreModule(module.Module):
         await query.answer(results=answer, cache_time=3)
         return
 
-    @listener.pattern(r"menu\((\w+)\)")
+    @listener.pattern(r"menu\((\w+)\)$")
     async def on_callback_query(self, query: CallbackQuery) -> None:
         if query.from_user and query.from_user.id != self.bot.uid:
             await query.answer("Sorry, you don't have permission to access.",

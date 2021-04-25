@@ -159,7 +159,7 @@ class TelegramBot(Base):
     def update_module_event(self: "Bot",
                             name: str,
                             event_type: Handler,
-                            filt: Optional[filters.Filter] = None,
+                            flt: Optional[filters.Filter] = None,
                             group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
@@ -168,7 +168,7 @@ class TelegramBot(Base):
                     await self.dispatch_event(name, event)
 
                 event_info = self.client.add_handler(  # skipcq: PYL-E1111
-                    event_type(update_event, filt), group)
+                    event_type(update_event, flt), group)
                 self._mevent_handlers[name] = event_info
         elif name in self._mevent_handlers:
             self.client.remove_handler(*self._mevent_handlers[name])
@@ -177,7 +177,7 @@ class TelegramBot(Base):
     def update_bot_module_event(self: "Bot",
                                 name: str,
                                 event_type: Handler,
-                                filt: Optional[filters.Filter] = None,
+                                flt: Optional[filters.Filter] = None,
                                 group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
@@ -186,7 +186,7 @@ class TelegramBot(Base):
                     await self.dispatch_event(name, event)
 
                 event_info = self.client.bot.add_handler(  # skipcq: PYL-E1111
-                    event_type(update_event, filt), group)
+                    event_type(update_event, flt), group)
                 self._mevent_handlers[name] = event_info
         elif name in self._mevent_handlers:
             self.client.bot.remove_handler(*self._mevent_handlers[name])

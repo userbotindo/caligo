@@ -96,17 +96,23 @@ class EventDispatcher(Base):
         if not listeners:
             return
 
+        matches = None
         for lst in listeners:
             if lst.regex is not None:
-                for arg in args:
+                for idx, arg in enumerate(args):
                     if isinstance(arg, (CallbackQuery, InlineQuery, Message)):
                         match = await lst.regex(self.client, arg)
                         if not match:
                             continue
 
+                        # Matches obj will dissapered after loop end
+                        # So save the index and matches object
+                        matches = arg.matches
+                        index = idx
                         break
+                    else:
+                        self.log.error(f"'{event}' can't be used with pattern")
                 else:
-                    self.log.error(f"'{event}' can't be used with pattern")
                     continue
 
             task = self.loop.create_task(lst.func(*args, **kwargs))
@@ -115,6 +121,8 @@ class EventDispatcher(Base):
         if not tasks:
             return
 
+        if matches:
+            args[index].matches = matches
         self.log.debug("Dispatching event '%s' with data %s", event, args)
         if wait:
             await asyncio.wait(tasks)

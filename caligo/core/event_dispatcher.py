@@ -110,8 +110,8 @@ class EventDispatcher(Base):
                         matches = arg.matches
                         index = idx
                         break
-                    else:
-                        self.log.error(f"'{event}' can't be used with pattern")
+
+                    self.log.error(f"'{event}' can't be used with pattern")
                 else:
                     continue
 

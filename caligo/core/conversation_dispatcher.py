@@ -37,12 +37,11 @@ class ConversationDispatcher(Base):
         timeout: Optional[int] = 7,
         max_messages: Optional[int] = 7
     ) -> None:
-        conv = Conversation(self, chat_id, timeout, max_messages)
-        await conv.chat
-
+        conv = await Conversation.new(self, chat_id, timeout, max_messages)
         chat_name = conv.chat.title if conv.chat.title else conv.chat.first_name
         if conv.chat.id in self.CONVERSATION:
             raise conv.Exist(f"Conversation with '{chat_name}' exist")
+
         self.CONVERSATION[conv.chat.id] = asyncio.Queue(max_messages)
 
         try:

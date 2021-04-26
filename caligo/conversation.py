@@ -3,7 +3,6 @@ import inspect
 from typing import TYPE_CHECKING, Optional, Union
 
 import pyrogram
-from async_property import async_cached_property
 from pyrogram.types import Chat, Message
 
 from . import util
@@ -42,14 +41,24 @@ class Conversation:
         self.bot = bot
         self.client = self.bot.client
 
+        self._chat = None
         self._counter = 0
         self._input_chat = input_chat
         self._max_incoming = max_messages
         self._timeout = timeout
 
-    @async_cached_property
-    async def chat(self) -> Chat:
-        return await self.client.get_chat(self._input_chat)
+    @classmethod
+    async def new(cls, bot: "Bot", input_chat: Union[str, int], timeout: int,
+                  max_messages: int) -> "Conversation":
+
+        self = cls(bot, input_chat, timeout, max_messages)
+        self._chat = await self.client.get_chat(self._input_chat)
+
+        return self
+
+    @property
+    def chat(self) -> Chat:
+        return self._chat
 
     async def send_message(self, text, **kwargs) -> Message:
         sent = await self.client.send_message(self.chat.id, text, **kwargs)

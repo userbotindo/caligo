@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 class TelegramBot(Base):
     client: Client
     getConfig: BotConfig
-    is_running: bool
     prefix: str
     user: pyrogram.types.User
     uid: int
@@ -31,6 +30,8 @@ class TelegramBot(Base):
 
     bot_user: pyrogram.types.User
     bot_uid: int
+
+    _is_running: bool
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
         self.loaded = False
@@ -133,24 +134,29 @@ class TelegramBot(Base):
         await self.dispatch_event("started")
 
     async def idle(self: "Bot") -> None:
-        def signal_handler(_, __):
+        signals = {
+            k: v for v, k in signal.__dict__.items()
+            if v.startswith("SIG") and not v.startswith("SIG_")
+        }
 
-            self.log.info(f"Stop signal received ({_}).")
-            self.is_running = False
+        def signal_handler(signum, __):
+
+            self.log.info(f"Stop signal received ('{signals[signum]}').")
+            self._is_running = False
 
         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
             signal.signal(name, signal_handler)
 
-        self.is_running = True
+        self._is_running = True
 
-        while self.is_running:
+        while self._is_running:
             await asyncio.sleep(1)
 
     async def run(self: "Bot") -> None:
         try:
             await self.start()
 
-            self.log.info("Idling...")
+            self.log.info("Gathering dust")
             await self.idle()
         finally:
             if not self.stop_manual:

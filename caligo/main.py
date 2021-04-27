@@ -5,7 +5,7 @@ from . import launch, log
 logs = logging.getLogger("Launch")
 log.setup_log()
 
-logs.info("Loading code...")
+logs.info("Loading code")
 
 
 def main():

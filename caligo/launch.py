@@ -9,6 +9,7 @@ from .core import Bot
 
 log = logging.getLogger("Launch")
 aiorun.logger.disabled = True
+Session.notice_displayed = True
 
 
 def main() -> None:
@@ -26,7 +27,6 @@ def main() -> None:
             uvloop.install()
             log.info("Using uvloop event loop")
 
-    Session.notice_displayed = True
     log.info("Initializing bot")
     loop = asyncio.new_event_loop()
     aiorun.run(Bot.create_and_run(loop=loop), loop=loop)

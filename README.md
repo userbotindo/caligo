@@ -6,7 +6,7 @@ Caligo needs **Python 3.8** or newer to run.
 
 ## Compatibility
 
-Caligo should run with all Linux based operating systems. It's been tested partially on Windows, and not officially tested on MacOS but it shouldn't be problems if you install the right depencies.
+Caligo should work with all Linux-based operating systems. This program is tested partially on Windows and not officially tested on macOS, but there shouldn't be any problem if you install the correct dependencies.
 
 ## Installation
 

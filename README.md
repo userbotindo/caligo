@@ -30,27 +30,27 @@ Upgrade to pip 19 to fix this issue: `pip3 install -U pip`
 
 ### Using Heroku
 
-* Create a heroku account at <http://signup.heroku.com/> (skip if you already have)
-* Then go to your [dashboard](https://dashboard.heroku.com/apps)
-* Create an empty application, remember your app name
-* Go to **Account Settings**
-* Find **API Key** and click **Reveal**, copy
-* Fork this repo and then go to **Settings** Tabs on your forked repo
-* Go to **Secrets** > **New Repository Secret**
-* Create 2 of repository secret with this name:
-  * **HEROKU_APP**: Your created app name that upper step told
-  * **HEROKU_API_KEY**: Your API Key heroku that upper step told
-* Then go to **Actions** Tab, Click **Container**
-* Run workflow
-* It should be finished around 5-6 minutes and then go to your heroku dashboard again, and choose the app you've created
-* Go to **Settings** > **Reveal Config Vars** and fill the coresponding *Name* and *Value* based on `config.env_sample`
-* After all Variables are met then you can run your dyno
+- Create a heroku account at <http://signup.heroku.com/> (skip if you already have)
+- Then go to your [dashboard](https://dashboard.heroku.com/apps)
+- Create an empty application, remember your app name
+- Go to **Account Settings**
+- Find **API Key** and click **Reveal**, copy
+- Fork this repo and then go to **Settings** Tabs on your forked repo
+- Go to **Secrets** > **New Repository Secret**
+- Create 2 of repository secret with this name:
+  - **HEROKU_APP**: Your created app name that upper step told
+  - **HEROKU_API_KEY**: Your API Key heroku that upper step told
+- Then go to **Actions** Tab, Click **Container**
+- Run workflow
+- It should be finished around 5-6 minutes and then go to your heroku dashboard again, and choose the app you've created
+- Go to **Settings** > **Reveal Config Vars** and fill the coresponding _Name_ and _Value_ based on `config.env_sample`
+- After all Variables are met then you can run your dyno
 
 ## Configuration
 
 Copy `config.env_sample` to `config.env` and edit the settings as desired. Each and every setting is documented by the comments above it.
 
-Obtain the *API ID* and *API HASH* from [Telegram's website](https://my.telegram.org/apps). **TREAT THESE SECRETS LIKE A PASSWORD!**
+Obtain the _API ID_ and _API HASH_ from [Telegram's website](https://my.telegram.org/apps). **TREAT THESE SECRETS LIKE A PASSWORD!**
 
 Configuration must be complete before starting the bot for the first time for it to work properly.
 

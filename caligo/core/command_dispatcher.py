@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, Any, MutableMapping
+from typing import TYPE_CHECKING, Any, MutableMapping, Tuple
 
 import pyrogram
 from pyrogram.filters import Filter, create
@@ -116,8 +116,13 @@ class CommandDispatcher(Base):
             try:
                 ret = await cmd.func(ctx)
 
-                if ret is not None:
+                if ret is not None and not isinstance(ret, Tuple):
                     await ctx.respond(ret)
+                elif isinstance(ret, Tuple):
+                    if not isinstance(ret[1], (int, float)):
+                        raise TypeError("Second value must be int/float, "
+                                        f"got: {type(ret[1])}")
+                    await ctx.respond(ret[0], delete_after=ret[1])
             except pyrogram.errors.MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"

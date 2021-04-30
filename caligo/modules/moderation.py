@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import ClassVar, List, Optional
+from typing import ClassVar, List, Optional, Tuple, Union
 
 import pyrogram
 from pyrogram.errors import MessageDeleteForbidden
@@ -170,7 +170,8 @@ class ModerationModule(module.Module):
 
     @command.desc("reply to a message, mark as start until your purge command.")
     @command.usage("purge", reply=True)
-    async def cmd_purge(self, ctx: command.Context):
+    async def cmd_purge(self, ctx: command.Context) -> Tuple[str,
+                                                             Union[int, float]]:
         """ This function need permission to delete messages. """
         if not ctx.msg.reply_to_message:
             return "__Reply to a message.__"
@@ -212,12 +213,11 @@ class ModerationModule(module.Module):
         time = "second" if run_time <= 1 else "seconds"
         msg = "message" if purged <= 1 else "messages"
 
-        await ctx.respond(f"__Purged {purged} {msg} in {run_time} {time}...__",
-                          delete_after=5)
+        return f"__Purged {purged} {msg} in {run_time} {time}...__", 5
 
     @command.desc("Delete the replied message.")
     @command.usage("del", reply=True)
-    async def cmd_del(self, ctx: command.Context):
+    async def cmd_del(self, ctx: command.Context) -> None:
         """ reply to message as target, this function will delete that. """
         if not ctx.msg.reply_to_message:
             return "__Reply to a message.__"

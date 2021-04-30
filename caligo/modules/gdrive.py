@@ -42,22 +42,23 @@ class GoogleDrive(module.Module):
     task: Set[Tuple[int, asyncio.Task]]
 
     async def on_load(self) -> None:
-        self.db = self.bot.get_db("gdrive")
         self.creds = None
-        data = await self.db.find_one({"_id": self.name})
-
-        self.configs = self.bot.getConfig.gdrive_secret
-        if self.configs is None and data is None:
-            self.log.warning("GoogleDrive module secret not satisfy.")
-            self.bot.unload_module(self)
-            return
-
+        self.db = self.bot.get_db("gdrive")
         self.index_link = self.bot.getConfig.gdrive_index_link
         self.parent_id = self.bot.getConfig.gdrive_folder_id
         self.task = set()
 
-        if data:
-            self.creds = await util.run_sync(pickle.loads, data.get("creds"))
+        try:
+            creds = (await self.db.find_one({"_id": self.name}))["creds"]
+        except (KeyError, TypeError):
+            self.configs = self.bot.getConfig.gdrive_secret
+            if not self.configs:
+                self.log.warning(f"{self.name} module secret not satisfy.")
+                self.bot.unload_module(self)
+                return
+        else:
+            self.aria2 = self.bot.modules["Aria2"]
+            self.creds = await util.run_sync(pickle.loads, creds)
             # service will be overwrite if credentials is expired
             self.service = await util.run_sync(build,
                                                "drive",
@@ -65,12 +66,10 @@ class GoogleDrive(module.Module):
                                                credentials=self.creds,
                                                cache_discovery=False)
 
-            self.aria2 = self.bot.modules.get("Aria2")
-
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
-    async def cmd_gdcheck(self, ctx: command.Context) -> None:
-        await ctx.respond("You are all set.")
+    async def cmd_gdcheck(self, ctx: command.Context) -> None:  # skipcq: PYL-W0613
+        return "You are all set.", 5
 
     @command.desc("Clear/Reset your GoogleDrive credentials")
     @command.alias("gdreset")
@@ -343,9 +342,9 @@ class GoogleDrive(module.Module):
         else:
             types = ctx.input
 
-        if not self.bot.modules.get("Aria2"):
+        try:
+            ret = await self.aria2.addDownload(types, ctx.msg)
+            if ret is not None:
+                return ret
+        except NameError:
             return "__Mirroring torrent file/url needs Aria2 loaded.__"
-
-        ret = await self.aria2.addDownload(types, ctx.msg)
-        if ret is not None:
-            return ret

@@ -27,6 +27,7 @@ class BotConfig:
         # Optional
         path = _replace(os.environ.get("DOWNLOAD_PATH"))
         self.downloadPath = Path(path) if path else Path.home() / "downloads"
+        self.mirror_enabled = os.environ.get("MIRROR_MODULE") == "enable"
 
         self.token = _replace(os.environ.get("BOT_TOKEN"))
 

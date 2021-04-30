@@ -29,6 +29,7 @@ from .. import command, module, util
 
 class GoogleDrive(module.Module):
     name: ClassVar[str] = "GoogleDrive"
+    disabled: ClassVar[bool] = not util.BotConfig.mirror_enabled
 
     configs: Dict[str, str]
     creds: Credentials

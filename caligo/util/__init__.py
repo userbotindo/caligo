@@ -14,7 +14,7 @@ from . import (
     version
 )
 
-BotConfig = config.BotConfig
+BotConfig = config.BotConfig()
 File = file.File
 
 run_sync = async_helpers.run_sync

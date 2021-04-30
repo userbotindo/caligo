@@ -14,6 +14,11 @@ class Misc(module.Module):
     task: Set[Tuple[int, asyncio.Task]]
 
     async def on_load(self) -> None:
+        if not self.bot.getConfig.mirror_enabled:
+            self.bot.unregister_command(self.bot.commands["upload"])
+            self.bot.unregister_command(self.bot.commands["abort"])
+            return
+
         self.task = set()
 
     @command.desc("Generate a LMGTFY link (Let Me Google That For You)")

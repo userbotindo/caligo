@@ -118,9 +118,9 @@ class ModerationModule(module.Module):
     @command.usage("[target chat ID/username/...?]", optional=True)
     async def cmd_prunemembers(self, ctx: command.Context) -> str:
         if ctx.input:
-            chat = await self.bot.client.get_users(ctx.input)
-            if isinstance(chat, pyrogram.types.User):
-                return f"`{ctx.input}` __references a user, not a chat.__"
+            chat = await self.bot.client.get_chat(ctx.input)
+            if chat.type == "private":
+                return f"`{ctx.input}` __references a user/bot, not a chat.__"
 
             _chat_name = f" from **{chat.title}**"
             _chat_name2 = f" in **{chat.title}**"

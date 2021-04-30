@@ -414,9 +414,10 @@ class Aria2(module.Module):
            retry=retry_if_exception_type(Aria2rpcException),
            before=before_log(Aria2WebSocketServer.log, logging.DEBUG))
     async def on_start(self, time_us: int) -> None:  # skipcq: PYL-W0613
-        drive = self.bot.modules.get("GoogleDrive")
-        if drive is None:
-            self.log.warning("Aria2 needs GoogleDrive module loaded")
+        try:
+            drive = self.bot.modules["GoogleDrive"]
+        except KeyError:
+            self.log.warning(f"{self.name} needs GoogleDrive module loaded")
             self.bot.unload_module(self)
             return
 

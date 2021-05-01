@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Dict, Optional, Set, Tuple, Union
 from urllib import parse
 
 import pyrogram
-from aioaria2 import AsyncAria2Server, Aria2WebsocketClient
+from aioaria2 import Aria2WebsocketClient, AsyncAria2Server
 from aioaria2.exceptions import Aria2rpcException
 from googleapiclient.http import MediaFileUpload
 from tenacity import (

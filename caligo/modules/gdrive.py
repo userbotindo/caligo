@@ -26,6 +26,7 @@ MIME_TYPE = {
     "application/x-7z-compressed": "📦",
     "application/x-bzip": "📦",
     "application/x-bzip2": "📦",
+    "application/x-rar": "📦",
     "application/x-tar": "📦",
     "application/zip": "📦",
     "audio/aac": "🎵",
@@ -376,6 +377,7 @@ class GoogleDrive(module.Module):
     @command.usage("[parent=folderId] [name=file/folder name] [limit=number] "
                    "[q=\"search query\", single/double quote important here]",
                    optional=True)
+    @command.desc("Search through all Google Drive by given query/parent/name")
     async def cmd_gdsearch(self, ctx):
         options = {}
         for match in ctx.matches:

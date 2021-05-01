@@ -277,7 +277,7 @@ class TelegramBot(Base):
 
         # Default to disabling link previews in responses
         if "disable_web_page_preview" not in kwargs:
-            kwargs["disable_web_page_preview"] = False
+            kwargs["disable_web_page_preview"] = True
 
         # Use selected response mode if not overridden by invoker
         if mode is None:

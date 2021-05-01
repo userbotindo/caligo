@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Dict, Optional, Set, Tuple, Union
 from urllib import parse
 
 import pyrogram
-from aioaria2 import AsyncAria2Server, Aria2WebsocketClient
+from aioaria2 import Aria2WebsocketClient, AsyncAria2Server
 from aioaria2.exceptions import Aria2rpcException
 from googleapiclient.http import MediaFileUpload
 from tenacity import (
@@ -27,9 +27,8 @@ class Aria2WebSocketServer:
     cancelled: Set[str]
     downloads: Dict[str, util.aria2.Download]
     lock: asyncio.Lock
-    uploads:  Dict[
-            str, Union[MediaFileUpload, Dict[str, Union[asyncio.Task, int]]]
-        ]
+    uploads: Dict[str, Union[MediaFileUpload, Dict[str, Union[asyncio.Task,
+                                                              int]]]]
 
     index_link: str
     invoker: pyrogram.types.Message
@@ -77,8 +76,8 @@ class Aria2WebSocketServer:
             "--daemon=true", "--allow-overwrite=true"
         ]
         key_path = Path.home() / ".cache" / "caligo" / ".certs"
-        if (key_path / "cert.pem").is_file(
-                                 ) and (key_path / "key.pem").is_file():
+        if (key_path / "cert.pem").is_file() and (key_path /
+                                                  "key.pem").is_file():
             cmd.insert(4, "--rpc-listen-port=8443")
             cmd.insert(3, "--rpc-secure=true")
             cmd.insert(3, "--rpc-private-key=" + str(key_path / "key.pem"))
@@ -174,8 +173,8 @@ class Aria2WebSocketServer:
                     f"(https://drive.google.com/drive/folders/{folderId})")
                 if self.index_link is not None:
                     if self.index_link.endswith("/"):
-                        indexLink = self.index_link + parse.quote(file.name
-                                                                  + "/")
+                        indexLink = self.index_link + parse.quote(file.name +
+                                                                  "/")
                     else:
                         indexLink = self.index_link + "/" + parse.quote(
                             file.name + "/")
@@ -184,12 +183,14 @@ class Aria2WebSocketServer:
                 async with self.lock:
                     if self.count == 0:
                         await asyncio.gather(
-                            self.bot.respond(self.invoker, folderLink,
+                            self.bot.respond(self.invoker,
+                                             folderLink,
                                              mode="reply"),
                             self.invoker.delete())
                         self.invoker = None
                     else:
-                        await self.bot.respond(self.invoker, folderLink,
+                        await self.bot.respond(self.invoker,
+                                               folderLink,
                                                mode="reply")
 
         else:
@@ -246,7 +247,7 @@ class Aria2WebSocketServer:
                 continue
 
             if (file.failed or file.paused or
-               (file.complete and file.metadata) or file.removed):
+                (file.complete and file.metadata) or file.removed):
                 continue
 
             if file.complete and not file.metadata:
@@ -313,8 +314,8 @@ class Aria2WebSocketServer:
             now = datetime.now()
 
             if last_update_time is None or (
-                    now - last_update_time).total_seconds() >= 5 and (
-                        progress != ""):
+                    now - last_update_time).total_seconds() >= 5 and (progress
+                                                                      != ""):
                 try:
                     async with self.lock:
                         if self.invoker is not None:
@@ -392,8 +393,7 @@ class Aria2WebSocketServer:
             fileLink += f"\n\n__IndexLink__: [Here]({link})."
 
         async with self.lock:
-            await self.bot.respond(self.invoker, text=fileLink,
-                                   mode="reply")
+            await self.bot.respond(self.invoker, text=fileLink, mode="reply")
             del self.uploads[file.gid]
             del self.downloads[file.gid]
             await self.checkDelete()

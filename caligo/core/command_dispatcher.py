@@ -93,7 +93,7 @@ class CommandDispatcher(Base):
                 return
 
             if ((cmd.module.name == "GoogleDrive" and not cmd.module.disabled)
-               and cmd.name not in ["gdreset", "gdclear"]):
+                    and cmd.name not in ["gdreset", "gdclear"]):
                 ret = await cmd.module.authorize(msg)
 
                 if ret is False:
@@ -106,8 +106,8 @@ class CommandDispatcher(Base):
                     cmd.pattern = re.compile(cmd.pattern)
 
                 if msg.reply_to_message:
-                    matches = list(cmd.pattern.finditer(
-                                   msg.reply_to_message.text))
+                    matches = list(
+                        cmd.pattern.finditer(msg.reply_to_message.text))
                 elif msg.text:
                     matches = list(cmd.pattern.finditer(msg.text[cmd_len:]))
 

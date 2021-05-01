@@ -8,10 +8,10 @@ from . import (
     image,
     misc,
     system,
-    tg,
     text,
+    tg,
     time,
-    version
+    version,
 )
 
 BotConfig = config.BotConfig()

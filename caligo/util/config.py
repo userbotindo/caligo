@@ -42,17 +42,15 @@ class BotConfig:
             self.gdrive_secret = json.loads(os.environ.get("G_DRIVE_SECRET"))
         except (TypeError, json.decoder.JSONDecodeError):
             self.gdrive_secret = None
-        self.gdrive_folder_id = _replace(
-            os.environ.get("G_DRIVE_FOLDER_ID"))
-        self.gdrive_index_link = _replace(
-            os.environ.get("G_DRIVE_INDEX_LINK"))
+        self.gdrive_folder_id = _replace(os.environ.get("G_DRIVE_FOLDER_ID"))
+        self.gdrive_index_link = _replace(os.environ.get("G_DRIVE_INDEX_LINK"))
 
         # Checker
         self.secret = bool(os.environ.get("CONTAINER") == "True")
 
         # Github
-        self.github_repo = _replace(os.environ.get("GITHUB_REPO")
-                                    ) or "adekmaulana/caligo"
+        self.github_repo = _replace(
+            os.environ.get("GITHUB_REPO")) or "adekmaulana/caligo"
         self.github_token = _replace(os.environ.get("GITHUB_TOKEN"))
 
         # Heroku

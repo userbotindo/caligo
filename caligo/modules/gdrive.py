@@ -8,6 +8,7 @@ from typing import (
     AsyncIterator,
     ClassVar,
     Dict,
+    List,
     Optional,
     Set,
     Tuple,
@@ -20,11 +21,35 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import Resource, build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
+
+MIME_TYPE = {
+    "application/gzip": "📦",
+    "application/octet-stream": "⚙️",
+    "application/vnd.google-apps.folder": "📁️",
+    "application/vnd.rar": "📦",
+    "application/x-7z-compressed": "📦",
+    "application/x-bzip": "📦",
+    "application/x-bzip2": "📦",
+    "application/x-tar": "📦",
+    "application/zip": "📦",
+    "audio/aac": "🎵",
+    "audio/mp4": "🎵",
+    "audio/mpeg": "🎵",
+    "audio/ogg": "🎵",
+    "audio/wav": "🎵",
+    "audio/x-opus+ogg": "🎵",
+    "image/gif": "🖼️",
+    "image/jpeg": "🖼️",
+    "image/png": "🖼️",
+    "video/mp4": "🎥️",
+    "video/x-matroska": "🎥️"
+}
 
 
 class GoogleDrive(module.Module):
@@ -147,6 +172,14 @@ class GoogleDrive(module.Module):
                     return False
 
             await self.on_load()
+
+    async def getInfo(self, identifier: str, fields: List[str]) -> Dict[str,
+                                                                        Any]:
+        fields = ", ".join(fields)
+
+        return await util.run_sync(self.service.files(
+                                   ).get(fileId=identifier, fields=fields,
+                                         supportsAllDrives=True).execute)
 
     async def createFolder(self,
                            folderName: str,
@@ -286,10 +319,7 @@ class GoogleDrive(module.Module):
                                                         file_name=file_path,
                                                         progress=prog_func)
 
-        if file_path is not None:
-            return Path(file_path)
-
-        return
+        return Path(file_path) if file_path is not None else None
 
     @command.desc("Mirror Magnet/Torrent/Link/Message Media into GoogleDrive")
     @command.usage("[Magnet/Torrent/Link or reply to message]")
@@ -348,3 +378,82 @@ class GoogleDrive(module.Module):
                 return ret
         except NameError:
             return "__Mirroring torrent file/url needs Aria2 loaded.__"
+
+    @command.pattern(
+        r"(parent)=(\w+)|(limit)=(\d+)|(name)=(\w+)|"
+        r"(?<=(q)=)(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
+    @command.alias("gdlist", "gdls")
+    @command.usage(
+        "[parent=folderId] [name=file/folder name] [limit=number] "
+        "[q=\"search query\", single/double quote important here]",
+        optional=True)
+    async def cmd_gdsearch(self, ctx):
+        options = {}
+        for match in ctx.matches:
+            for index, option in enumerate(match.groups()):
+                if option is not None and match.group(index + 2) is not None:
+                    options[option] = match.group(index + 2)
+                    break
+
+        await ctx.respond("Collecting...")
+
+        parent = options.get("parent")
+        name = options.get("name")
+        limit = int(options.get("limit", 15))
+        if limit > 1000:
+            return "__Can't use limit more than 1000.__", 5
+
+        if parent is not None and name is not None:
+            query = f"'{parent}' in parents and (name contains '{name}')"
+        elif parent is not None and name is None:
+            query = f"'{parent}' in parents and (name contains '*')"
+        elif parent is None and name is not None:
+            query = f"name contains '{name}'"
+        else:
+            query = ""
+
+        try:
+            # Ignore given parent and name options if q present
+            # and remove " or ' from matches string
+            q = options["q"]
+            query = q.removesuffix(q[0]).removeprefix(q[0])
+        except KeyError:
+            pass
+
+        fields = "nextPageToken, files(name, id, mimeType, webViewLink)"
+        output = ""
+        pageToken = None
+        count = 0
+
+        while True:
+            try:
+                response = await util.run_sync(self.service.files().list(
+                    supportsAllDrives=True, includeItemsFromAllDrives=True,
+                    q=query, spaces="drive", corpora="allDrives", fields=fields,
+                    pageSize=limit, orderBy="folder, name asc",
+                    pageToken=pageToken).execute)
+            except HttpError as e:
+                if "'location': 'q'" in str(e):
+                    return "__Invalid parameters of query.__", 5
+
+                return str(e), 7
+
+            for file in response.get("files", []):
+                if count >= limit:
+                    break
+
+                output += (MIME_TYPE.get(file["mimeType"], "📄") +
+                           f" [{file['name']}]({file['webViewLink']})\n")
+                count += 1
+
+            if count >= limit:
+                break
+
+            pageToken = response.get("nextPageToken", None)
+            if pageToken is None:
+                break
+
+        if query == "":
+            query = "Not specified"
+
+        return f"**Google Drive Search**:\n{query}\n\n**Result**\n{output}"

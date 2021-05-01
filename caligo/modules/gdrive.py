@@ -83,7 +83,8 @@ class GoogleDrive(module.Module):
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
-    async def cmd_gdcheck(self, ctx: command.Context) -> None:  # skipcq: PYL-W0613
+    async def cmd_gdcheck(self,
+                          ctx: command.Context) -> None:  # skipcq: PYL-W0613
         return "You are all set.", 5
 
     @command.desc("Clear/Reset your GoogleDrive credentials")
@@ -93,8 +94,8 @@ class GoogleDrive(module.Module):
             return "__Credentials already empty.__"
 
         await self.db.delete_one({"_id": self.name})
-        await asyncio.gather(self.on_load(), ctx.respond(
-                             "__Credentials cleared.__"))
+        await asyncio.gather(self.on_load(),
+                             ctx.respond("__Credentials cleared.__"))
 
     async def getAccessToken(self, message: pyrogram.types.Message) -> str:
         flow = InstalledAppFlow.from_client_config(
@@ -151,9 +152,10 @@ class GoogleDrive(module.Module):
                         "creds": credential
                     }})
             else:
-                await asyncio.gather(self.bot.respond(message,
+                await asyncio.gather(
+                    self.bot.respond(message,
                                      "Credential is empty, generating..."),
-                                     asyncio.sleep(2.5))
+                    asyncio.sleep(2.5))
 
                 ret = await self.getAccessToken(message)
 
@@ -163,13 +165,12 @@ class GoogleDrive(module.Module):
 
             await self.on_load()
 
-    async def getInfo(self, identifier: str, fields: List[str]) -> Dict[str,
-                                                                        Any]:
+    async def getInfo(self, identifier: str,
+                      fields: List[str]) -> Dict[str, Any]:
         fields = ", ".join(fields)
 
-        return await util.run_sync(self.service.files(
-                                   ).get(fileId=identifier, fields=fields,
-                                         supportsAllDrives=True).execute)
+        return await util.run_sync(self.service.files().get(
+            fileId=identifier, fields=fields, supportsAllDrives=True).execute)
 
     async def createFolder(self,
                            folderName: str,
@@ -323,8 +324,8 @@ class GoogleDrive(module.Module):
             reply_msg = ctx.msg.reply_to_message
 
             if reply_msg.media:
-                task = self.bot.loop.create_task(self.downloadFile(ctx,
-                                                                   reply_msg))
+                task = self.bot.loop.create_task(
+                    self.downloadFile(ctx, reply_msg))
                 self.task.add((ctx.msg.message_id, task))
                 try:
                     await task
@@ -369,14 +370,12 @@ class GoogleDrive(module.Module):
         except NameError:
             return "__Mirroring torrent file/url needs Aria2 loaded.__"
 
-    @command.pattern(
-        r"(parent)=(\w+)|(limit)=(\d+)|(name)=(\w+)|"
-        r"(?<=(q)=)(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
+    @command.pattern(r"(parent)=(\w+)|(limit)=(\d+)|(name)=(\w+)|"
+                     r"(?<=(q)=)(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
     @command.alias("gdlist", "gdls")
-    @command.usage(
-        "[parent=folderId] [name=file/folder name] [limit=number] "
-        "[q=\"search query\", single/double quote important here]",
-        optional=True)
+    @command.usage("[parent=folderId] [name=file/folder name] [limit=number] "
+                   "[q=\"search query\", single/double quote important here]",
+                   optional=True)
     async def cmd_gdsearch(self, ctx):
         options = {}
         for match in ctx.matches:
@@ -418,9 +417,14 @@ class GoogleDrive(module.Module):
         while True:
             try:
                 response = await util.run_sync(self.service.files().list(
-                    supportsAllDrives=True, includeItemsFromAllDrives=True,
-                    q=query, spaces="drive", corpora="allDrives", fields=fields,
-                    pageSize=limit, orderBy="folder, name asc",
+                    supportsAllDrives=True,
+                    includeItemsFromAllDrives=True,
+                    q=query,
+                    spaces="drive",
+                    corpora="allDrives",
+                    fields=fields,
+                    pageSize=limit,
+                    orderBy="folder, name asc",
                     pageToken=pageToken).execute)
             except HttpError as e:
                 if "'location': 'q'" in str(e):

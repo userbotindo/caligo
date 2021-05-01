@@ -81,29 +81,20 @@ class TelegramBot(Base):
         except TypeError:
             self.prefix = "."  # Default is '.'-dot you can change later
 
-            await db.find_one_and_update(
-                {"_id": "Core"},
-                {
-                    "$set": {"prefix": self.prefix}
-                },
-                upsert=True
-            )
+            await db.find_one_and_update({"_id": "Core"},
+                                         {"$set": {
+                                             "prefix": self.prefix
+                                         }},
+                                         upsert=True)
 
         self.client.add_handler(
-            MessageHandler(
-                self.on_command,
-                filters=(
-                    self.command_predicate() &
-                    filters.me &
-                    filters.outgoing
-                )
-            ), 0)
+            MessageHandler(self.on_command,
+                           filters=(self.command_predicate() & filters.me &
+                                    filters.outgoing)), 0)
 
         self.client.add_handler(
-            MessageHandler(
-                self.on_conversation,
-                filters=self.conversation_predicate()
-            ), 0)
+            MessageHandler(self.on_conversation,
+                           filters=self.conversation_predicate()), 0)
 
         # Load modules
         self.load_all_modules()
@@ -135,7 +126,8 @@ class TelegramBot(Base):
 
     async def idle(self: "Bot") -> None:
         signals = {
-            k: v for v, k in signal.__dict__.items()
+            k: v
+            for v, k in signal.__dict__.items()
             if v.startswith("SIG") and not v.startswith("SIG_")
         }
 
@@ -213,8 +205,8 @@ class TelegramBot(Base):
 
     @property
     def has_bot(self: "Bot") -> bool:
-        return hasattr(self.client, "bot"
-                       ) and isinstance(self.client.bot, Client)
+        return hasattr(self.client, "bot") and isinstance(
+            self.client.bot, Client)
 
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"
@@ -266,11 +258,7 @@ class TelegramBot(Base):
             # send as file if text > 4096
             if len(str(text)) > tg.MESSAGE_CHAR_LIMIT:
                 await msg.edit("Sending output as a file.")
-                response = await tg.send_as_document(
-                    text,
-                    msg,
-                    input_arg
-                )
+                response = await tg.send_as_document(text, msg, input_arg)
 
                 await msg.delete()
                 return response

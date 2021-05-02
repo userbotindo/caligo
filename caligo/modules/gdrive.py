@@ -405,8 +405,9 @@ class GoogleDrive(module.Module):
                    "[q=\"search query\"], **single/double quote important for "
                    "parent, name and q parameters**", optional=True)
     @command.desc("Search through all Google Drive by given query/parent/name")
+    @command.alias("gdlist", "gdls")
     async def cmd_gdsearch(self, ctx: command.Context) -> Union[str,
-                                                                List[Any]]:
+                                                                Tuple[str, int]]:
         if ctx.input and not ctx.matches:
             return "__Invalid parameters of input.__", 5
 

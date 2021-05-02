@@ -1,9 +1,12 @@
 name: Container
-'on': workflow_dispatch
+
+on: workflow_dispatch
+
 env:
   IMAGE_NAME: caligo
   HEROKU_API_KEY: '${{ secrets.HEROKU_API_KEY }}'
   HEROKU_APP: '${{ secrets.HEROKU_APP }}'
+
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
@@ -24,4 +27,4 @@ jobs:
           GITHUB_REPO=${{ secrets.GITHUB_REPO }} API_ID=${{ secrets.API_ID }}
           API_HASH=${{ secrets.API_HASH }} DB_URI=${{ secrets.DB_URI }}
           STRING_SESSION=${{ secrets.STRING_SESSION }} BOT_TOKEN=${{
-          secrets.BOT_TOKEN }}-a $HEROKU_APP
+          secrets.BOT_TOKEN }} -a $HEROKU_APP

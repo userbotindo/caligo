@@ -21,6 +21,7 @@ from .. import command, module, util
 MIME_TYPE = {
     "application/gzip": "📦",
     "application/octet-stream": "⚙️",
+    "application/rar": "📦",
     "application/vnd.google-apps.folder": "📁️",
     "application/vnd.rar": "📦",
     "application/x-7z-compressed": "📦",
@@ -313,6 +314,30 @@ class GoogleDrive(module.Module):
 
         return Path(file_path) if file_path is not None else None
 
+    async def searchContent(self, query: str, limit: int
+                            ) -> AsyncIterator[Dict[str, Any]]:
+        fields = "nextPageToken, files(name, id, mimeType, webViewLink)"
+        pageToken = None
+
+        while True:
+            response = await util.run_sync(self.service.files().list(
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                q=query,
+                spaces="drive",
+                corpora="allDrives",
+                fields=fields,
+                pageSize=limit,
+                orderBy="folder, modifiedTime desc, name asc",
+                pageToken=pageToken).execute)
+
+            for file in response.get("files", []):
+                yield file
+
+            pageToken = response.get("nextPageToken", None)
+            if pageToken is None:
+                break
+
     @command.desc("Mirror Magnet/Torrent/Link/Message Media into GoogleDrive")
     @command.usage("[Magnet/Torrent/Link or reply to message]")
     async def cmd_gdmirror(self, ctx: command.Context) -> Optional[str]:
@@ -371,83 +396,86 @@ class GoogleDrive(module.Module):
         except NameError:
             return "__Mirroring torrent file/url needs Aria2 loaded.__"
 
-    @command.pattern(r"(parent)=(\w+)|(limit)=(\d+)|(name)=(\w+)|"
-                     r"(?<=(q)=)(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
-    @command.alias("gdlist", "gdls")
-    @command.usage("[parent=folderId] [name=file/folder name] [limit=number] "
-                   "[q=\"search query\", single/double quote important here]",
-                   optional=True)
+    @command.pattern(r"(parent)=(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')|"
+                     r"(limit)=(\d+)|(filter)=(file|folder)|"
+                     r"(name)=(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')|"
+                     r"(q)=(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
+    @command.usage("[parent=\"folderId\"] [name=\"file/folder name\"] "
+                   "[limit=number] [filter=file/folder]"
+                   "[q=\"search query\"], **single/double quote important for "
+                   "parent, name and q parameters**", optional=True)
     @command.desc("Search through all Google Drive by given query/parent/name")
-    async def cmd_gdsearch(self, ctx):
+    async def cmd_gdsearch(self, ctx: command.Context) -> Union[str,
+                                                                List[Any]]:
+        if ctx.input and not ctx.matches:
+            return "__Invalid parameters of input.__", 5
+
         options = {}
         for match in ctx.matches:
             for index, option in enumerate(match.groups()):
                 if option is not None and match.group(index + 2) is not None:
-                    options[option] = match.group(index + 2)
+                    if option == "limit" or option == "filter":
+                        options[option] = match.group(index + 2)
+                    else:
+                        val = match.group(index + 2)
+                        options[option] = val.removesuffix(
+                            val[0]).removeprefix(val[0])
                     break
 
         await ctx.respond("Collecting...")
 
-        parent = options.get("parent")
-        name = options.get("name")
+        filters = options.get("filter")
         limit = int(options.get("limit", 15))
+        name = options.get("name")
+        parent = options.get("parent")
         if limit > 1000:
             return "__Can't use limit more than 1000.__", 5
+        if filters is not None:
+            filters = ("mimeType = 'application/vnd.google-apps.folder'"
+                       if filters == "folder" else
+                       "mimeType != 'application/vnd.google-apps.folder'")
 
-        if parent is not None and name is not None:
+        if all(x is not None for x in [parent, name, filters]):
+            query = f"'{parent}' in parents and (name contains '{name}' and {filters})"
+        elif parent is not None and name is not None and filters is None:
             query = f"'{parent}' in parents and (name contains '{name}')"
-        elif parent is not None and name is None:
-            query = f"'{parent}' in parents and (name contains '*')"
-        elif parent is None and name is not None:
+        elif parent is not None and name is None and filters is not None:
+            query = f"'{parent}' in parents and ({filters})"
+        elif parent is not None and name is None and filters is None:
+            query = f"'{parent}' in parents"
+        elif parent is None and name is not None and filters is not None:
+            query = f"name contains '{name}' and {filters}"
+        elif parent is None and name is not None and filters is None:
             query = f"name contains '{name}'"
+        elif parent is None and name is None and filters is not None:
+            query = filters
         else:
             query = ""
 
         try:
-            # Ignore given parent and name options if q present
-            # and remove " or ' from matches string
-            q = options["q"]
-            query = q.removesuffix(q[0]).removeprefix(q[0])
+            # Ignore given parent, name, filter options if q present
+            query = options["q"]
         except KeyError:
             pass
 
-        fields = "nextPageToken, files(name, id, mimeType, webViewLink)"
         output = ""
-        pageToken = None
         count = 0
 
-        while True:
-            try:
-                response = await util.run_sync(self.service.files().list(
-                    supportsAllDrives=True,
-                    includeItemsFromAllDrives=True,
-                    q=query,
-                    spaces="drive",
-                    corpora="allDrives",
-                    fields=fields,
-                    pageSize=limit,
-                    orderBy="folder, name asc",
-                    pageToken=pageToken).execute)
-            except HttpError as e:
-                if "'location': 'q'" in str(e):
-                    return "__Invalid parameters of query.__", 5
-
-                return str(e), 7
-
-            for file in response.get("files", []):
+        try:
+            async for content in self.searchContent(query=query, limit=limit):
                 if count >= limit:
                     break
 
-                output += (MIME_TYPE.get(file["mimeType"], "📄") +
-                           f" [{file['name']}]({file['webViewLink']})\n")
                 count += 1
+                output += (MIME_TYPE.get(content["mimeType"], "📄") +
+                           f" [{content['name']}]({content['webViewLink']})\n")
+        except HttpError as e:
+            if "'location': 'q'" in str(e):
+                return "__Invalid parameters of query.__", 5
+            if "'location': 'fileId'" in str(e):
+                return "__Invalid parameters of parent.__", 5
 
-            if count >= limit:
-                break
-
-            pageToken = response.get("nextPageToken", None)
-            if pageToken is None:
-                break
+            raise
 
         if query == "":
             query = "Not specified"

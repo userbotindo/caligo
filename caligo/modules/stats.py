@@ -69,7 +69,7 @@ class StatsModule(module.Module):
                 {"_id": self.name},
                 {
                     "$set": {
-                        {key: value}
+                        key: value
                     }
                 },
                 upsert=True

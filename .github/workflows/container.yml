@@ -1,27 +1,27 @@
 name: Container
-
-on: workflow_dispatch
-
+'on': workflow_dispatch
 env:
   IMAGE_NAME: caligo
-  HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-  HEROKU_APP: ${{ secrets.HEROKU_APP }}
-
+  HEROKU_API_KEY: '${{ secrets.HEROKU_API_KEY }}'
+  HEROKU_APP: '${{ secrets.HEROKU_APP }}'
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
-
       - name: Build the image
         run: docker build . --file Dockerfile --tag $IMAGE_NAME
-
       - name: Login into Heroku Container registry
-        run: heroku container:login
-
+        run: 'heroku container:login'
       - name: Push the image to Heroku
-        run: heroku container:push $IMAGE_NAME -a $HEROKU_APP
-        
+        run: 'heroku container:push $IMAGE_NAME -a $HEROKU_APP'
       - name: Release image to Heroku
-        run: heroku container:release $IMAGE_NAME -a $HEROKU_APP
+        run: 'heroku container:release $IMAGE_NAME -a $HEROKU_APP'
+      - name: Copy Github Repo Secret to Heroku Config Var
+        run: >-
+          heroku config:set HEROKU_API_KEY=$HEROKU_API_KEY
+          HEROKU_APP=$HEROKU_APP GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO=${{ secrets.GITHUB_REPO }} API_ID=${{ secrets.API_ID }}
+          API_HASH=${{ secrets.API_HASH }} DB_URI=${{ secrets.DB_URI }}
+          STRING_SESSION=${{ secrets.STRING_SESSION }} BOT_TOKEN=${{
+          secrets.BOT_TOKEN }}-a $HEROKU_APP

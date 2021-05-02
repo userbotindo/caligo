@@ -23,8 +23,8 @@ jobs:
       - name: Copy Github Repo Secret to Heroku Config Var
         run: >-
           heroku config:set HEROKU_API_KEY=$HEROKU_API_KEY
-          HEROKU_APP=$HEROKU_APP GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO=${{ secrets.GITHUB_REPO }} API_ID=${{ secrets.API_ID }}
+          HEROKU_APP=$HEROKU_APP GITHUB_TOKEN=${{ secrets.GIT_TOKEN }}
+          GITHUB_REPO=${{ secrets.GIT_REPO }} API_ID=${{ secrets.API_ID }}
           API_HASH=${{ secrets.API_HASH }} DB_URI=${{ secrets.DB_URI }}
           STRING_SESSION=${{ secrets.STRING_SESSION }} BOT_TOKEN=${{
           secrets.BOT_TOKEN }} -a $HEROKU_APP

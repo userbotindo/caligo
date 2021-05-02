@@ -415,7 +415,7 @@ class GoogleDrive(module.Module):
         for match in ctx.matches:
             for index, option in enumerate(match.groups()):
                 if option is not None and match.group(index + 2) is not None:
-                    if option == "limit" or option == "filter":
+                    if option in ("limit", "filter"):
                         options[option] = match.group(index + 2)
                     else:
                         val = match.group(index + 2)

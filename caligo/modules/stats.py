@@ -41,36 +41,24 @@ class StatsModule(module.Module):
         return None
 
     async def inc(self, key: str, value: int) -> None:
-        await self.db.find_one_and_update(
-            {"_id": self.name},
-            {
-                "$inc": {
-                    key: value
-                }
-            },
-            upsert=True
-        )
+        await self.db.find_one_and_update({"_id": self.name},
+                                          {"$inc": {
+                                              key: value
+                                          }},
+                                          upsert=True)
 
     async def delete(self, key: str) -> None:
-        await self.db.find_one_and_update(
-            {"_id": self.name},
-            {
-                "$unset": {
-                    key: ""
-                }
-            }
-        )
+        await self.db.find_one_and_update({"_id": self.name},
+                                          {"$unset": {
+                                              key: ""
+                                          }})
 
     async def put(self, key: str, value: int) -> None:
-        await self.db.find_one_and_update(
-            {"_id": self.name},
-            {
-                "$set": {
-                    key: value
-                }
-            },
-            upsert=True
-        )
+        await self.db.find_one_and_update({"_id": self.name},
+                                          {"$set": {
+                                              key: value
+                                          }},
+                                          upsert=True)
 
     async def on_load(self) -> None:
         self.db = self.bot.get_db("stats")
@@ -145,12 +133,18 @@ class StatsModule(module.Module):
 
         return util.text.join_map(
             {
-                "Total time elapsed": util.time.format_duration_us(uptime),
-                "Messages received": f"{recv} ({_calc_ph(recv, uptime)}/h) • {_calc_pct(recv_stickers, recv)}% are stickers • {_calc_pct(recv_edits, recv)}% were edited",
-                "Messages sent": f"{sent} ({_calc_ph(sent, uptime)}/h) • {_calc_pct(sent_stickers, sent)}% are stickers • {_calc_pct(sent_edits, sent)}% were edited",
-                "Total messages sent": f"{_calc_pct(sent, sent + recv)}% of all accounted messages",
-                "Commands processed": f"{processed} ({_calc_ph(processed, uptime)}/h) • {_calc_pct(processed, sent)}% of sent messages",
-                "Stickers created": f"{stickers} ({_calc_pd(stickers, uptime)}/day)",
+                "Total time elapsed":
+                    util.time.format_duration_us(uptime),
+                "Messages received":
+                    f"{recv} ({_calc_ph(recv, uptime)}/h) • {_calc_pct(recv_stickers, recv)}% are stickers • {_calc_pct(recv_edits, recv)}% were edited",
+                "Messages sent":
+                    f"{sent} ({_calc_ph(sent, uptime)}/h) • {_calc_pct(sent_stickers, sent)}% are stickers • {_calc_pct(sent_edits, sent)}% were edited",
+                "Total messages sent":
+                    f"{_calc_pct(sent, sent + recv)}% of all accounted messages",
+                "Commands processed":
+                    f"{processed} ({_calc_ph(processed, uptime)}/h) • {_calc_pct(processed, sent)}% of sent messages",
+                "Stickers created":
+                    f"{stickers} ({_calc_pd(stickers, uptime)}/day)",
             },
             heading="Stats since last reset",
         )

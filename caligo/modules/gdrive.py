@@ -314,8 +314,8 @@ class GoogleDrive(module.Module):
 
         return Path(file_path) if file_path is not None else None
 
-    async def searchContent(self, query: str, limit: int
-                            ) -> AsyncIterator[Dict[str, Any]]:
+    async def searchContent(self, query: str,
+                            limit: int) -> AsyncIterator[Dict[str, Any]]:
         fields = "nextPageToken, files(name, id, mimeType, webViewLink)"
         pageToken = None
 
@@ -403,11 +403,12 @@ class GoogleDrive(module.Module):
     @command.usage("[parent=\"folderId\"] [name=\"file/folder name\"] "
                    "[limit=number] [filter=file/folder]"
                    "[q=\"search query\"], **single/double quote important for "
-                   "parent, name and q parameters**", optional=True)
+                   "parent, name and q parameters**",
+                   optional=True)
     @command.desc("Search through all Google Drive by given query/parent/name")
     @command.alias("gdlist", "gdls")
-    async def cmd_gdsearch(self, ctx: command.Context) -> Union[str,
-                                                                Tuple[str, int]]:
+    async def cmd_gdsearch(self,
+                           ctx: command.Context) -> Union[str, Tuple[str, int]]:
         if ctx.input and not ctx.matches:
             return "__Invalid parameters of input.__", 5
 
@@ -419,8 +420,8 @@ class GoogleDrive(module.Module):
                         options[option] = match.group(index + 2)
                     else:
                         val = match.group(index + 2)
-                        options[option] = val.removesuffix(
-                            val[0]).removeprefix(val[0])
+                        options[option] = val.removesuffix(val[0]).removeprefix(
+                            val[0])
                     break
 
         await ctx.respond("Collecting...")

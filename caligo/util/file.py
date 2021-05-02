@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from mimetypes import guess_type
+from os.path import join
 from pathlib import Path
 from urllib import parse
 from typing import Optional, Tuple, Union
@@ -67,10 +68,7 @@ class File:
     @property
     def index_link(self) -> None:
         if self._index_link is not None:
-            if self._index_link.endswith("/"):
-                link = self._index_link + parse.quote(self.name)
-            else:
-                link = self._index_link + "/" + parse.quote(self.name)
+            link = join(self._index_link, parse.quote(self.name))
 
         return self._index_link if self._index_link is None else link
 
@@ -116,8 +114,8 @@ class File:
         mirrorLink = response.get("webContentLink")
         text = (f"**GoogleDrive Link**: [{self.name}]({mirrorLink}) "
                 f"(__{human(int(size))}__)")
-        if self._index_link is not None:
-            text += f"\n\n__Shareable link__: [Here]({self._index_link})."
+        if self.index_link is not None:
+            text += f"\n\n__Shareable link__: [Here]({self.index_link})."
 
         return None, True, text
 

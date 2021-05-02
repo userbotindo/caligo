@@ -43,7 +43,8 @@ class BotConfig:
         except (TypeError, json.decoder.JSONDecodeError):
             self.gdrive_secret = None
         self.gdrive_folder_id = _replace(os.environ.get("G_DRIVE_FOLDER_ID"))
-        self.gdrive_index_link = _replace(os.environ.get("G_DRIVE_INDEX_LINK"))
+        self.gdrive_index_link = _replace(os.environ.get("G_DRIVE_INDEX_LINK"
+                                                         ).rstrip("/"))
 
         # Checker
         self.secret = bool(os.environ.get("CONTAINER") == "True")

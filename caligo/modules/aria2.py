@@ -2,6 +2,7 @@ import ast
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from os.path import join
 from pathlib import Path
 from typing import Any, ClassVar, Dict, Optional, Set, Tuple, Union
 from urllib import parse
@@ -172,13 +173,8 @@ class Aria2WebSocketServer:
                     f"**GoogleDrive folderLink**: [{file.name}]"
                     f"(https://drive.google.com/drive/folders/{folderId})")
                 if self.index_link is not None:
-                    if self.index_link.endswith("/"):
-                        indexLink = self.index_link + parse.quote(file.name +
-                                                                  "/")
-                    else:
-                        indexLink = self.index_link + "/" + parse.quote(
-                            file.name + "/")
-                    folderLink += f"\n\n__IndexLink__: [Here]({indexLink})."
+                    link = join(self.index_link, parse.quote(file.name + "/"))
+                    folderLink += f"\n\n__IndexLink__: [Here]({link})."
 
                 async with self.lock:
                     if self.count == 0:
@@ -386,10 +382,7 @@ class Aria2WebSocketServer:
         fileLink = (f"**GoogleDrive Link**: [{file.name}]({mirrorLink}) "
                     f"(__{human(int(file_size))}__)")
         if self.index_link is not None:
-            if self.index_link.endswith("/"):
-                link = self.index_link + parse.quote(file.name)
-            else:
-                link = self.index_link + "/" + parse.quote(file.name)
+            link = join(self.index_link, parse.quote(file.name))
             fileLink += f"\n\n__IndexLink__: [Here]({link})."
 
         async with self.lock:

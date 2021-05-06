@@ -49,7 +49,7 @@ class CoreModule(module.Module):
         return buttons
 
     async def on_inline_query(self, query: InlineQuery) -> None:
-        repo = self.bot.getConfig.github_repo
+        repo = self.bot.getConfig["github_repo"]
         answer = [
             InlineQueryResultArticle(
                 id=uuid.uuid4(),

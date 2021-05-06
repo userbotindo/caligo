@@ -64,7 +64,7 @@ async def download_file(ctx: command.Context,
                         msg: pyrogram.types.Message,
                         text: Optional[bool] = False) -> Path:
     """Downloads the file embedded in the given message."""
-    downloadPath = ctx.bot.getConfig.downloadPath
+    download_path = ctx.bot.getConfig["download_path"]
 
     if text is True:
         path = Path(await ctx.bot.client.download_media(msg))
@@ -127,7 +127,7 @@ async def download_file(ctx: command.Context,
             last_update_time = now
 
     return Path(await ctx.bot.client.download_media(
-        msg, file_name=str(downloadPath) + "/" + file_name, progress=prog_func))
+        msg, file_name=str(download_path) + "/" + file_name, progress=prog_func))
 
 
 def truncate(text: str) -> str:

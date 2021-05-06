@@ -61,14 +61,14 @@ class GoogleDrive(module.Module):
     async def on_load(self) -> None:
         self.creds = None
         self.db = self.bot.get_db("gdrive")
-        self.index_link = self.bot.getConfig.gdrive_index_link
-        self.parent_id = self.bot.getConfig.gdrive_folder_id
+        self.index_link = self.bot.getConfig["gdrive_index_link"]
+        self.parent_id = self.bot.getConfig["gdrive_folder_id"]
         self.task = set()
 
         try:
             creds = (await self.db.find_one({"_id": self.name}))["creds"]
         except (KeyError, TypeError):
-            self.configs = self.bot.getConfig.gdrive_secret
+            self.configs = self.bot.getConfig["gdrive_secret"]
             if not self.configs:
                 self.log.warning(f"{self.name} module secret not satisfy.")
                 self.bot.unload_module(self)
@@ -255,7 +255,7 @@ class GoogleDrive(module.Module):
 
     async def downloadFile(self, ctx: command.Context,
                            msg: pyrogram.types.Message) -> Optional[Path]:
-        downloadPath = ctx.bot.getConfig.downloadPath
+        download_path = ctx.bot.getConfig["download_path"]
 
         before = util.time.sec()
         last_update_time = None
@@ -307,12 +307,12 @@ class GoogleDrive(module.Module):
 
                 last_update_time = now
 
-        file_path = downloadPath / file_name
+        file_path = download_path / file_name
         file_path = await ctx.bot.client.download_media(msg,
                                                         file_name=file_path,
                                                         progress=prog_func)
 
-        return Path(file_path) if file_path is not None else None
+        return Path(file_path) if file_path else file_path
 
     async def searchContent(self, query: str,
                             limit: int) -> AsyncIterator[Dict[str, Any]]:

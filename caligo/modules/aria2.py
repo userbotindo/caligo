@@ -56,11 +56,8 @@ class Aria2WebSocketServer:
     async def init(cls, bot: Any, drive: Any) -> "Aria2WebSocketServer":
         self = cls(bot, drive)
 
-        if self.bot.getConfig.downloadPath is None:
-            path = Path.home() / "downloads"
-        else:
-            path = Path(self.bot.getConfig.downloadPath)
-        path.mkdir(parents=True, exist_ok=True)
+        download_path = self.bot.getConfig["download_path"]
+        download_path.mkdir(parents=True, exist_ok=True)
 
         link = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
         async with self.bot.http.get(link) as resp:
@@ -68,7 +65,7 @@ class Aria2WebSocketServer:
             trackers: str = "[" + trackers_list.replace("\n\n", ",") + "]"
 
         cmd = [
-            "aria2c", f"--dir={str(path)}", "--enable-rpc",
+            "aria2c", f"--dir={str(download_path)}", "--enable-rpc",
             "--rpc-listen-all=false", "--max-connection-per-server=10",
             "--rpc-max-request-size=1024M", "--seed-time=0.01",
             "--seed-ratio=0.1", "--max-concurrent-downloads=5",

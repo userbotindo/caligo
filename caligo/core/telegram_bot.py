@@ -42,15 +42,15 @@ class TelegramBot(Base):
         super().__init__(**kwargs)
 
     async def init_client(self: "Bot") -> None:
-        api_id = self.getConfig.api_id
+        api_id = self.getConfig["api_id"]
         if api_id == 0:
             raise ValueError("API ID is invalid nor empty.")
 
-        api_hash = self.getConfig.api_hash
+        api_hash = self.getConfig["api_hash"]
         if not isinstance(api_hash, str):
             raise TypeError("API HASH must be a string")
 
-        string_session = self.getConfig.string_session
+        string_session = self.getConfig["string_session"]
 
         if isinstance(string_session, str):
             mode = string_session
@@ -60,14 +60,14 @@ class TelegramBot(Base):
                              api_hash=api_hash,
                              session_name=mode)
 
-        token = self.getConfig.token
-        if token is not None:
-            if not isinstance(token, str):
-                raise TypeError("BOT TOKEN must be a string")
+        bot_token = self.getConfig["bot_token"]
+        if bot_token is not None:
+            if not isinstance(bot_token, str):
+                raise TypeError("Bot token must be a string")
 
             self.client.bot = Client(api_id=api_id,
                                      api_hash=api_hash,
-                                     bot_token=token,
+                                     bot_token=bot_token,
                                      session_name=":memory:")
 
     async def start(self: "Bot") -> None:
@@ -211,17 +211,19 @@ class TelegramBot(Base):
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"
 
-        api_id = str(self.getConfig.api_id)
-        api_hash = self.getConfig.api_hash
-        db_uri = self.getConfig.db_uri
-        gdrive_secret = self.getConfig.gdrive_secret
-        string_session = self.getConfig.string_session
-        token = self.getConfig.token
+        api_id = str(self.getConfig["api_id"])
+        api_hash = self.getConfig["api_hash"]
+        bot_token = self.getConfig["bot_token"]
+        db_uri = self.getConfig["db_uri"]
+        gdrive_secret = self.getConfig["gdrive_secret"]
+        string_session = self.getConfig["string_session"]
 
         if api_id in text:
             text = text.replace(api_id, redacted)
         if api_hash in text:
             text = text.replace(api_hash, redacted)
+        if bot_token is not None and bot_token in text:
+            text = text.replace(bot_token, redacted)
         if db_uri in text:
             text = text.replace(db_uri, redacted)
         if gdrive_secret is not None:
@@ -234,8 +236,6 @@ class TelegramBot(Base):
                 text = text.replace(client_secret, redacted)
         if string_session in text:
             text = text.replace(string_session, redacted)
-        if token is not None and token in text:
-            text = text.replace(token, redacted)
 
         return text
 

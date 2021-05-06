@@ -21,7 +21,7 @@ class DataBase(Base):
         super().__init__(**kwargs)
 
     def _init_db(self) -> None:
-        self._db = AsyncIOMotorClient(self.getConfig.db_uri, connect=False)
+        self._db = AsyncIOMotorClient(self.getConfig["db_uri"], connect=False)
 
     async def close_db(self) -> None:
         self._db.close()

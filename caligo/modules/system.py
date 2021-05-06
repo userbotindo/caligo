@@ -306,11 +306,11 @@ Time: {el_str}"""
         headers = {"accept": "application/vnd.github.v3+json"}
         payload = {"ref": "refs/heads/staging"}
 
-        user = self.bot.getConfig.github_repo.split("/")[0]
-        repo = self.bot.getConfig.github_repo.split("/")[1]
+        user = self.bot.getConfig["github_repo"].split("/")[0]
+        repo = self.bot.getConfig["github_repo"].split("/")[1]
         path = f"/repos/{user}/{repo}/actions/workflows/container.yml/dispatches"
         uri = "https://api.github.com"
-        auth = aiohttp.BasicAuth(user, self.bot.getConfig.github_token)
+        auth = aiohttp.BasicAuth(user, self.bot.getConfig["github_token"])
 
         async with self.bot.http.post(
             uri + path,
@@ -324,8 +324,6 @@ Time: {el_str}"""
     @command.usage("[deploy flag?]", optional=True)
     @command.alias("up", "upd")
     async def cmd_update(self, ctx: command.Context) -> Optional[str]:
-        flag = ctx.input
-
         if not util.git.have_git:
             return "__The__ `git` __command is required for self-updating.__"
 
@@ -344,14 +342,14 @@ Time: {el_str}"""
         old_commit = await util.run_sync(repo.commit)
 
         # GitHub workflows to push into heroku
-        if flag == "deploy":
-            if not self.bot.getConfig.secret:
+        if ctx.input == "deploy":
+            if not self.bot.getConfig["container"]:
                 return "__Deploying only works if your bot is run on container.__"
 
-            if (self.bot.getConfig.github_token and
-                    self.bot.getConfig.github_repo) and (
-                    self.bot.getConfig.heroku_api_key and
-                    self.bot.getConfig.heroku_app_name):
+            if (self.bot.getConfig["github_token"] and
+                    self.bot.getConfig["github_repo"]) and (
+                    self.bot.getConfig["heroku_api_key"] and
+                    self.bot.getConfig["heroku_app_name"]):
                 ret = await self.run_workflows()
 
                 resp_msg = await ctx.respond("Deploying bot...")

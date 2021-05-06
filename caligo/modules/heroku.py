@@ -20,8 +20,8 @@ class HerokuManager(module.Module):
     useragent: str
 
     async def on_load(self) -> None:
-        self.api_key = self.bot.getConfig.heroku_api_key
-        self.app_name = self.bot.getConfig.heroku_app_name
+        self.api_key = self.bot.getConfig["heroku_api_key"]
+        self.app_name = self.bot.getConfig["heroku_app_name"]
         if self.api_key is None or self.app_name is None:
             self.log.warning("Heroku module credential not satisfy.")
             self.bot.unload_module(self)

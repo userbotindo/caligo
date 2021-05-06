@@ -22,6 +22,21 @@ from tenacity import (
 from .. import module, util
 
 
+class SeedProtocol(asyncio.SubprocessProtocol):
+
+    def __init__(self, future: asyncio.Future, log: logging.Logger):
+        self.future = future
+        self.log = log
+
+        self.output = bytearray()
+
+    def pipe_data_received(self, fd: int, data: bytes):
+        self.output.extend(data)
+
+    def process_exited(self):
+        self.future.set_result(True)
+
+
 class Aria2WebSocketServer:
     log: ClassVar[logging.Logger] = logging.getLogger("Aria2WS")
 
@@ -102,7 +117,7 @@ class Aria2WebSocketServer:
         for handler, name in trigger:
             client.register(handler, f"aria2.{name}")
 
-        asyncio.create_task(self.updateProgress())
+        self.bot.loop.create_task(self.updateProgress())
         return client
 
     @property
@@ -195,7 +210,8 @@ class Aria2WebSocketServer:
         self.log.info(f"Complete download: [gid: '{gid}']")
 
         if file.bittorrent:
-            asyncio.create_task(self.seedFile(file), name=f"Seed-{file.gid}")
+            self.bot.loop.create_task(self.seedFile(file),
+                                      name=f"Seed-{file.gid}")
 
     async def onDownloadPause(self, _: Aria2WebsocketClient,
                               data: Union[Dict[str, Any], Any]) -> None:
@@ -320,32 +336,6 @@ class Aria2WebSocketServer:
 
             await asyncio.sleep(0.1)
 
-    async def seedFile(self, file: util.aria2.Download) -> None:
-        file_path = Path(str(file.dir / file.info_hash) + ".torrent")
-        if not file_path.is_file():
-            return
-
-        self.log.info(f"Seeding: [gid: '{file.gid}']")
-        port = util.aria2.get_free_port()
-        cmd = [
-            "aria2c", "--enable-rpc", "--rpc-listen-all=false",
-            f"--rpc-listen-port={port}", "--bt-seed-unverified=true",
-            "--seed-ratio=1", f"-i {str(file_path)}"
-        ]
-
-        try:
-            _, stderr, ret = await util.system.run_command(*cmd)
-        except Exception as e:  # skipcq: PYL-W0703
-            self.log.warning(e)
-            return
-
-        if ret != 0:
-            self.log.info("Seeding: [gid: '{file.gid}'] - Failed")
-            self.log.warning(stderr)
-            return
-
-        self.log.info(f"Seeding: [gid: '{file.gid}'] - Complete")
-
     async def uploadProgress(
             self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:
         time = util.time.format_duration_td
@@ -389,6 +379,32 @@ class Aria2WebSocketServer:
             await self.checkDelete()
 
         return None, True
+
+    async def seedFile(self, file: util.aria2.Download) -> str:
+        file_path = Path(str(file.dir / file.info_hash) + ".torrent")
+        if not file_path.is_file():
+            return
+
+        port = util.aria2.get_free_port()
+        cmd = [
+            "aria2c", "--enable-rpc", "--rpc-listen-all=false",
+            f"--rpc-listen-port={port}", "--bt-seed-unverified=true",
+            "--seed-ratio=1", f"-i {str(file_path)}"
+        ]
+
+        future = self.bot.loop.create_future()
+        transport = None
+        try:
+            transport, protocol = await self.bot.loop.subprocess_exec(
+                lambda: SeedProtocol(future, self.log), *cmd, stdin=None)
+
+            await future
+        finally:
+            if transport:
+                transport.close()
+
+        data = bytes(protocol.output)
+        return data.decode("ascii").rstrip()
 
 
 class Aria2(module.Module):

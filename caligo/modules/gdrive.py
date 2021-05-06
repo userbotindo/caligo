@@ -99,7 +99,7 @@ class GoogleDrive(module.Module):
     @command.alias("gdreset")
     async def cmd_gdclear(self, ctx: command.Context) -> None:
         if not self.creds:
-            return "__Credentials already empty.__"
+            return "__Credentials already empty.__", 5
 
         await self.db.delete_one({"_id": self.name})
         await asyncio.gather(self.on_load(),
@@ -381,10 +381,24 @@ class GoogleDrive(module.Module):
             if pageToken is None:
                 break
 
-    async def deleteContent(self, identifier: str) -> None:
+    @command.desc("Delete your GoogleDrive file/folder")
+    @command.usage("[file id or folder id]")
+    @command.alias("gdrm", "gddel", "gddelete")
+    async def cmd_gdremove(self, ctx: command.Context, *,
+                           identifier: Optional[str]) -> str:
+        if not ctx.input and not identifier:
+            return "__Pass the id of content to delete it__", 5
+        if ctx.input and not identifier:
+            identifier = ctx.input
+
         await util.run_sync(self.service.files().delete(
                             fileId=identifier, supportsAllDrives=True).execute)
 
+        return f"__Deleted: {identifier}__"
+
+    @command.desc("Copy public GoogleDrive folder/file into your own")
+    @command.usage("[file id or folder id]")
+    @command.alias("gdcp")
     async def cmd_gdcopy(self, ctx: command.Context) -> Optional[str]:
         if not ctx.input and not ctx.msg.reply_to_message:
             return "__Input the id of the file/folder or reply with abort__", 5
@@ -395,7 +409,7 @@ class GoogleDrive(module.Module):
             reply_msg_id = ctx.msg.reply_to_message.message_id
             for msg_id, identifier in self.copy_tasks.copy():
                 if msg_id == reply_msg_id:
-                    await self.deleteContent(identifier)
+                    await self.cmd_gdremove(ctx, identifier=identifier)
                     break
             else:
                 return "__Replied message is not task__", 5
@@ -432,6 +446,7 @@ class GoogleDrive(module.Module):
 
                     raise
                 else:
+                    counter += 1
                     now = datetime.now()
                     length = self.cache[ctx.msg.message_id]
                     percent = round(((counter / length) * 100), 2)
@@ -442,13 +457,12 @@ class GoogleDrive(module.Module):
                                                     progress_string != ""):
                         await ctx.respond(progress_string)
                         last_update_time = now
-                    counter += 1
 
             del self.cache[ctx.msg.message_id]
             if cancelled:
                 self.copy_tasks.remove((ctx.msg.message_id, content["id"]))
                 try:
-                    await self.deleteContent(parentFolder)
+                    await self.cmd_gdremove(ctx, identifier=parentFolder)
                 except Exception:  # skipcq: PYL-W0703
                     return "__Aborted, but failed to delete the content__", 5
 

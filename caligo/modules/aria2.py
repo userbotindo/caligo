@@ -263,12 +263,7 @@ class Aria2WebSocketServer:
                 if file.is_dir:
                     counter = self.uploads[file.gid]["counter"]
                     length = len(file.files)
-                    try:
-                        percent = counter / length
-                    except ZeroDivisionError:
-                        percent = 0
-                    finally:
-                        percent = round(percent * 100)
+                    percent = round(((counter / length) * 100), 2)
                     progress_string += (
                         f"`{file.name}`\nGID: `{file.gid}`\n"
                         f"__ComputingFolder: [{counter}/{length}] "

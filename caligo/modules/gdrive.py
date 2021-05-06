@@ -18,6 +18,7 @@ from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
 
+FOLDER = "application/vnd.google-apps.folder"
 MIME_TYPE = {
     "application/gzip": "📦",
     "application/octet-stream": "⚙️",
@@ -54,6 +55,8 @@ class GoogleDrive(module.Module):
     service: Resource
 
     aria2: Any
+    cache: Dict[str, int]
+    copy_tasks: Set[Tuple[int, str]]
     index_link: str
     parent_id: str
     task: Set[Tuple[int, asyncio.Task]]
@@ -64,6 +67,9 @@ class GoogleDrive(module.Module):
         self.index_link = self.bot.getConfig["gdrive_index_link"]
         self.parent_id = self.bot.getConfig["gdrive_folder_id"]
         self.task = set()
+
+        self.cache = {}
+        self.copy_tasks = set()
 
         try:
             creds = (await self.db.find_one({"_id": self.name}))["creds"]
@@ -174,6 +180,44 @@ class GoogleDrive(module.Module):
         return await util.run_sync(self.service.files().get(
             fileId=identifier, fields=fields, supportsAllDrives=True).execute)
 
+    async def copyFile(self, file_id: str, parent_id: Optional[str] = None) -> str:
+        metadata = {}
+        if parent_id is not None:
+            metadata["parents"] = [parent_id]
+        elif parent_id is None and self.parent_id is not None:
+            metadata["parents"] = [self.parent_id]
+
+        file = await util.run_sync(self.service.files().copy(
+            body=metadata, fileId=file_id, supportsAllDrives=True).execute)
+        return file["id"]
+
+    async def copyFolder(self, target: str, *, parent_id: Optional[str] = None,
+                         name: Optional[str] = None, msg_id: Optional[int] = None
+                         ) -> AsyncIterator[asyncio.Task]:
+        query = f"'{target}' in parents"
+
+        async for contents in self.searchContent(query=query, limit=1000):
+            if msg_id is not None:
+                self.cache[msg_id] += len(contents)
+
+            for content in contents:
+                if content["mimeType"] == FOLDER:
+                    # Dont count folder
+                    if msg_id is not None:
+                        self.cache[msg_id] -= 1
+                    childFolder = await self.createFolder(content["name"],
+                                                          folderId=parent_id)
+                    async for task in self.copyFolder(target=content["id"],
+                                                      parent_id=childFolder,
+                                                      name=name, msg_id=msg_id):
+                        yield task
+                else:
+                    yield self.bot.loop.create_task(self.copyFile(
+                                                    content["id"],
+                                                    parent_id=parent_id),
+                                                    name=name)
+                    await asyncio.sleep(0.5)
+
     async def createFolder(self,
                            folderName: str,
                            folderId: Optional[str] = None) -> str:
@@ -255,7 +299,7 @@ class GoogleDrive(module.Module):
 
     async def downloadFile(self, ctx: command.Context,
                            msg: pyrogram.types.Message) -> Optional[Path]:
-        download_path = ctx.bot.getConfig["download_path"]
+        download_path = self.bot.getConfig["download_path"]
 
         before = util.time.sec()
         last_update_time = None
@@ -312,10 +356,10 @@ class GoogleDrive(module.Module):
                                                         file_name=file_path,
                                                         progress=prog_func)
 
-        return Path(file_path) if file_path else file_path
+        return Path(file_path) if file_path is not None else file_path
 
     async def searchContent(self, query: str,
-                            limit: int) -> AsyncIterator[Dict[str, Any]]:
+                            limit: int) -> AsyncIterator[List[Dict[str, Any]]]:
         fields = "nextPageToken, files(name, id, mimeType, webViewLink)"
         pageToken = None
 
@@ -331,12 +375,100 @@ class GoogleDrive(module.Module):
                 orderBy="folder, modifiedTime desc, name asc",
                 pageToken=pageToken).execute)
 
-            for file in response.get("files", []):
-                yield file
+            yield response.get("files", [])
 
             pageToken = response.get("nextPageToken", None)
             if pageToken is None:
                 break
+
+    async def deleteContent(self, identifier: str) -> None:
+        await util.run_sync(self.service.files().delete(
+                            fileId=identifier, supportsAllDrives=True).execute)
+
+    async def cmd_gdcopy(self, ctx: command.Context) -> Optional[str]:
+        if not ctx.input and not ctx.msg.reply_to_message:
+            return "__Input the id of the file/folder or reply with abort__", 5
+        if ctx.msg.reply_to_message and ctx.input != "abort":
+            return "__Replying to message only for aborting task__", 5
+
+        if ctx.msg.reply_to_message:
+            reply_msg_id = ctx.msg.reply_to_message.message_id
+            for msg_id, identifier in self.copy_tasks.copy():
+                if msg_id == reply_msg_id:
+                    await self.deleteContent(identifier)
+                    break
+            else:
+                return "__Replied message is not task__", 5
+
+            return "__Aborted__", 1
+
+        await ctx.respond("Gathering...")
+
+        try:
+            content = await self.getInfo(ctx.input, ["id", "name", "mimeType"])
+        except HttpError as e:
+            if "'location': 'fileId'" in str(e):
+                return "__Invalid input of id.__", 5
+
+        if content["mimeType"] == FOLDER:
+            cancelled = False
+            counter = 0
+            progress_string = ""
+            last_update_time = None
+            self.cache[ctx.msg.message_id] = 0
+
+            self.copy_tasks.add((ctx.msg.message_id, content["id"]))
+            parentFolder = await self.createFolder(content["name"])
+            async for task in self.copyFolder(target=content["id"],
+                                              parent_id=parentFolder,
+                                              name=content["name"],
+                                              msg_id=ctx.msg.message_id):
+                try:
+                    await task
+                except HttpError as e:
+                    if "'reason': 'notFound'" in str(e):
+                        cancelled = True
+                        break
+
+                    raise
+                else:
+                    now = datetime.now()
+                    length = self.cache[ctx.msg.message_id]
+                    percent = round(((counter / length) * 100), 2)
+                    progress_string = (f"__Copying {content['name']}"
+                                       f": [{counter}/{length}] {percent}%__")
+                    if last_update_time is None or (now - last_update_time
+                                                    ).total_seconds() >= 5 and (
+                                                    progress_string != ""):
+                        await ctx.respond(progress_string)
+                        last_update_time = now
+                    counter += 1
+
+            del self.cache[ctx.msg.message_id]
+            if cancelled:
+                self.copy_tasks.remove((ctx.msg.message_id, content["id"]))
+                try:
+                    await self.deleteContent(parentFolder)
+                except Exception:  # skipcq: PYL-W0703
+                    return "__Aborted, but failed to delete the content__", 5
+
+                return "__Transmission aborted__", 5
+
+            ret = await self.getInfo(parentFolder, ["webViewLink"])
+        else:
+            task = self.bot.loop.create_task(self.copyFile(content["id"]))
+            self.copy_tasks.add((ctx.msg.message_id, content["id"]))
+            try:
+                await task
+            except asyncio.CancelledError:
+                return "__Transmission aborted__", 5
+
+            file = task.result()
+            ret = await self.getInfo(file["id"], ["webViewLink"])
+
+        self.copy_tasks.remove((ctx.msg.message_id, content["id"]))
+
+        return f"Copying success: [{content['name']}]({ret['webViewLink']})"
 
     @command.desc("Mirror Magnet/Torrent/Link/Message Media into GoogleDrive")
     @command.usage("[Magnet/Torrent/Link or reply to message]")
@@ -464,13 +596,18 @@ class GoogleDrive(module.Module):
         count = 0
 
         try:
-            async for content in self.searchContent(query=query, limit=limit):
+            async for contents in self.searchContent(query=query, limit=limit):
+                for content in contents:
+                    if count >= limit:
+                        break
+
+                    count += 1
+                    output += (
+                        MIME_TYPE.get(content["mimeType"], "📄") +
+                        f" [{content['name']}]({content['webViewLink']})\n")
+
                 if count >= limit:
                     break
-
-                count += 1
-                output += (MIME_TYPE.get(content["mimeType"], "📄") +
-                           f" [{content['name']}]({content['webViewLink']})\n")
         except HttpError as e:
             if "'location': 'q'" in str(e):
                 return "__Invalid parameters of query.__", 5

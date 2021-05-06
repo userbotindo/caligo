@@ -181,8 +181,9 @@ class ModerationModule(module.Module):
             perm = (await
                     ctx.bot.client.get_chat_member(ctx.msg.chat.id,
                                                    "me")).can_delete_messages
-            if perm is not True:
-                return "__You can't delete message in this chat.__"
+            creator = ctx.msg.chat.is_creator
+            if perm is not True and not creator:
+                return "__You can't delete message in this chat.__", 5
 
         await ctx.respond("Purging...")
 

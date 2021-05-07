@@ -522,6 +522,8 @@ class GoogleDrive(module.Module):
                 else:
                     path = task.result()
                     self.task.remove((ctx.msg.message_id, task))
+                    if path is None:
+                        return "__Something went wrong, file probably corrupt__"
 
                 if path.suffix == ".torrent":
                     async with aiofile.async_open(path, "rb") as afp:

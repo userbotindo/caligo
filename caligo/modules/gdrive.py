@@ -555,8 +555,7 @@ class GoogleDrive(module.Module):
 
         try:
             ret = await self.aria2.addDownload(types, ctx.msg)
-            if ret is not None:
-                return ret
+            return ret
         except NameError:
             return "__Mirroring torrent file/url needs Aria2 loaded.__"
 

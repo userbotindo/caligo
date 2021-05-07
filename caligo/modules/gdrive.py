@@ -385,8 +385,10 @@ class GoogleDrive(module.Module):
     @command.usage("[file id or folder id]")
     @command.alias("gdrm", "gddel", "gddelete")
     async def cmd_gdremove(self, ctx: command.Context, *,
-                           identifier: Optional[str]) -> Union[str, Tuple[str,
-                                                                          int]]:
+                           identifier: Optional[str] = None) -> Union[str,
+                                                                      Tuple[str,
+                                                                            int]
+                                                                      ]:
         if not ctx.input and not identifier:
             return "__Pass the id of content to delete it__", 5
         if ctx.input and not identifier:

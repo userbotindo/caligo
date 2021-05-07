@@ -57,6 +57,11 @@ class ModerationModule(module.Module):
     async def cmd_ban(self, ctx: command.Context) -> str:
         input_ids = ctx.args
 
+        for index, username in enumerate(input_ids[:]):
+            if isinstance(username, str):
+                user = await self.bot.client.get_users(username)
+                input_ids[index] = user.id
+
         try:
             # Parse user IDs without duplicates
             user_ids = list(dict.fromkeys(map(int, input_ids)))
@@ -109,7 +114,7 @@ class ModerationModule(module.Module):
 
             try:
                 await ctx.msg.chat.kick_member(user.id)
-            except pyrogram.errors.UserAdminInvalid:
+            except pyrogram.errors.ChatAdminRequired:
                 return "__I need permission to ban users in this chat.__"
 
         return util.text.join_list(lines)

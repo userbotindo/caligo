@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import pickle
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, AsyncIterator, ClassVar, Dict, List, Optional, Set, Tuple, Union
@@ -43,6 +44,9 @@ MIME_TYPE = {
     "video/mp4": "🎥️",
     "video/x-matroska": "🎥️"
 }
+PATTERN = re.compile(r"(?<=/folders/)([\w-]+)|(?<=%2Ffolders%2F)([\w-]+)|"
+                     r"(?<=/file/d/)([\w-]+)|(?<=%2Ffile%2Fd%2F)([\w-]+)|"
+                     r"(?<=id=)([\w-]+)|(?<=id%3D)([\w-]+)")
 
 
 class GoogleDrive(module.Module):
@@ -60,6 +64,12 @@ class GoogleDrive(module.Module):
     index_link: str
     parent_id: str
     task: Set[Tuple[int, asyncio.Task]]
+
+    def getIdFromUrl(self, url: str) -> str:
+        try:
+            return PATTERN.search(url)[0]
+        except (TypeError, IndexError):
+            return url
 
     async def on_load(self) -> None:
         self.creds = None
@@ -91,13 +101,14 @@ class GoogleDrive(module.Module):
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
-    async def cmd_gdcheck(self,
-                          ctx: command.Context) -> None:  # skipcq: PYL-W0613
+    async def cmd_gdcheck(self, ctx: command.Context  # skipcq: PYL-W0613
+                          ) -> Tuple[str, int]:
         return "You are all set.", 5
 
     @command.desc("Clear/Reset your GoogleDrive credentials")
     @command.alias("gdreset")
-    async def cmd_gdclear(self, ctx: command.Context) -> None:
+    async def cmd_gdclear(self, ctx: command.Context) -> Optional[Tuple[str,
+                                                                        int]]:
         if not self.creds:
             return "__Credentials already empty.__", 5
 
@@ -392,7 +403,7 @@ class GoogleDrive(module.Module):
         if not ctx.input and not identifier:
             return "__Pass the id of content to delete it__", 5
         if ctx.input and not identifier:
-            identifier = ctx.input
+            identifier = self.getIdFromUrl(ctx.input)
 
         await util.run_sync(self.service.files().delete(
                             fileId=identifier, supportsAllDrives=True).execute)
@@ -421,9 +432,10 @@ class GoogleDrive(module.Module):
             return "__Aborted__", 1
 
         await ctx.respond("Gathering...")
+        identifier = self.getIdFromUrl(ctx.input)
 
         try:
-            content = await self.getInfo(ctx.input, ["id", "name", "mimeType"])
+            content = await self.getInfo(identifier, ["id", "name", "mimeType"])
         except HttpError as e:
             if "'location': 'fileId'" in str(e):
                 return "__Invalid input of id.__", 5
@@ -579,7 +591,7 @@ class GoogleDrive(module.Module):
         filters = options.get("filter")
         limit = int(options.get("limit", 15))
         name = options.get("name")
-        parent = options.get("parent")
+        parent = self.getIdFromUrl(options.get("parent"))
         if limit > 1000:
             return "__Can't use limit more than 1000.__", 5
         if filters is not None:

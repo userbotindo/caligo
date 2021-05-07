@@ -385,7 +385,8 @@ class GoogleDrive(module.Module):
     @command.usage("[file id or folder id]")
     @command.alias("gdrm", "gddel", "gddelete")
     async def cmd_gdremove(self, ctx: command.Context, *,
-                           identifier: Optional[str]) -> str:
+                           identifier: Optional[str]) -> Union[str, Tuple[str,
+                                                                          int]]:
         if not ctx.input and not identifier:
             return "__Pass the id of content to delete it__", 5
         if ctx.input and not identifier:
@@ -399,7 +400,8 @@ class GoogleDrive(module.Module):
     @command.desc("Copy public GoogleDrive folder/file into your own")
     @command.usage("[file id or folder id]")
     @command.alias("gdcp")
-    async def cmd_gdcopy(self, ctx: command.Context) -> Optional[str]:
+    async def cmd_gdcopy(self, ctx: command.Context) -> Union[str,
+                                                              Tuple[str, int]]:
         if not ctx.input and not ctx.msg.reply_to_message:
             return "__Input the id of the file/folder or reply with abort__", 5
         if ctx.msg.reply_to_message and ctx.input != "abort":

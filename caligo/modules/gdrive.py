@@ -49,6 +49,13 @@ PATTERN = re.compile(r"(?<=/folders/)([\w-]+)|(?<=%2Ffolders%2F)([\w-]+)|"
                      r"(?<=id=)([\w-]+)|(?<=id%3D)([\w-]+)")
 
 
+def getIdFromUrl(url: str) -> str:
+    try:
+        return PATTERN.search(url)[0]
+    except (TypeError, IndexError):
+        return url
+
+
 class GoogleDrive(module.Module):
     name: ClassVar[str] = "GoogleDrive"
     disabled: ClassVar[bool] = not util.BotConfig.mirror_enabled
@@ -64,12 +71,6 @@ class GoogleDrive(module.Module):
     index_link: str
     parent_id: str
     task: Set[Tuple[int, asyncio.Task]]
-
-    def getIdFromUrl(self, url: str) -> str:
-        try:
-            return PATTERN.search(url)[0]
-        except (TypeError, IndexError):
-            return url
 
     async def on_load(self) -> None:
         self.creds = None
@@ -403,7 +404,7 @@ class GoogleDrive(module.Module):
         if not ctx.input and not identifier:
             return "__Pass the id of content to delete it__", 5
         if ctx.input and not identifier:
-            identifier = self.getIdFromUrl(ctx.input)
+            identifier = getIdFromUrl(ctx.input)
 
         await util.run_sync(self.service.files().delete(
                             fileId=identifier, supportsAllDrives=True).execute)
@@ -432,7 +433,7 @@ class GoogleDrive(module.Module):
             return "__Aborted__", 1
 
         await ctx.respond("Gathering...")
-        identifier = self.getIdFromUrl(ctx.input)
+        identifier = getIdFromUrl(ctx.input)
 
         try:
             content = await self.getInfo(identifier, ["id", "name", "mimeType"])
@@ -592,7 +593,7 @@ class GoogleDrive(module.Module):
         filters = options.get("filter")
         limit = int(options.get("limit", 15))
         name = options.get("name")
-        parent = self.getIdFromUrl(options.get("parent"))
+        parent = getIdFromUrl(options.get("parent"))
         if limit > 1000:
             return "__Can't use limit more than 1000.__", 5
         if filters is not None:

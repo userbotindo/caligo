@@ -494,8 +494,8 @@ class GoogleDrive(module.Module):
             except asyncio.CancelledError:
                 return "__Transmission aborted__", 5
 
-            file = task.result()
-            ret = await self.getInfo(file["id"], ["webViewLink"])
+            file_id = task.result()
+            ret = await self.getInfo(file_id, ["webViewLink"])
 
         self.copy_tasks.remove((ctx.msg.message_id, content["id"]))
 

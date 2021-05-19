@@ -1,4 +1,5 @@
 import asyncio
+import re
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -9,6 +10,7 @@ from typing import (
     Optional,
     Pattern,
     Sequence,
+    Tuple,
     Union,
 )
 
@@ -18,7 +20,10 @@ if TYPE_CHECKING:
     from .core import Bot
 
 CommandFunc = Union[Callable[..., Coroutine[Any, Any, None]],
-                    Callable[..., Coroutine[Any, Any, Optional[str]]],]
+                    Callable[..., Coroutine[Any, Any, Optional[
+                                            Union[str,
+                                                  Tuple[str, Union[int, float]
+                                                        ]]]]], ]
 Decorator = Callable[[CommandFunc], CommandFunc]
 
 
@@ -56,11 +61,11 @@ def alias(*aliases: str) -> Decorator:
     return alias_decorator
 
 
-def pattern(_pattern: Pattern[str]) -> Decorator:
+def pattern(_pattern: str) -> Decorator:
     """Sets regex pattern on a command function."""
 
     def pattern_decorator(func: CommandFunc) -> CommandFunc:
-        setattr(func, "_cmd_pattern", _pattern)
+        setattr(func, "_cmd_pattern", re.compile(_pattern))
         return func
 
     return pattern_decorator
@@ -101,11 +106,11 @@ class Context:
 
     input: Optional[Union[str, None]]
     args: Sequence[str]
-    matches: Union[List[Match], None]
+    matches: Optional[List[Match[str]]]
 
     def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
                  segments: Sequence[str], cmd_len: int,
-                 matches: Union[Match[str], None]) -> None:
+                 matches: Optional[List[Match[str]]]) -> None:
         self.bot = bot
         self.msg = msg
         self.segments = segments
@@ -138,7 +143,7 @@ class Context:
         redact: Optional[bool] = None,
         msg: Optional[pyrogram.types.Message] = None,
         reuse_response: bool = False,
-        delete_after: Optional[Union[int, float]] = None,
+        delete_after: Union[int, float] = 0,
         **kwargs: Any,
     ) -> pyrogram.types.Message:
 
@@ -154,7 +159,7 @@ class Context:
         )
         self.response_mode = mode
 
-        if delete_after is not None:
+        if delete_after != 0:
 
             async def delete() -> bool:
                 await asyncio.sleep(delete_after)

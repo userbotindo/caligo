@@ -33,7 +33,7 @@ class StatsModule(module.Module):
     db: AsyncIOMotorDatabase
     lock: asyncio.Lock
 
-    async def get(self, key: str) -> Dict[str, Any]:
+    async def get(self, key: str) -> Optional[Any]:
         collection = await self.db.find_one({"_id": self.name})
         if collection is not None:
             return collection.get(key)

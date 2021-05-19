@@ -20,7 +20,7 @@ from .. import __version__, command, listener, module, util
 class CoreModule(module.Module):
     name: ClassVar[str] = "Core"
 
-    cache: Dict[int, pyrogram.types.Message]
+    cache: Dict[int, int]
     db: AsyncIOMotorDatabase
 
     async def on_load(self):

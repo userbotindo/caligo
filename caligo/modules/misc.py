@@ -82,7 +82,7 @@ class Misc(module.Module):
 
         task = self.bot.loop.create_task(
             self.bot.client.send_document(ctx.msg.chat.id,
-                                          file_path,
+                                          str(file_path),
                                           force_document=True,
                                           progress=prog_func))
         self.task.add((ctx.msg.message_id, task))

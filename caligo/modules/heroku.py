@@ -12,7 +12,7 @@ class HerokuManager(module.Module):
     api_key: str
     app_name: str
 
-    apps: Dict[str, str]
+    apps: Dict[str, Any]
     account: Dict[str, Any]
     http: aiohttp.ClientSession
 

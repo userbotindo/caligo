@@ -43,11 +43,10 @@ class Aria2WebSocketServer:
     cancelled: Set[str]
     downloads: Dict[str, util.aria2.Download]
     lock: asyncio.Lock
-    uploads: Dict[str, Union[MediaFileUpload, Dict[str, Union[asyncio.Task,
-                                                              int]]]]
+    uploads: Dict[str, Any]
 
     index_link: str
-    invoker: pyrogram.types.Message
+    invoker: Optional[pyrogram.types.Message]
     stopping: bool
 
     _protocol: str
@@ -57,7 +56,6 @@ class Aria2WebSocketServer:
         self.drive = drive
 
         self.lock = asyncio.Lock()
-        self.log = Aria2WebSocketServer.log
 
         self.cancelled = set()
         self.downloads = {}
@@ -375,7 +373,7 @@ class Aria2WebSocketServer:
 
         return None, True
 
-    async def seedFile(self, file: util.aria2.Download) -> str:
+    async def seedFile(self, file: util.aria2.Download) -> Optional[str]:
         file_path = Path(str(file.dir / file.info_hash) + ".torrent")
         if not file_path.is_file():
             return

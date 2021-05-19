@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 import aiohttp
 from pyrogram.errors import UsernameInvalid, PeerIdInvalid
@@ -21,7 +21,7 @@ class DebugModule(module.Module):
 
     @command.desc("Send text")
     @command.usage("[text to send]")
-    async def cmd_echo(self, ctx: command.Context) -> str:
+    async def cmd_echo(self, ctx: command.Context) -> Optional[str]:
         return ctx.input
 
     @command.desc("Dump all the data of a message")
@@ -69,7 +69,7 @@ class DebugModule(module.Module):
 
     @command.desc("Get all contextually relevant IDs")
     @command.alias("user")
-    async def cmd_id(self, ctx: command.Context) -> str:
+    async def cmd_id(self, ctx: command.Context) -> None:
         lines = []
 
         if ctx.msg.chat.id:

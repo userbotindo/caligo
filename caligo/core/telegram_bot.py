@@ -13,7 +13,7 @@ from pyrogram.handlers import (
 from pyrogram.handlers.handler import Handler
 
 from ..custom_filter import chat_action
-from ..util import BotConfig, tg, time
+from ..util import BotConfig, config, tg, time
 from .base import Base
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class TelegramBot(Base):
     client: Client
-    getConfig: BotConfig
+    getConfig: config.BotConfig
     prefix: str
     user: pyrogram.types.User
     uid: int

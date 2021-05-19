@@ -4,7 +4,7 @@ import pickle
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, List, Optional, Set, Sized, Tuple, Union
 
 import aiofile
 import pyrogram
@@ -14,7 +14,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from motor.core import AgnosticCollection
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
 from .. import command, module, util
@@ -49,7 +49,7 @@ PATTERN = re.compile(r"(?<=/folders/)([\w-]+)|(?<=%2Ffolders%2F)([\w-]+)|"
                      r"(?<=id=)([\w-]+)|(?<=id%3D)([\w-]+)")
 
 
-def getIdFromUrl(url: str) -> str:
+def getIdFromUrl(url: Any) -> Any:
     try:
         return PATTERN.search(url)[0]
     except (TypeError, IndexError):
@@ -60,13 +60,13 @@ class GoogleDrive(module.Module):
     name: ClassVar[str] = "GoogleDrive"
     disabled: ClassVar[bool] = not util.BotConfig.mirror_enabled
 
-    configs: Dict[str, str]
-    creds: Credentials
-    db: AsyncIOMotorDatabase
+    configs: Dict[str, Any]
+    creds: Optional[Credentials]
+    db: AgnosticCollection
     service: Resource
 
     aria2: Any
-    cache: Dict[str, int]
+    cache: Dict[int, int]
     copy_tasks: Set[Tuple[int, str]]
     index_link: str
     parent_id: str
@@ -120,7 +120,7 @@ class GoogleDrive(module.Module):
     async def getAccessToken(self, message: pyrogram.types.Message) -> str:
         flow = InstalledAppFlow.from_client_config(
             self.configs, ["https://www.googleapis.com/auth/drive"],
-            redirect_uri=self.configs["installed"].get("redirect_uris")[0])
+            redirect_uri=self.configs["installed"]["redirect_uris"][0])
         auth_url, _ = flow.authorization_url(access_type="offline",
                                              prompt="consent")
 
@@ -132,7 +132,7 @@ class GoogleDrive(module.Module):
 
             try:
                 response = await conv.get_response()
-            except conv.Timeout:
+            except asyncio.TimeoutError:
                 await request.delete()
                 return "⚠️ <u>Timeout no token receive</u>"
 
@@ -186,7 +186,7 @@ class GoogleDrive(module.Module):
             await self.on_load()
 
     async def getInfo(self, identifier: str,
-                      fields: List[str]) -> Dict[str, Any]:
+                      fields: Iterable[str]) -> Dict[str, Any]:
         fields = ", ".join(fields)
 
         return await util.run_sync(self.service.files().get(
@@ -233,7 +233,7 @@ class GoogleDrive(module.Module):
     async def createFolder(self,
                            folderName: str,
                            folderId: Optional[str] = None) -> str:
-        folder_metadata = {
+        folder_metadata: Dict[str, Any] = {
             "name": folderName,
             "mimeType": "application/vnd.google-apps.folder"
         }
@@ -277,7 +277,7 @@ class GoogleDrive(module.Module):
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],
                          parent_id: Optional[str] = None) -> MediaFileUpload:
-        body = {"name": file.name, "mimeType": file.mime_type}
+        body: Dict[str, Any] = {"name": file.name, "mimeType": file.mime_type}
         if parent_id is not None:
             body["parents"] = [parent_id]
         elif parent_id is None and self.parent_id is not None:
@@ -331,6 +331,8 @@ class GoogleDrive(module.Module):
         elif msg.voice:
             date = datetime.fromtimestamp(msg.voice.date)
             file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.ogg"
+        else:
+            file_name = None
 
         def prog_func(current: int, total: int) -> None:
             nonlocal last_update_time
@@ -438,6 +440,7 @@ class GoogleDrive(module.Module):
         try:
             content = await self.getInfo(identifier, ["id", "name", "mimeType"])
         except HttpError as e:
+            content = None
             if "'location': 'fileId'" in str(e):
                 return "__Invalid input of id.__", 5
 
@@ -576,7 +579,7 @@ class GoogleDrive(module.Module):
         if ctx.input and not ctx.matches:
             return "__Invalid parameters of input.__", 5
 
-        options = {}
+        options: Dict[str, Any] = {}
         for match in ctx.matches:
             for index, option in enumerate(match.groups()):
                 if option is not None and match.group(index + 2) is not None:

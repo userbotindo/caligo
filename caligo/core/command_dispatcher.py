@@ -100,16 +100,12 @@ class CommandDispatcher(Base):
                     return
 
             cmd_len = len(self.prefix) + len(msg.segments[0]) + 1
-            matches = None
-            if cmd.pattern is not None:
-                if isinstance(cmd.pattern, str):
-                    cmd.pattern = re.compile(cmd.pattern)
-
-                if msg.reply_to_message:
-                    matches = list(
-                        cmd.pattern.finditer(msg.reply_to_message.text))
-                elif msg.text:
-                    matches = list(cmd.pattern.finditer(msg.text[cmd_len:]))
+            if cmd.pattern is not None and msg.reply_to_message:
+                matches = list(cmd.pattern.finditer(msg.reply_to_message.text))
+            elif cmd.pattern and msg.text:
+                matches = list(cmd.pattern.finditer(msg.text[cmd_len:]))
+            else:
+                matches = None
 
             ctx = command.Context(self, msg, msg.segments, cmd_len, matches)
 

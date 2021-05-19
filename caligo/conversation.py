@@ -1,6 +1,6 @@
 import asyncio
 import inspect
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import pyrogram
 from pyrogram.types import Chat, Message
@@ -11,22 +11,15 @@ if TYPE_CHECKING:
     from .core import Bot
 
 
-class Error(Exception):
-    pass
-
-
-class ConversationExist(Error):
+class ConversationExistError(Exception):
 
     def __init__(self, msg: Optional[str] = None):
         self.msg = msg
         super().__init__(self.msg)
 
 
-class ConversationTimeout(Error):
-    pass
-
-
 class Conversation:
+    _chat: Any
 
     def __init__(
         self,
@@ -35,13 +28,9 @@ class Conversation:
         timeout: int,
         max_messages: int
     ) -> None:
-        self.Exist = ConversationExist
-        self.Timeout = ConversationTimeout
-
         self.bot = bot
         self.client = self.bot.client
 
-        self._chat = None
         self._counter = 0
         self._input_chat = input_chat
         self._max_incoming = max_messages
@@ -65,7 +54,7 @@ class Conversation:
 
         return sent
 
-    async def send_file(self, document, **kwargs) -> Message:
+    async def send_file(self, document, **kwargs) -> Optional[Message]:
         doc = await self.client.send_document(self.chat.id, document, **kwargs)
 
         return doc
@@ -81,7 +70,7 @@ class Conversation:
 
         return response
 
-    async def mark_read(self, max_id: Optional[int] = 0) -> bool:
+    async def mark_read(self, max_id: int = 0) -> bool:
         return await self.bot.client.read_history(self.chat.id, max_id)
 
     async def _get_message(self, filters=None, **kwargs) -> Message:
@@ -93,10 +82,7 @@ class Conversation:
         before = util.time.usec()
         while True:
             after = before - util.time.usec()
-            try:
-                result = await asyncio.wait_for(fut.get(), timeout - after)
-            except asyncio.TimeoutError:
-                raise self.Timeout
+            result = await asyncio.wait_for(fut.get(), timeout - after)
 
             if filters is not None and callable(filters):
                 ready = filters(self.bot.client, result)

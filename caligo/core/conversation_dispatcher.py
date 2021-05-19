@@ -1,11 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Dict, Optional, Union
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Union
 
 import pyrogram
 from pyrogram.filters import Filter, create
 
-from ..conversation import Conversation
+from ..conversation import Conversation, ConversationExistError
 from .base import Base
 
 if TYPE_CHECKING:
@@ -34,13 +34,13 @@ class ConversationDispatcher(Base):
         self: "Bot",
         chat_id: Union[str, int],
         *,
-        timeout: Optional[int] = 7,
-        max_messages: Optional[int] = 7
-    ) -> None:
+        timeout: int = 7,
+        max_messages: int = 7
+    ) -> AsyncGenerator[Conversation, None]:
         conv = await Conversation.new(self, chat_id, timeout, max_messages)
         chat_name = conv.chat.title if conv.chat.title else conv.chat.first_name
         if conv.chat.id in self.CONVERSATION:
-            raise conv.Exist(f"Conversation with '{chat_name}' exist")
+            raise ConversationExistError(f"Conversation with '{chat_name}' exist")
 
         self.CONVERSATION[conv.chat.id] = asyncio.Queue(max_messages)
 

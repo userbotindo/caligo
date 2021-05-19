@@ -1,4 +1,4 @@
-from typing import Any, Callable, Pattern
+from typing import Any, Callable, Optional
 
 from pyrogram import filters
 from pyrogram.filters import Filter
@@ -17,7 +17,7 @@ def priority(_prio: int) -> Decorator:
     return prio_decorator
 
 
-def pattern(_pattern: Pattern[str]) -> Decorator:
+def pattern(_pattern: str) -> Decorator:
     """Sets regex filters on the given listener function."""
 
     def regex_decorator(func: ListenerFunc) -> ListenerFunc:
@@ -32,10 +32,10 @@ class Listener:
     func: ListenerFunc
     module: Any
     priority: int
-    regex: Filter
+    regex: Optional[Filter]
 
     def __init__(self, event: str, func: ListenerFunc, mod: Any,
-                 prio: int, regex: Filter) -> None:
+                 prio: int, regex: Optional[Filter]) -> None:
         self.event = event
         self.func = func
         self.module = mod

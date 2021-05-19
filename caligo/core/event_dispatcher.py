@@ -33,8 +33,8 @@ class EventDispatcher(Base):
         event: str,
         func: ListenerFunc,
         *,
-        priority: Optional[int] = 100,
-        regex: Filter = None
+        priority: int = 100,
+        regex: Optional[Filter] = None
     ) -> None:
         listener = Listener(event, func, mod, priority, regex)
 
@@ -97,6 +97,7 @@ class EventDispatcher(Base):
             return
 
         matches = None
+        index = None
         for lst in listeners:
             if lst.regex is not None:
                 for idx, arg in enumerate(args):
@@ -121,7 +122,7 @@ class EventDispatcher(Base):
         if not tasks:
             return
 
-        if matches:
+        if matches and index:
             args[index].matches = matches
         self.log.debug("Dispatching event '%s' with data %s", event, args)
         if wait:

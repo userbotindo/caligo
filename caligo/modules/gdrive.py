@@ -273,6 +273,7 @@ class GoogleDrive(module.Module):
 
                 yield self.bot.loop.create_task(file.progress(update=False),
                                                 name=gid)
+                await asyncio.sleep(0.5)
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],

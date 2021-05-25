@@ -70,7 +70,7 @@ tenacity = "^7.0.0"
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}
 mypy = "^0.812"
-pre-commit = "^2.12.1"
+pre-commit = "^2.13.0"
 yapf = "^0.31.0"
 
 [tool.poetry.scripts]

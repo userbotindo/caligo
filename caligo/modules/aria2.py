@@ -320,8 +320,8 @@ class Aria2WebSocketServer:
                     now - last_update_time).total_seconds() >= 5 and (progress
                                                                       != ""):
                 try:
-                    async with self.lock:
-                        if self.invoker is not None:
+                    if self.invoker is not None:
+                        async with self.lock:
                             await self.bot.respond(self.invoker, progress)
                 except pyrogram.errors.MessageNotModified:
                     pass

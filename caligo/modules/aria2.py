@@ -1,6 +1,7 @@
 import ast
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta
 from os.path import join
 from pathlib import Path
@@ -324,6 +325,14 @@ class Aria2WebSocketServer:
                             await self.bot.respond(self.invoker, progress)
                 except pyrogram.errors.MessageNotModified:
                     pass
+                except pyrogram.errors.FloodWait as err:
+                    try:
+                        wait_until = int(re.search(r"\d+", str(err)[20:])[0])
+                    except IndexError:
+                        pass
+                    else:
+                        self.log.info(f"Flood wait for '{wait_until} seconds'")
+                        await asyncio.sleep(wait_until)
                 finally:
                     last_update_time = now
 

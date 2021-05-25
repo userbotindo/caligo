@@ -8,12 +8,12 @@ from dotenv import load_dotenv
 
 class BotConfig:
 
-    def __init__(self) -> "BotConfig":
+    def __init__(self) -> None:
         if os.path.isfile("config.env"):
             load_dotenv("config.env")
 
         config = {
-            "api_id": int(os.environ.get("API_ID", 0)),
+            "api_id": os.environ.get("API_ID"),
             "api_hash": os.environ.get("API_HASH"),
             "bot_token": os.environ.get("BOT_TOKEN"),
             "container": os.environ.get("CONTAINER") == "True",
@@ -31,7 +31,9 @@ class BotConfig:
         }
 
         for key, value in config.items():
-            if value == "":
+            if value == "" and key == "api_id":
+                value = 0
+            elif value == "":
                 value = None
 
             setattr(self, key, value)

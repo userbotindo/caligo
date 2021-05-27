@@ -1,8 +1,7 @@
 import asyncio
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar, Optional
 
 import pyrogram
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from .. import command, module, util
 
@@ -30,7 +29,7 @@ def _calc_pd(stat: int, uptime: int) -> str:
 class StatsModule(module.Module):
     name: ClassVar[str] = "Stats"
 
-    db: AsyncIOMotorDatabase
+    db: Any
     lock: asyncio.Lock
 
     async def get(self, key: str) -> Optional[Any]:

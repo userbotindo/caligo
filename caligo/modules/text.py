@@ -29,7 +29,7 @@ class TextModule(module.Module):
         elif not text and not ctx.msg.reply_to_message:
             return "__Give me a text or reply to a message.__"
 
-        chars = list(text)
+        chars = [text]
         for idx, ch in enumerate(chars):
             ch = ch.upper() if random.choice((True, False)) else ch.lower()
             chars[idx] = ch

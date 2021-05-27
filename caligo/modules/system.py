@@ -6,13 +6,12 @@ import io
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Optional, Union, Tuple
+from typing import Any, ClassVar, Dict, Optional, Tuple
 
 import aiohttp
 import pyrogram
 import speedtest
 from meval import meval
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from .. import command, module, util
 
@@ -20,7 +19,7 @@ from .. import command, module, util
 class SystemModule(module.Module):
     name: ClassVar[str] = "System"
 
-    db: AsyncIOMotorDatabase
+    db: Any
     restart_pending: bool
 
     async def on_load(self):
@@ -270,7 +269,7 @@ Time: {el_str}"""
 
     async def on_start(self, time_us: int) -> None:  # skipcq: PYL-W0613
         # Update restart status message if applicable
-        data: Optional[Dict[Union[str, int]]
+        data: Optional[Dict[str, Dict[str, Any]]
                        ] = await self.db.find_one({"_id": self.name})
         if data is not None:
             restart = data.get("restart")
@@ -302,7 +301,7 @@ Time: {el_str}"""
             os.execv(sys.executable, (sys.executable, "-m", "caligo"))
             sys.exit()
 
-    async def run_workflows(self) -> None:
+    async def run_workflows(self) -> int:
         headers = {"accept": "application/vnd.github.v3+json"}
         payload = {"ref": "refs/heads/staging"}
 

@@ -1,11 +1,10 @@
 import asyncio
 import io
 from datetime import datetime
-from typing import ClassVar, Optional, Set, Tuple, Union
+from typing import Any, ClassVar, Optional, Tuple, Union
 
 import pyrogram
 from aiofile import AIOFile
-from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 from pyrogram.errors import StickersetInvalid
 from pyrogram.raw.functions.messages import GetStickerSet
 from pyrogram.raw.types import InputStickerSetShortName
@@ -25,8 +24,8 @@ class LengthMismatchError(Exception):
 class StickerModule(module.Module):
     name: ClassVar[str] = "Sticker"
 
-    db: AsyncIOMotorDatabase
-    kang_db: AsyncIOMotorCollection
+    db: Any
+    kang_db: Optional[Any]
 
     async def on_load(self):
         self.db = self.bot.get_db("stickers")
@@ -75,9 +74,8 @@ class StickerModule(module.Module):
 
                     # Wait for both the rate-limit and the bot's response
                     try:
-                        done: Set[asyncio.Future]
                         resp_task = self.bot.loop.create_task(reply_and_ack())
-                        done, _ = await asyncio.wait((resp_task, asyncio.sleep(0.25)))
+                        done, _ = await asyncio.wait((resp_task,))
                         # Raise exceptions encountered in coroutines
                         for fut in done:
                             fut.result()
@@ -145,9 +143,8 @@ class StickerModule(module.Module):
 
                     # Wait for both the rate-limit and the bot's response
                     try:
-                        done: Set[asyncio.Future]
                         resp_task = self.bot.loop.create_task(reply_and_ack())
-                        done, _ = await asyncio.wait((resp_task, asyncio.sleep(0.25)))
+                        done, _ = await asyncio.wait((resp_task,))
                         # Raise exceptions encountered in coroutines
                         for fut in done:
                             fut.result()

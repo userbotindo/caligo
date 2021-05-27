@@ -1,10 +1,9 @@
 import platform
 import uuid
 from collections import defaultdict
-from typing import ClassVar, Dict, List, MutableMapping
+from typing import Any, ClassVar, Dict, List, MutableMapping
 
 import pyrogram
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from pyrogram.types import (
     CallbackQuery,
     InlineQuery,
@@ -21,7 +20,7 @@ class CoreModule(module.Module):
     name: ClassVar[str] = "Core"
 
     cache: Dict[int, int]
-    db: AsyncIOMotorDatabase
+    db: Any
 
     async def on_load(self):
         self.cache = {}

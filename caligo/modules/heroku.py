@@ -1,5 +1,5 @@
 import math
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, AsyncIterator, ClassVar, Dict, Optional, Tuple
 
 import aiohttp
 
@@ -37,15 +37,14 @@ class HerokuManager(module.Module):
         )
         self.account = await self.get_account()
 
-        apps = await self.get_account_apps()
         self.apps = {}
-        for app in apps:
-            self.apps[app.get("name")] = app["id"]
+        async for app_name, app_id in self.get_account_apps():
+            self.apps[app_name] = app_id
 
     async def request(
         self, path: str,
         options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> Dict[Any, Any]:
         headers = {
             "User-Agent": self.useragent,
             "Authorization": f"Bearer {self.api_key}",
@@ -63,7 +62,7 @@ class HerokuManager(module.Module):
 
             return await resp.json()
 
-    async def get_account(self) -> Dict[str, Any]:
+    async def get_account(self) -> Dict[Any, Any]:
         path = self.uri + "/account"
         return await self.request(path)
 
@@ -75,9 +74,11 @@ class HerokuManager(module.Module):
 
         return await self.request(path, options)
 
-    async def get_account_apps(self) -> Dict[str, Any]:
+    async def get_account_apps(self) -> AsyncIterator[Tuple[str, int]]:
         path = self.uri + "/apps"
-        return await self.request(path)
+        apps = await self.request(path)
+        for app in apps:
+            yield app["name"], app["id"]
 
     @command.desc("Check your Free Dyno hours quota you've used this month.")
     @command.alias("dyno")

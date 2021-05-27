@@ -3,7 +3,7 @@ import urllib.parse
 from datetime import datetime, timedelta
 from itertools import zip_longest
 from pathlib import Path
-from typing import ClassVar, Optional, Set, Tuple, Union
+from typing import Any, ClassVar, Optional, Set, Tuple, Union
 
 from .. import command, module, util
 
@@ -103,8 +103,8 @@ class Misc(module.Module):
             return "__Pass GID or reply to message of task to abort transmission.__"
         if ctx.msg.reply_to_message and ctx.input:
             return "__Can't pass gid while replying to message.__"
-        aria2 = self.bot.modules.get("Aria2")
-        drive = self.bot.modules.get("GoogleDrive")
+        aria2: Any = self.bot.modules.get("Aria2")
+        drive: Any = self.bot.modules.get("GoogleDrive")
 
         if ctx.msg.reply_to_message:
             reply_msg = ctx.msg.reply_to_message

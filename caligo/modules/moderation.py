@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import ClassVar, List, Optional, Tuple, Union
+from typing import Any, ClassVar, List, Optional, Tuple, Union
 
 import pyrogram
 from pyrogram.errors import MessageDeleteForbidden
@@ -124,7 +124,7 @@ class ModerationModule(module.Module):
     @command.usage("[target chat ID/username/...?]", optional=True)
     async def cmd_prunemembers(self, ctx: command.Context) -> str:
         if ctx.input:
-            chat = await self.bot.client.get_chat(ctx.input)
+            chat: Any = await self.bot.client.get_chat(ctx.input)
             if chat.type == "private":
                 return f"`{ctx.input}` __references a user/bot, not a chat.__"
 

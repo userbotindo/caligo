@@ -10,7 +10,6 @@ from typing import (
     Optional,
     Pattern,
     Sequence,
-    Tuple,
     Union,
 )
 
@@ -20,10 +19,7 @@ if TYPE_CHECKING:
     from .core import Bot
 
 CommandFunc = Union[Callable[..., Coroutine[Any, Any, None]],
-                    Callable[..., Coroutine[Any, Any, Optional[
-                                            Union[str,
-                                                  Tuple[str, Union[int, float]
-                                                        ]]]]], ]
+                    Callable[..., Coroutine[Any, Any, Any]]]
 Decorator = Callable[[CommandFunc], CommandFunc]
 
 

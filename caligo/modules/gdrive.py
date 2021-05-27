@@ -4,7 +4,7 @@ import pickle
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, List, Optional, Set, Sized, Tuple, Union
+from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import aiofile
 import pyrogram
@@ -277,7 +277,7 @@ class GoogleDrive(module.Module):
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],
-                         parent_id: Optional[str] = None) -> MediaFileUpload:
+                         parent_id: Optional[str] = None) -> Union[MediaFileUpload, str]:
         body: Dict[str, Any] = {"name": file.name, "mimeType": file.mime_type}
         if parent_id is not None:
             body["parents"] = [parent_id]
@@ -412,7 +412,7 @@ class GoogleDrive(module.Module):
         await util.run_sync(self.service.files().delete(
                             fileId=identifier, supportsAllDrives=True).execute)
 
-        return f"__Deleted: {identifier}__"
+        return f"__Deleted:__ `{identifier}`"
 
     @command.desc("Copy public GoogleDrive folder/file into your own")
     @command.usage("[file id or folder id]")
@@ -601,9 +601,8 @@ class GoogleDrive(module.Module):
         if limit > 1000:
             return "__Can't use limit more than 1000.__", 5
         if filters is not None:
-            filters = ("mimeType = 'application/vnd.google-apps.folder'"
-                       if filters == "folder" else
-                       "mimeType != 'application/vnd.google-apps.folder'")
+            filters = (f"mimeType = '{FOLDER}'" if filters == "folder" else
+                       "mimeType != '{FOLDER}'")
 
         if all(x is not None for x in [parent, name, filters]):
             query = f"'{parent}' in parents and (name contains '{name}' and {filters})"

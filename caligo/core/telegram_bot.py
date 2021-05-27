@@ -1,6 +1,6 @@
 import asyncio
 import signal
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Type, Union
 
 import pyrogram
 from pyrogram import Client, filters
@@ -10,7 +10,7 @@ from pyrogram.handlers import (
     InlineQueryHandler,
     MessageHandler,
 )
-from pyrogram.handlers.handler import Handler
+from pyrogram.types import CallbackQuery, InlineQuery, Message
 
 from ..custom_filter import chat_action
 from ..util import BotConfig, config, tg, time
@@ -19,8 +19,13 @@ from .base import Base
 if TYPE_CHECKING:
     from .bot import Bot
 
+handler = Union[CallbackQueryHandler, DeletedMessagesHandler,
+                InlineQueryHandler, MessageHandler]
+update = Union[CallbackQuery, InlineQuery, Message]
+
 
 class TelegramBot(Base):
+    bot_client: Client
     client: Client
     getConfig: config.BotConfig
     prefix: str
@@ -65,7 +70,7 @@ class TelegramBot(Base):
             if not isinstance(bot_token, str):
                 raise TypeError("Bot token must be a string")
 
-            self.client.bot = Client(api_id=api_id,
+            self.bot_client = Client(api_id=api_id,
                                      api_hash=api_hash,
                                      bot_token=bot_token,
                                      session_name=":memory:")
@@ -103,7 +108,7 @@ class TelegramBot(Base):
 
         await self.client.start()
         if self.has_bot:
-            await self.client.bot.start()
+            await self.bot_client.start()
 
         user = await self.client.get_me()
         if not isinstance(user, pyrogram.types.User):
@@ -112,7 +117,7 @@ class TelegramBot(Base):
         self.uid = user.id
 
         if self.has_bot:
-            bot = await self.client.bot.get_me()
+            bot = await self.bot_client.get_me()
             if not isinstance(user, pyrogram.types.User):
                 raise TypeError("Missing full self bot user information")
             self.bot_user = bot
@@ -156,13 +161,13 @@ class TelegramBot(Base):
 
     def update_module_event(self: "Bot",
                             name: str,
-                            event_type: Handler,
+                            event_type: Type[handler],
                             flt: Optional[filters.Filter] = None,
                             group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
 
-                async def update_event(_, event) -> None:
+                async def update_event(_: Client, event: Type[update]) -> None:
                     await self.dispatch_event(name, event)
 
                 event_info = self.client.add_handler(  # skipcq: PYL-E1111
@@ -174,20 +179,20 @@ class TelegramBot(Base):
 
     def update_bot_module_event(self: "Bot",
                                 name: str,
-                                event_type: Handler,
+                                event_type: Type[handler],
                                 flt: Optional[filters.Filter] = None,
                                 group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
 
-                async def update_event(_, event) -> None:
+                async def update_event(_: Client, event: Type[update]) -> None:
                     await self.dispatch_event(name, event)
 
-                event_info = self.client.bot.add_handler(  # skipcq: PYL-E1111
+                event_info = self.bot_client.add_handler(  # skipcq: PYL-E1111
                     event_type(update_event, flt), group)
                 self._mevent_handlers[name] = event_info
         elif name in self._mevent_handlers:
-            self.client.bot.remove_handler(*self._mevent_handlers[name])
+            self.bot_client.remove_handler(*self._mevent_handlers[name])
             del self._mevent_handlers[name]
 
     def update_module_events(self: "Bot") -> None:
@@ -205,8 +210,8 @@ class TelegramBot(Base):
 
     @property
     def has_bot(self: "Bot") -> bool:
-        return hasattr(self.client, "bot") and isinstance(
-            self.client.bot, Client)
+        return hasattr(self, "bot_client") and isinstance(
+            self.bot_client, Client)
 
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"

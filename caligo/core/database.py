@@ -10,21 +10,21 @@ if TYPE_CHECKING:
 
 
 class DataBase(Base):
-    _db: AsyncIOMotorClient
     db: AsyncIOMotorDatabase
+    db_client: AsyncIOMotorClient
 
     def __init__(self: "Bot", **kwargs: Any):
         self._init_db()
 
-        self.db = self._db.get_database("caligo")
+        self.db = self.db_client.get_database("caligo")
 
         super().__init__(**kwargs)
 
     def _init_db(self) -> None:
-        self._db = AsyncIOMotorClient(self.getConfig["db_uri"], connect=False)
+        self.db_client = AsyncIOMotorClient(self.getConfig["db_uri"], connect=False)
 
     async def close_db(self) -> None:
-        self._db.close()
+        self.db_client.close()
 
     def get_db(self: "Bot", name: str) -> AgnosticCollection:
         return self.db.get_collection(name)

@@ -1,7 +1,7 @@
 import platform
 import uuid
 from collections import defaultdict
-from typing import Any, ClassVar, Dict, List, MutableMapping
+from typing import Any, ClassVar, Dict, List, MutableMapping, Optional
 
 import pyrogram
 from pyrogram.types import (
@@ -160,7 +160,7 @@ class CoreModule(module.Module):
 
     @command.desc("List the commands")
     @command.usage("[filter: command or module name?]", optional=True)
-    async def cmd_help(self, ctx: command.Context):
+    async def cmd_help(self, ctx: command.Context) -> Optional[str]:
         if self.bot.has_bot and not ctx.input:
             await ctx.msg.delete()
             response = await self.bot.client.get_inline_bot_results(

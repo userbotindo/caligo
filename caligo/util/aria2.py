@@ -1,11 +1,15 @@
+import re
 import socket
 from datetime import datetime, timedelta
 from mimetypes import guess_type
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+from urllib import parse
 
+import aiohttp
 from aioaria2 import Aria2WebsocketTrigger
 from async_property import async_property
+from bs4 import BeautifulSoup
 
 
 def get_free_port():
@@ -65,7 +69,7 @@ class File:
         return Path(self._data["path"])
 
     @property
-    def mime_type(self) -> str:
+    def mime_type(self) -> Optional[str]:
         return guess_type(self.path)[0]
 
     @property
@@ -85,11 +89,15 @@ class File:
         return self._data.get("selected") == "true"
 
     @property
-    def uris(self) -> Optional[List[str]]:
+    def uris(self) -> Optional[List[Dict[str, Any]]]:
         return self._data.get("uris")
 
 
 class Download:
+
+    _bittorrent: Optional[BitTorrent]
+    _files: List[File]
+    _name: str
 
     def __init__(self, client: Aria2WebsocketTrigger, data: Dict[str,
                                                                  Any]) -> None:
@@ -173,7 +181,7 @@ class Download:
         return int(self._data["totalLength"])
 
     @property
-    def completed_length(self) -> int:
+    def completed_length(self) -> float:
         return float(self._data["completedLength"])
 
     @property
@@ -185,21 +193,26 @@ class Download:
         return self._data.get("infoHash")
 
     @property
-    def num_seeders(self) -> int:
-        return int(self._data.get["numSeeders"])
+    def num_seeders(self) -> Optional[int]:
+        try:
+            return int(self._data["numSeeders"])
+        except ValueError:
+            return None
 
     @property
     def seeder(self) -> bool:
-        res = self._data.get("seeder")
-        return res if res is not None else False
+        return self._data["seeder"] == "true"
 
     @property
     def connections(self) -> int:
         return int(self._data["connections"])
 
     @property
-    def error_code(self) -> Optional[str]:
-        return self._data.get("errorCode")
+    def error_code(self) -> Optional[int]:
+        try:
+            return int(self._data["errorCode"])
+        except ValueError:
+            return None
 
     @property
     def error_message(self) -> Optional[str]:
@@ -222,7 +235,7 @@ class Download:
         return self.files[0].path
 
     @property
-    def mime_type(self) -> str:
+    def mime_type(self) -> Optional[str]:
         return self.files[0].mime_type
 
     @property
@@ -235,7 +248,7 @@ class Download:
     @property
     def bittorrent(self) -> Optional[BitTorrent]:
         if not self._bittorrent and "bittorrent" in self._data:
-            self._bittorrent = BitTorrent(self._data.get("bittorrent"))
+            self._bittorrent = BitTorrent(self._data["bittorrent"])
         return self._bittorrent
 
     @property
@@ -262,7 +275,7 @@ class Download:
             return 0.0
 
     @property
-    def eta_formatted(self) -> float:
+    def eta_formatted(self) -> timedelta:
         try:
             return timedelta(seconds=int(self.eta))
         except ZeroDivisionError:
@@ -301,3 +314,67 @@ class Download:
             return True
 
         return False
+
+
+class DirectLinks:
+
+    http: aiohttp.ClientSession
+
+    def __init__(self, http: aiohttp.ClientSession) -> None:
+        self.http = http
+
+    async def zippy(self, url: str) -> Optional[Tuple[str, str]]:
+        www = re.match(r"https://([\w\d]+).zippyshare", url).group(1)
+        async with self.http.get(url) as resp:
+            page = BeautifulSoup(await resp.text(), "lxml")
+            try:
+                js_script = page.find("div", {"class": "center"}
+                                      ).find_all("script")[1]
+            except IndexError:
+                js_script = page.find("div", {"class": "right"}
+                                      ).find_all("script")[0]
+
+            for tag in js_script:
+                if "document.getElementById('dlbutton')" in tag:
+                    url_raw = re.search(r'= (?P<url>\".+\" \+ '
+                                        r'(?P<math>\(.+\)) .+);', tag
+                                        ).group('url')
+                    math = re.search(r'= (?P<url>\".+\" \+ '
+                                     r'(?P<math>\(.+\)) .+);', tag
+                                     ).group('math')
+                    numbers = []
+                    expression = []
+                    for e in math.strip("()").split():
+                        try:
+                            numbers.append(int(e))
+                        except ValueError:
+                            expression.append(e)
+
+                    try:
+                        result = None
+                        if expression[0] == "%" and expression[2] == "%":
+                            first_result = numbers[0] % numbers[1]
+                            second_result = numbers[2] % numbers[3]
+                            if expression[1] == "+":
+                                result = str(first_result + second_result)
+                            elif expression[1] == "-":
+                                result = str(first_result - second_result)
+                            else:
+                                raise ValueError("Unexpected value to calculate")
+                        else:
+                            raise ValueError("Unexpected results of expression")
+                    except IndexError:
+                        raise ValueError("Unexpected results of array")
+                    else:
+                        url_raw = url_raw.replace(math, result)
+                        link = f"https://{www}.zippyshare.com"
+
+                    if result is None:
+                        raise ValueError("Unexpected response, result is empty")
+
+                    for i in url_raw.split("+"):
+                        link += i.strip().strip('"')
+
+                    return link, parse.unquote_plus(link.split("/")[-1])
+                else:
+                    raise ValueError("Unexpected response, can't find download url")

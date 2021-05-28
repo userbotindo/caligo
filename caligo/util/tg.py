@@ -62,17 +62,19 @@ def pretty_print_entity(entity) -> str:
 
 async def download_file(ctx: command.Context,
                         msg: pyrogram.types.Message,
-                        text: Optional[bool] = False) -> Path:
+                        text: Optional[bool] = False) -> Optional[Union[Path, str, bytes]]:
     """Downloads the file embedded in the given message."""
     download_path = ctx.bot.getConfig["download_path"]
 
     if text is True:
-        path = Path(await ctx.bot.client.download_media(msg))
-        async with aiofile.async_open(path, "r") as file:
-            text = await file.read()
+        path = await ctx.bot.client.download_media(msg)
+        if path:
+            path = Path(path)
+            async with aiofile.async_open(path, "r") as file:
+                content = await file.read()
 
-        path.unlink()
-        return text
+            path.unlink()
+            return content
 
     before = sec()
     last_update_time = None
@@ -90,6 +92,8 @@ async def download_file(ctx: command.Context,
     elif msg.voice:
         date = datetime.fromtimestamp(msg.voice.date)
         file_name = f"audio_{date.strftime('%Y-%m-%d_%H-%M-%S')}.ogg"
+    else:
+        file_name = "Unknown"
 
     loop = asyncio.get_event_loop()
 
@@ -126,8 +130,9 @@ async def download_file(ctx: command.Context,
 
             last_update_time = now
 
-    return Path(await ctx.bot.client.download_media(
-        msg, file_name=str(download_path) + "/" + file_name, progress=prog_func))
+    path = await ctx.bot.client.download_media(msg, file_name=str(download_path) + 
+                                               "/" + file_name, progress=prog_func)
+    return Path(path) if path is not None else path
 
 
 def truncate(text: str) -> str:
@@ -142,8 +147,8 @@ def truncate(text: str) -> str:
     return text
 
 
-async def send_as_document(content: Union[bytes,
-                                          str], msg: pyrogram.types.Message,
+async def send_as_document(content: str,
+                           msg: pyrogram.types.Message,
                            caption: str) -> pyrogram.types.Message:
     with io.BytesIO(str.encode(content)) as o:
         o.name = str(uuid.uuid4()).split("-")[0].upper() + ".TXT"
@@ -155,7 +160,7 @@ async def send_as_document(content: Union[bytes,
 
 async def get_text_input(
         ctx: command.Context,
-        input_arg: Optional[str]) -> Tuple[bool, Optional[Union[str, bytes]]]:
+        input_arg: Optional[str]) -> Tuple[bool, Optional[Union[str, Path, bytes]]]:
     """Returns input text from various sources in the given command context."""
 
     if ctx.msg.document:

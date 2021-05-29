@@ -593,7 +593,7 @@ class GoogleDrive(module.Module):
                                                      response.delete())
                                 index = int(response.text) - 1
                                 types = direct[index]["url"]
-                else:
+                elif direct is not None:
                     types = direct
 
         try:

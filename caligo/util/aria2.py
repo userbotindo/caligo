@@ -1,3 +1,4 @@
+import json
 import re
 import socket
 from datetime import datetime, timedelta
@@ -323,7 +324,52 @@ class DirectLinks:
     def __init__(self, http: aiohttp.ClientSession) -> None:
         self.http = http
 
-    async def zippy(self, url: str) -> Optional[Tuple[str, str]]:
+        self.useragent = (
+            "Mozilla/5.0 (Linux; Android 11; SM-G975F) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/90.0.4430.210 Mobile Safari/537.36"
+        )
+
+    async def __call__(self, mode: str, url: str) -> Any:
+        try:
+            func = getattr(self, mode)
+        except AttributeError:
+            return None
+
+        return await func(url)
+
+    async def androidfilehost(self, url: str) -> List[Dict[str, str]]:
+        fid = re.compile(r"\?fid=(\d+)").search(url).group(1)
+        uri = "https://androidfilehost.com/libs/otf/mirrors.otf.php"
+        async with self.http.get(url, headers={"user-agent": self.useragent},
+                                 allow_redirects=True) as r:
+            headers = {"origin": "https://androidfilehost.com",
+                       "accept-encoding": "gzip, deflate, br",
+                       "accept-language": "en-US,en;q=0.9",
+                       "user-agent": self.useragent,
+                       "content-type": "application/x-www-form-urlencoded; "
+                                       "charset=UTF-8",
+                       "x-mod-sbb-ctype": "xhr",
+                       "accept": "*/*",
+                       "referer": url,
+                       "authority": "androidfilehost.com",
+                       "x-requested-with": "XMLHttpRequest"}
+            data = {"submit": "submit", "action": "getdownloadmirrors",
+                    "fid": fid}
+
+            async with self.http.post(uri, headers=headers, data=data,
+                                      cookies=r.cookies) as resp:
+                result = json.loads(await resp.text())
+                return result["MIRRORS"]
+
+    async def mediafire(self, url: str) -> Optional[str]:
+        async with self.http.get(url) as resp:
+            page = BeautifulSoup(await resp.text(), "lxml")
+            info = page.find("a", {"aria-label": "Download file"})
+
+            return info["href"]
+
+    async def zippyshare(self, url: str) -> Optional[str]:
         www = re.match(r"https://([\w\d]+).zippyshare", url).group(1)
         async with self.http.get(url) as resp:
             page = BeautifulSoup(await resp.text(), "lxml")
@@ -375,6 +421,6 @@ class DirectLinks:
                     for i in url_raw.split("+"):
                         link += i.strip().strip('"')
 
-                    return link, parse.unquote_plus(link.split("/")[-1])
+                    return link
                 else:
                     raise ValueError("Unexpected response, can't find download url")

@@ -110,6 +110,21 @@ tests = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)"
 tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>=4.3.0)", "six"]
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.9.3"
+description = "Screen-scraping library"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+soupsieve = {version = ">1.2", markers = "python_version >= \"3.0\""}
+
+[package.extras]
+html5lib = ["html5lib"]
+lxml = ["lxml"]
+
+[[package]]
 name = "beauty-print"
 version = "0.6.1"
 description = "Beautifully print Python data"
@@ -267,7 +282,7 @@ grpcio-gcp = ["grpcio-gcp (>=0.2.2)"]
 
 [[package]]
 name = "google-api-python-client"
-version = "2.5.0"
+version = "2.6.0"
 description = "Google API Client Library for Python"
 category = "main"
 optional = false
@@ -667,6 +682,14 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "soupsieve"
+version = "2.2.1"
+description = "A modern CSS selector implementation for Beautiful Soup."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "speedtest-cli"
 version = "2.1.3"
 description = "Command line interface for testing internet bandwidth using speedtest.net"
@@ -782,7 +805,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "d5ff4b49f92fc4962ea5d3db153bb1e572e1e52e502177dbf54494d279d7644b"
+content-hash = "2dbabdcbff96a5b0e29f08d94a2a9a447bcb08598b9bbb333f16732aacd747c3"
 
 [metadata.files]
 aioaria2 = [
@@ -859,6 +882,11 @@ attrs = [
     {file = "attrs-20.3.0-py2.py3-none-any.whl", hash = "sha256:31b2eced602aa8423c2aea9c76a724617ed67cf9513173fd3a4f03e3a929c7e6"},
     {file = "attrs-20.3.0.tar.gz", hash = "sha256:832aa3cde19744e49938b91fea06d69ecb9e649c93ba974535d08ad92164f700"},
 ]
+beautifulsoup4 = [
+    {file = "beautifulsoup4-4.9.3-py2-none-any.whl", hash = "sha256:4c98143716ef1cb40bf7f39a8e3eec8f8b009509e74904ba3a7b315431577e35"},
+    {file = "beautifulsoup4-4.9.3-py3-none-any.whl", hash = "sha256:fff47e031e34ec82bf17e00da8f592fe7de69aeea38be00523c04623c04fb666"},
+    {file = "beautifulsoup4-4.9.3.tar.gz", hash = "sha256:84729e322ad1d5b4d25f805bfa05b902dd96450f43842c4e99067d5e1369eb25"},
+]
 beauty-print = [
     {file = "beauty_print-0.6.1-py3-none-any.whl", hash = "sha256:d2e18700fb12821a093f2bbfc86c88e32c1442a022a7acd8fbe6ee4ea41a133d"},
 ]
@@ -927,8 +955,8 @@ google-api-core = [
     {file = "google_api_core-1.26.3-py2.py3-none-any.whl", hash = "sha256:099762d4b4018cd536bcf85136bf337957da438807572db52f21dc61251be089"},
 ]
 google-api-python-client = [
-    {file = "google-api-python-client-2.5.0.tar.gz", hash = "sha256:656003c47cdcd1552238ed1265e95a2d14eea5e40a2a44e622880587664b3dd9"},
-    {file = "google_api_python_client-2.5.0-py2.py3-none-any.whl", hash = "sha256:1b8baad33d467dc6c50eed9305bffa3b592919aa895b0c2e8f5654ff0c27f0a1"},
+    {file = "google-api-python-client-2.6.0.tar.gz", hash = "sha256:6a87f324334247bf7ba24406da586424b09e715d04336fb7cf45a402b80d38e8"},
+    {file = "google_api_python_client-2.6.0-py2.py3-none-any.whl", hash = "sha256:707b44fb6a0cedf84aa4e10c1e34c4361acc861c4096b22e433cacc6da1d90de"},
 ]
 google-auth = [
     {file = "google-auth-1.28.0.tar.gz", hash = "sha256:9bd436d19ab047001a1340720d2b629eb96dd503258c524921ec2af3ee88a80e"},
@@ -1082,6 +1110,7 @@ pillow = [
     {file = "Pillow-8.2.0-pp37-pypy37_pp73-manylinux2010_i686.whl", hash = "sha256:aac00e4bc94d1b7813fe882c28990c1bc2f9d0e1aa765a5f2b516e8a6a16a9e4"},
     {file = "Pillow-8.2.0-pp37-pypy37_pp73-manylinux2010_x86_64.whl", hash = "sha256:22fd0f42ad15dfdde6c581347eaa4adb9a6fc4b865f90b23378aa7914895e120"},
     {file = "Pillow-8.2.0-pp37-pypy37_pp73-win32.whl", hash = "sha256:e98eca29a05913e82177b3ba3d198b1728e164869c613d76d0de4bde6768a50e"},
+    {file = "Pillow-8.2.0-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:8b56553c0345ad6dcb2e9b433ae47d67f95fc23fe28a0bde15a120f25257e291"},
     {file = "Pillow-8.2.0.tar.gz", hash = "sha256:a787ab10d7bb5494e5f76536ac460741788f1fbce851068d73a87ca7c35fc3e1"},
 ]
 pre-commit = [
@@ -1281,6 +1310,10 @@ six = [
 smmap = [
     {file = "smmap-4.0.0-py2.py3-none-any.whl", hash = "sha256:a9a7479e4c572e2e775c404dcd3080c8dc49f39918c2cf74913d30c4c478e3c2"},
     {file = "smmap-4.0.0.tar.gz", hash = "sha256:7e65386bd122d45405ddf795637b7f7d2b532e7e401d46bbe3fb49b9986d5182"},
+]
+soupsieve = [
+    {file = "soupsieve-2.2.1-py3-none-any.whl", hash = "sha256:c2c1c2d44f158cdbddab7824a9af8c4f83c76b1e23e049479aa432feb6c4c23b"},
+    {file = "soupsieve-2.2.1.tar.gz", hash = "sha256:052774848f448cf19c7e959adf5566904d525f33a3f8b6ba6f6f8f26ec7de0cc"},
 ]
 speedtest-cli = [
     {file = "speedtest-cli-2.1.3.tar.gz", hash = "sha256:5e2773233cedb5fa3d8120eb7f97bcc4974b5221b254d33ff16e2f1d413d90f0"},

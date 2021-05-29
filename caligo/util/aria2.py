@@ -422,5 +422,5 @@ class DirectLinks:
                         link += i.strip().strip('"')
 
                     return link
-                else:
-                    raise ValueError("Unexpected response, can't find download url")
+
+                raise ValueError("Unexpected response, can't find download url")

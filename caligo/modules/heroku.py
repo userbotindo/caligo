@@ -33,7 +33,7 @@ class HerokuManager(module.Module):
         self.useragent = (
             "Mozilla/5.0 (Linux; Android 11; SM-G975F) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/89.0.4389.72 Mobile Safari/537.36"
+            "Chrome/90.0.4430.210 Mobile Safari/537.36"
         )
         self.account = await self.get_account()
 

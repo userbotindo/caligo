@@ -66,17 +66,18 @@ class Conversation:
 
     async def get_reply(self, **kwargs) -> Message:
         filters = pyrogram.filters.reply
-        response = await self._get_message(filters, **kwargs)
+        response = await self._get_message(filters=filters, **kwargs)
 
         return response
 
     async def mark_read(self, max_id: int = 0) -> bool:
         return await self.bot.client.read_history(self.chat.id, max_id)
 
-    async def _get_message(self, filters=None, **kwargs) -> Message:
+    async def _get_message(self, **kwargs) -> Message:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages")
 
+        filters = kwargs.get("filters")
         fut = self.bot.CONVERSATION[self.chat.id]
         timeout = kwargs.get("timeout") or self._timeout
         before = util.time.usec()

@@ -22,10 +22,8 @@ class ConversationDispatcher(Base):
 
     def conversation_predicate(self: "Bot") -> Filter:
         async def func(_, __, conv: pyrogram.types.Message):
-            return bool(
-                self.CONVERSATION and conv.chat and
-                conv.chat.id in self.CONVERSATION and not conv.outgoing
-            )
+            return bool(self.CONVERSATION and conv.chat and
+                        conv.chat.id in self.CONVERSATION)
 
         return create(func)
 

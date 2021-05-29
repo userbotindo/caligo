@@ -66,6 +66,7 @@ aiofile = "^3.5.0"
 Pillow = "^8.2.0"
 async-property = "^0.2.1"
 tenacity = "^7.0.0"
+beautifulsoup4 = "^4.9.3"
 
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}

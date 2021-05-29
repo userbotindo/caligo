@@ -46,6 +46,8 @@ MIME_TYPE = {
 PATTERN = re.compile(r"(?<=/folders/)([\w-]+)|(?<=%2Ffolders%2F)([\w-]+)|"
                      r"(?<=/file/d/)([\w-]+)|(?<=%2Ffile%2Fd%2F)([\w-]+)|"
                      r"(?<=id=)([\w-]+)|(?<=id%3D)([\w-]+)")
+DOMAIN = re.compile(r"https?:\/\/(?:www\.|:?www\d+\.|(?!www))"
+                    r"([a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9])\.[^\s]{2,}")
 
 
 def getIdFromUrl(url: Any) -> Any:
@@ -70,6 +72,8 @@ class GoogleDrive(module.Module):
     index_link: str
     parent_id: str
     task: Set[Tuple[int, asyncio.Task]]
+
+    getDirectLink: util.aria2.DirectLinks
 
     async def on_load(self) -> None:
         self.creds = None
@@ -98,6 +102,9 @@ class GoogleDrive(module.Module):
                                                "v3",
                                                credentials=self.creds,
                                                cache_discovery=False)
+
+    async def on_start(self, _: int) -> None:
+        self.getDirectLink = util.aria2.DirectLinks(self.bot.http)
 
     @command.desc("Check your GoogleDrive credentials")
     @command.alias("gdauth")
@@ -556,6 +563,38 @@ class GoogleDrive(module.Module):
                 return "__Unsupported types of download.__"
         else:
             types = ctx.input
+
+        if isinstance(types, str):
+            match = DOMAIN.match(types)
+            if match:
+                await ctx.respond("Generating direct link...")
+
+                direct = await self.getDirectLink(match.group(1), types)
+                if direct is not None and isinstance(direct, list):
+                    if len(direct) == 1:
+                        types = direct[0]["url"]
+                    elif len(direct) > 1:
+                        text = "Multiple links found, choose one of the following:\n\n"
+                        for index, mirror in enumerate(direct):
+                            text += f"`{index + 1}`. {mirror['name']}\n"
+                        text += "\nSend only the number here."
+                        async with self.bot.conversation(ctx.msg.chat.id,
+                                                         timeout=60) as conv:
+                            request = await conv.send_message(text)
+
+                            try:
+                                response = await conv.get_response(
+                                    filters=pyrogram.filters.me)
+                            except asyncio.TimeoutError:
+                                await request.delete()
+                                types = direct[0]["url"]
+                            else:
+                                await asyncio.gather(request.delete(),
+                                                     response.delete())
+                                index = int(response.text) - 1
+                                types = direct[index]["url"]
+                else:
+                    types = direct
 
         try:
             ret = await self.aria2.addDownload(types, ctx.msg)

@@ -11,7 +11,7 @@ import pyrogram
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build, Resource
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
@@ -64,7 +64,7 @@ class GoogleDrive(module.Module):
     configs: Dict[str, Any]
     creds: Optional[Credentials]
     db: Any
-    service: Any
+    service: Resource
 
     aria2: Any
     cache: Dict[int, int]
@@ -270,12 +270,9 @@ class GoogleDrive(module.Module):
                     yield task
             elif content.is_file():
                 file = util.File(content)
-                files = await self.uploadFile(file, parent_id)
-                if isinstance(files, str):  # Skip because file size is 0
+                content = await self.uploadFile(file, parent_id, msg)
+                if isinstance(content, str):  # Skip because file size is 0
                     continue
-
-                file.content, file.start_time = files, util.time.sec()
-                file.invoker = msg
 
                 yield self.bot.loop.create_task(file.progress(update=False),
                                                 name=gid)
@@ -283,7 +280,9 @@ class GoogleDrive(module.Module):
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],
-                         parent_id: Optional[str] = None) -> Union[MediaFileUpload, str]:
+                         parent_id: Optional[str] = None,
+                         msg: Optional[pyrogram.types.Message] = None
+                         ) -> Union[MediaFileUpload, str]:
         body: Dict[str, Any] = {"name": file.name, "mimeType": file.mime_type}
         if parent_id is not None:
             body["parents"] = [parent_id]
@@ -295,26 +294,32 @@ class GoogleDrive(module.Module):
                                          mimetype=file.mime_type,
                                          resumable=True,
                                          chunksize=50 * 1024 * 1024)
-            files = await util.run_sync(self.service.files().create,
-                                        body=body,
-                                        media_body=media_body,
-                                        fields="id, size, webContentLink",
-                                        supportsAllDrives=True)
+            content = await util.run_sync(self.service.files().create,
+                                          body=body,
+                                          media_body=media_body,
+                                          fields="id, size, webContentLink",
+                                          supportsAllDrives=True)
         else:
             media_body = MediaFileUpload(file.path, mimetype=file.mime_type)
-            files = await util.run_sync(self.service.files().create(
+            content = await util.run_sync(self.service.files().create(
                 body=body,
                 media_body=media_body,
                 fields="id, size, webContentLink",
                 supportsAllDrives=True).execute)
 
-            return files.get("id")
+            return content.get("id")
 
-        if not isinstance(file, util.File):
-            files.gid, files.name = file.gid, file.name
-            files.start_time = util.time.sec()
+        if isinstance(file, util.aria2.Download):
+            content.gid, content.name, content.start_time = (file.gid, file.name,
+                                                             util.time.sec())
+        elif isinstance(file, util.File):
+            file.content, file.start_time, file.invoker = (content,
+                                                           util.time.sec(),
+                                                           msg)
+            if self.index_link is not None:
+                file.index_link = self.index_link
 
-        return files
+        return content
 
     async def downloadFile(self, ctx: command.Context,
                            msg: pyrogram.types.Message) -> Optional[Path]:
@@ -406,10 +411,8 @@ class GoogleDrive(module.Module):
     @command.usage("[file id or folder id]")
     @command.alias("gdrm", "gddel", "gddelete")
     async def cmd_gdremove(self, ctx: command.Context, *,
-                           identifier: Optional[str] = None) -> Union[str,
-                                                                      Tuple[str,
-                                                                            int]
-                                                                      ]:
+                           identifier: Optional[str] = None
+                           ) -> Union[str, Tuple[str, int]]:
         if not ctx.input and not identifier:
             return "__Pass the id of content to delete it__", 5
         if ctx.input and not identifier:
@@ -541,11 +544,7 @@ class GoogleDrive(module.Module):
                         types = base64.b64encode(await afp.read())
                 else:
                     file = util.File(path)
-                    files = await self.uploadFile(file)
-                    file.content, file.invoker = files, ctx.msg
-                    file.start_time = util.time.sec()
-                    if self.index_link is not None:
-                        file.index_link = self.index_link
+                    await self.uploadFile(file, msg=ctx.msg)
 
                     task = self.bot.loop.create_task(file.progress())
                     self.task.add((ctx.msg.message_id, task))
@@ -622,12 +621,14 @@ class GoogleDrive(module.Module):
         for match in ctx.matches:
             for index, option in enumerate(match.groups()):
                 if option is not None and match.group(index + 2) is not None:
-                    if option in ("limit", "filter"):
-                        options[option] = match.group(index + 2)
-                    else:
-                        val = match.group(index + 2)
-                        options[option] = val.removesuffix(val[0]).removeprefix(
-                            val[0])
+                    match = match.group(index + 2)
+                    options[option] = match
+
+                    # Remove quote/double quote and override
+                    if option not in ("limit", "filter"):
+                        options[option] = match.removesuffix(
+                            match[0]).removeprefix(match[0])
+
                     break
 
         await ctx.respond("Collecting...")

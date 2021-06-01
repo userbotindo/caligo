@@ -342,6 +342,7 @@ class Aria2WebSocketServer:
             self, file: MediaFileUpload) -> Tuple[Union[str, None], bool]:
         time = util.time.format_duration_td
         human = util.misc.human_readable_bytes
+        progress = None
 
         status, response = await util.run_sync(file.next_chunk, num_retries=5)
         if status:
@@ -363,7 +364,7 @@ class Aria2WebSocketServer:
                 f"__{human(uploaded)} of {human(file_size)} @ "
                 f"{human(speed, postfix='/s')}\neta - {time(eta)}__\n\n")
 
-        if response is None:
+        if response is None and progress is not None:
             return progress, False
 
         file_size = response.get("size")
@@ -383,7 +384,7 @@ class Aria2WebSocketServer:
         return None, True
 
     async def seedFile(self, file: util.aria2.Download) -> Optional[str]:
-        file_path = Path(str(file.dir / file.info_hash) + ".torrent")
+        file_path = file.dir / (file.info_hash + ".torrent")
         if not file_path.is_file():
             return
 
@@ -470,10 +471,10 @@ class Aria2(module.Module):
             self._ws.invoker = msg
         return None
 
-    async def pauseDownload(self, gid: str) -> str:
+    async def pauseDownload(self, gid: str) -> Dict[str, Any]:
         return await self.client.pause(gid)
 
-    async def removeDownload(self, gid: str) -> str:
+    async def removeDownload(self, gid: str) -> Dict[str, Any]:
         return await self.client.remove(gid)
 
     async def cancelMirror(self, gid: str) -> Optional[str]:

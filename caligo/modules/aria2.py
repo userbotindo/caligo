@@ -299,12 +299,15 @@ class Aria2WebSocketServer:
         while not self.stopping:
             for gid in self.cancelled.copy():
                 async with self.lock:
-                    file = self.downloads[gid]
+                    file = None
                     if gid in self.downloads:
+                        file = self.downloads[gid]
                         del self.downloads[gid]
-                    if file.is_file and gid in self.uploads:
+                    if (file is not None and file.is_file and
+                            gid in self.uploads):
                         del self.uploads[gid]
-                    elif file.is_dir and gid in self.uploads:
+                    elif (file is not None and file.is_dir and
+                            gid in self.uploads):
                         for task in asyncio.all_tasks():
                             if task.get_name() == gid:
                                 task.cancel()

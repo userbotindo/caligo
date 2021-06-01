@@ -641,7 +641,7 @@ class GoogleDrive(module.Module):
             return "__Can't use limit more than 1000.__", 5
         if filters is not None:
             filters = (f"mimeType = '{FOLDER}'" if filters == "folder" else
-                       "mimeType != '{FOLDER}'")
+                       f"mimeType != '{FOLDER}'")
 
         if all(x is not None for x in [parent, name, filters]):
             query = f"'{parent}' in parents and (name contains '{name}' and {filters})"

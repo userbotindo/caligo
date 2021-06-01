@@ -25,3 +25,12 @@ jobs:
         
       - name: Release image to Heroku
         run: heroku container:release $IMAGE_NAME -a $HEROKU_APP
+
+      - name: Check ENV
+        run: |
+          API_KEY="$(heroku config:get HEROKU_API_KEY -a ${HEROKU_APP})"
+          APP_NAME="$(heroku config:get HEROKU_APP -a ${HEROKU_APP})"
+          if [[ -z "${API_KEY}" && -z "${APP_NAME}" ]]; then
+              heroku config:set HEROKU_API_KEY="${HEROKU_API_KEY}" \
+              HEROKU_APP="${HEROKU_APP}"
+          fi

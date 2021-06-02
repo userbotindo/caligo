@@ -83,7 +83,7 @@ class TelegramBot(Base):
         db = self.get_db("core")
         try:
             self.prefix = (await db.find_one({"_id": "Core"}))["prefix"]
-        except TypeError:
+        except (TypeError, KeyError):
             self.prefix = "."  # Default is '.'-dot you can change later
 
             await db.find_one_and_update({"_id": "Core"},

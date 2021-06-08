@@ -70,7 +70,7 @@ beautifulsoup4 = "^4.9.3"
 
 [tool.poetry.dev-dependencies]
 isort = {version = "^5.7.0", extras = ["pyproject"]}
-mypy = "^0.812"
+mypy = "^0.900"
 pre-commit = "^2.13.0"
 yapf = "^0.31.0"
 

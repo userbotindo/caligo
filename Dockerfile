@@ -68,7 +68,8 @@ RUN apk add --no-cache \
         sqlite \
         libxml2 \
         libssh2 \
-        ca-certificates
+        ca-certificates \
+        ffmpeg
 
 # Create bot user
 RUN adduser -D caligo

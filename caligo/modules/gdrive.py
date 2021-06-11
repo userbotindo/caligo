@@ -617,6 +617,8 @@ class GoogleDrive(module.Module):
         if ctx.input and not ctx.matches:
             return "__Invalid parameters of input.__", 5
 
+        await ctx.respond("Collecting...")
+
         options: Dict[str, Any] = {}
         for match in ctx.matches:
             for index, option in enumerate(match.groups()):
@@ -631,17 +633,20 @@ class GoogleDrive(module.Module):
 
                     break
 
-        await ctx.respond("Collecting...")
-
-        filters = options.get("filter")
-        limit = int(options.get("limit", 15))
         name = options.get("name")
         parent = getIdFromUrl(options.get("parent"))
+
+        limit = int(options.get("limit", 15))
         if limit > 1000:
             return "__Can't use limit more than 1000.__", 5
-        if filters is not None:
-            filters = (f"mimeType = '{FOLDER}'" if filters == "folder" else
-                       f"mimeType != '{FOLDER}'")
+
+        filters = options.get("filter")
+        if filters is not None and filters == "folder":
+            filters = f"mimeType = '{FOLDER}'"
+        elif filters is not None and filters == "file":
+            filters = f"mimeType != '{FOLDER}'"
+        else:
+            filters = None
 
         if all(x is not None for x in [parent, name, filters]):
             query = f"'{parent}' in parents and (name contains '{name}' and {filters})"

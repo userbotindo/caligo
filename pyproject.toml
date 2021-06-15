@@ -64,7 +64,6 @@ google-auth-oauthlib = "^0.4.4"
 emoji = "^1.2.0"
 aiofile = "^3.5.0"
 Pillow = "^8.2.0"
-async-property = "^0.2.1"
 tenacity = "^7.0.0"
 beautifulsoup4 = "^4.9.3"
 

@@ -1,8 +1,8 @@
+import asyncio
 from datetime import datetime
 from typing import Any, ClassVar, List, Optional, Tuple, Union
 
 import pyrogram
-from pyrogram.errors import MessageDeleteForbidden
 
 from .. import command, module, util
 
@@ -229,8 +229,6 @@ class ModerationModule(module.Module):
         if not ctx.msg.reply_to_message:
             return "__Reply to a message.__"
 
-        try:
-            await ctx.msg.reply_to_message.delete(revoke=True)
-        except MessageDeleteForbidden:
-            pass
-        await ctx.msg.delete()
+        await asyncio.gather(ctx.msg.reply_to_message.delete(revoke=True),
+                             ctx.msg.delete(),
+                             return_exceptions=True)

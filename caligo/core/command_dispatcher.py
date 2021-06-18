@@ -86,6 +86,10 @@ class CommandDispatcher(Base):
                          msg: pyrogram.types.Message) -> None:
         cmd = None
 
+        # Don't process via inline
+        if msg.via_bot:
+            return
+
         try:
             try:
                 cmd = self.commands[msg.segments[0]]

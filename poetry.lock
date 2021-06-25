@@ -1,6 +1,6 @@
 [[package]]
 name = "aioaria2"
-version = "1.3.2"
+version = "1.3.3"
 description = "Support Aria2 rpc client and manage server with async/await"
 category = "main"
 optional = false
@@ -828,12 +828,12 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "493ce452eda20d2c2530d30400b34fa80685d3be75ed1ad94824e9ce71fe059f"
+content-hash = "3658b95e4990ef1216e123509dfd907c95af0b72ab3e019eacafd02874dc0ccd"
 
 [metadata.files]
 aioaria2 = [
-    {file = "aioaria2-1.3.2-py3-none-any.whl", hash = "sha256:ee2787751f8ce395a052ef33fdf61cb36bad962d361974b341ac8da6a74c7a4a"},
-    {file = "aioaria2-1.3.2.tar.gz", hash = "sha256:669e42e64bab764ae58844e7e44f057379e1c56f1fb2389664131dd19b7c6157"},
+    {file = "aioaria2-1.3.3-py3-none-any.whl", hash = "sha256:efc2aa55bb5a38d24d2885b919779abe5c6d909a0b3c5765350cd49ff4335f2c"},
+    {file = "aioaria2-1.3.3.tar.gz", hash = "sha256:079caa60205a8d524711db757f103bfd0e01df8b8937e35f116c53467af9c8be"},
 ]
 aiofile = [
     {file = "aiofile-3.5.0-py3-none-any.whl", hash = "sha256:5e7287a33b498bfa418aac1caa0be7b2ad32ec49680ec22f537335d95002de0a"},

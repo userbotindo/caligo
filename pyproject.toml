@@ -65,7 +65,7 @@ aiofile = "^3.5.0"
 aiopath = "<0.6.0"
 beautifulsoup4 = "^4.9.3"
 emoji = "^1.2.0"
-Pillow = "^8.2.0"
+Pillow = "^8.3.0"
 tenacity = "^7.0.0"
 
 [tool.poetry.dev-dependencies]

@@ -54,15 +54,15 @@ speedups = ["aiodns", "brotlipy", "cchardet"]
 
 [[package]]
 name = "aiopath"
-version = "0.5.7"
+version = "0.5.11"
 description = "📁 Async pathlib for Python"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
-aiofile = "3.5.0"
-anyio = "3.1.0"
+aiofile = ">=3.5.0,<4"
+anyio = ">=3.2.0,<4"
 typing-extensions = {version = ">=3.10.0.0", markers = "python_version < \"3.10\""}
 
 [[package]]
@@ -78,7 +78,7 @@ dev = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "anyio"
-version = "3.1.0"
+version = "3.2.1"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
 category = "main"
 optional = false
@@ -883,16 +883,16 @@ aiohttp = [
     {file = "aiohttp-3.7.4.post0.tar.gz", hash = "sha256:493d3299ebe5f5a7c66b9819eacdcfbbaaf1a8e84911ddffcdc48888497afecf"},
 ]
 aiopath = [
-    {file = "aiopath-0.5.7-py2.py3-none-any.whl", hash = "sha256:bfdba4c761719894c1276c499af48109e7acff535778a0cda92c785f079e4526"},
-    {file = "aiopath-0.5.7.tar.gz", hash = "sha256:0e13efd2a4abd25d55fcb1d6db7b3bc691a57126be1b25feab2e06d7453aa53e"},
+    {file = "aiopath-0.5.11-py2.py3-none-any.whl", hash = "sha256:ad4219be82d087636350665b2186cf08f927fc86aca9e9aed10fc0a319ecd446"},
+    {file = "aiopath-0.5.11.tar.gz", hash = "sha256:e61bcb2e1eda69d112adae7552074e10cd98ca166e510a6c3f3559d062117aa1"},
 ]
 aiorun = [
     {file = "aiorun-2020.12.1-py3-none-any.whl", hash = "sha256:7ca5f8f908585e6e4e6070c04abd0632a110432ddcd4809ad88724dd59aa91ba"},
     {file = "aiorun-2020.12.1.tar.gz", hash = "sha256:88435f37dada709c79ab484f723297fd9c53fde154edfcbc7738988cdec9fd1b"},
 ]
 anyio = [
-    {file = "anyio-3.1.0-py3-none-any.whl", hash = "sha256:5e335cef65fbd1a422bbfbb4722e8e9a9fadbd8c06d5afe9cd614d12023f6e5a"},
-    {file = "anyio-3.1.0.tar.gz", hash = "sha256:43e20711a9d003d858d694c12356dc44ab82c03ccc5290313c3392fa349dad0e"},
+    {file = "anyio-3.2.1-py3-none-any.whl", hash = "sha256:442678a3c7e1cdcdbc37dcfe4527aa851b1b0c9162653b516e9f509821691d50"},
+    {file = "anyio-3.2.1.tar.gz", hash = "sha256:07968db9fa7c1ca5435a133dc62f988d84ef78e1d9b22814a59d1c62618afbc5"},
 ]
 appdirs = [
     {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},

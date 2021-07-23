@@ -241,7 +241,7 @@ trio = ["trio (>=0.14.0)", "sniffio (>=1.1)"]
 
 [[package]]
 name = "emoji"
-version = "1.2.0"
+version = "1.4.1"
 description = "Emoji for Python"
 category = "main"
 optional = false
@@ -825,7 +825,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "e87f1d487b966d58c14145cf62ef53b5b9a5903dcea81013329394800fc5df0a"
+content-hash = "ed52252da13c9f6b84f10a615f9cc0348b89267b54ed2a8e8e6b9bb78ebfde05"
 
 [metadata.files]
 aioaria2 = [
@@ -958,8 +958,7 @@ dnspython = [
     {file = "dnspython-2.1.0.zip", hash = "sha256:e4a87f0b573201a0f3727fa18a516b055fd1107e0e5477cded4a2de497df1dd4"},
 ]
 emoji = [
-    {file = "emoji-1.2.0-py3-none-any.whl", hash = "sha256:6b19b65da8d6f30551eead1705539cc0eadcd9e33a6ecbc421a29b87f96287eb"},
-    {file = "emoji-1.2.0.tar.gz", hash = "sha256:496f432058567985838c13d67dde84ca081614a8286c0b9cdc7d63dfa89d51a3"},
+    {file = "emoji-1.4.1.tar.gz", hash = "sha256:6b539615c0b31b4274e10db949672c9cd1e6d3d8eb835ef421d11db3f46066d8"},
 ]
 filelock = [
     {file = "filelock-3.0.12-py3-none-any.whl", hash = "sha256:929b7d63ec5b7d6b71b0fa5ac14e030b3f70b75747cef1b10da9b879fef15836"},

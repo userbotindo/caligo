@@ -730,7 +730,7 @@ python-versions = "*"
 
 [[package]]
 name = "tenacity"
-version = "8.0.0"
+version = "8.0.1"
 description = "Retry code until it succeeds"
 category = "main"
 optional = false
@@ -825,7 +825,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "d8b224e0584ff0722319a727759c8452e967391cb8df69d7ce8b397c56a8304f"
+content-hash = "13de190290202da766e103755325bf174edaac4d33b8aa41c201469c06fbbbb0"
 
 [metadata.files]
 aioaria2 = [
@@ -1348,8 +1348,8 @@ speedtest-cli = [
     {file = "speedtest_cli-2.1.3-py2.py3-none-any.whl", hash = "sha256:75ff32c91af9ac1ce2b905476d6e92bd9eb2c0783f9e7d1939d74605c7d0b9ea"},
 ]
 tenacity = [
-    {file = "tenacity-8.0.0-py3-none-any.whl", hash = "sha256:352cc77bb3dffb070111c83c548ef5afb78acf93f89a28d753c5570066411b57"},
-    {file = "tenacity-8.0.0.tar.gz", hash = "sha256:6011fc69be55e0e20a9ceccdd8a7d969e42f892a81ea3a007de56e764d3551dd"},
+    {file = "tenacity-8.0.1-py3-none-any.whl", hash = "sha256:f78f4ea81b0fabc06728c11dc2a8c01277bfc5181b321a4770471902e3eb844a"},
+    {file = "tenacity-8.0.1.tar.gz", hash = "sha256:43242a20e3e73291a28bcbcacfd6e000b02d3857a9a9fff56b297a27afdc932f"},
 ]
 tgcrypto = [
     {file = "TgCrypto-1.2.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:2073aa6bbc809a56ae3d54e0f496cacaee6e5cb7c08682153c992eae72b4fbb8"},

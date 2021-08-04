@@ -69,7 +69,7 @@ Pillow = "^8.2.0"
 tenacity = "^8.0.1"
 
 [tool.poetry.dev-dependencies]
-isort = {version = "^5.7.0", extras = ["pyproject"]}
+isort = {version = "^5.9.3", extras = ["pyproject"]}
 mypy = "^0.902"
 pre-commit = "^2.13.0"
 yapf = "^0.31.0"

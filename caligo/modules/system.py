@@ -19,13 +19,13 @@ from .. import command, module, util
 class SystemModule(module.Module):
     name: ClassVar[str] = "System"
 
-    db: Any
+    db: util.db.AsyncCollection
     restart_pending: bool
 
     async def on_load(self):
         self.restart_pending = False
 
-        self.db = self.bot.get_db("system")
+        self.db = self.bot.db.get_collection("system")
 
     @command.desc("Get how long this bot has been up for")
     async def cmd_uptime(self, ctx: command.Context) -> str:

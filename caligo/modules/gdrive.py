@@ -63,7 +63,7 @@ class GoogleDrive(module.Module):
 
     configs: Dict[str, Any]
     creds: Optional[Credentials]
-    db: Any
+    db: util.db.AsyncCollection
     service: Resource
 
     aria2: Any
@@ -77,7 +77,7 @@ class GoogleDrive(module.Module):
 
     async def on_load(self) -> None:
         self.creds = None
-        self.db = self.bot.get_db("gdrive")
+        self.db = self.bot.db.get_collection("gdrive")
         self.index_link = self.bot.getConfig["gdrive_index_link"]
         self.parent_id = self.bot.getConfig["gdrive_folder_id"]
         self.task = set()

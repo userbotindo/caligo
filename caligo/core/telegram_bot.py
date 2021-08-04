@@ -80,17 +80,17 @@ class TelegramBot(Base):
         await self.init_client()
 
         # Load prefix
-        db = self.get_db("core")
-        try:
-            self.prefix = (await db.find_one({"_id": "Core"}))["prefix"]
-        except (TypeError, KeyError):
+        db = self.db.get_collection("core")
+        prefix = await db.find_one({"_id": "Core"})
+        if prefix is None:
             self.prefix = "."  # Default is '.'-dot you can change later
-
             await db.find_one_and_update({"_id": "Core"},
                                          {"$set": {
                                              "prefix": self.prefix
                                          }},
                                          upsert=True)
+        else:
+            self.prefix = prefix["prefix"]
 
         self.client.add_handler(
             MessageHandler(self.on_command,

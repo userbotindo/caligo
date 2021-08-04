@@ -29,7 +29,7 @@ def _calc_pd(stat: int, uptime: int) -> str:
 class StatsModule(module.Module):
     name: ClassVar[str] = "Stats"
 
-    db: Any
+    db: util.db.AsyncCollection
     lock: asyncio.Lock
 
     async def get(self, key: str) -> Optional[Any]:
@@ -60,7 +60,7 @@ class StatsModule(module.Module):
                                           upsert=True)
 
     async def on_load(self) -> None:
-        self.db = self.bot.get_db("stats")
+        self.db = self.bot.db.get_collection("stats")
 
         if await self.get("stop_time_usec") or await self.get("uptime"):
             self.log.info("Migrating stats timekeeping format")

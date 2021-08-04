@@ -24,11 +24,11 @@ class LengthMismatchError(Exception):
 class StickerModule(module.Module):
     name: ClassVar[str] = "Sticker"
 
-    db: Any
+    db: util.db.AsyncCollection
     kang_db: Optional[Any]
 
     async def on_load(self):
-        self.db = self.bot.get_db("stickers")
+        self.db = self.bot.db.get_collection("stickers")
 
         check = await self.db.find_one({"_id": self.name})
         self.kang_db = check.get("pack_name") if check is not None else None

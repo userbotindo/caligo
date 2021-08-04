@@ -20,11 +20,11 @@ class CoreModule(module.Module):
     name: ClassVar[str] = "Core"
 
     cache: Dict[int, int]
-    db: Any
+    db: util.db.AsyncCollection
 
     async def on_load(self):
         self.cache = {}
-        self.db = self.bot.get_db("core")
+        self.db = self.bot.db.get_collection("core")
 
     def build_button(self) -> List[List[InlineKeyboardButton]]:
         modules = list(self.bot.modules.keys())

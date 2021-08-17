@@ -5,8 +5,6 @@ from functools import partial
 from typing import (
     Any,
     AsyncGenerator,
-    AsyncIterable,
-    AsyncIterator,
     Callable,
     ClassVar,
     Coroutine,
@@ -21,7 +19,7 @@ from typing import (
     Union
 )
 
-from bson import CodecOptions, DBRef
+from bson import DBRef, CodecOptions 
 from bson.code import Code
 from bson.codec_options import DEFAULT_CODEC_OPTIONS
 from bson.timestamp import Timestamp
@@ -38,7 +36,7 @@ from pymongo.client_session import ClientSession, SessionOptions
 from pymongo.collation import Collation
 from pymongo.collection import Collection
 from pymongo.command_cursor import CommandCursor as _CommandCursor, RawBatchCommandCursor
-from pymongo.cursor import Cursor as _Cursor, RawBatchCursor, _QUERY_OPTIONS
+from pymongo.cursor import _QUERY_OPTIONS, Cursor as _Cursor, RawBatchCursor
 from pymongo.database import Database
 from pymongo.driver_info import DriverInfo
 from pymongo.errors import InvalidOperation, OperationFailure, PyMongoError
@@ -66,6 +64,7 @@ from pymongo.write_concern import DEFAULT_WRITE_CONCERN, WriteConcern
 from caligo import util
 
 PREFERENCE = Union[Primary, PrimaryPreferred, Secondary, SecondaryPreferred, Nearest]
+
 JavaScriptCode = TypeVar("JavaScriptCode", bound=str)
 Requests = Union[DeleteOne, InsertOne, ReplaceOne]
 Results = TypeVar("Results")
@@ -77,8 +76,12 @@ class Cursor(_Cursor):
     _Cursor__killed: bool
     _Cursor__query_flags: int
 
-    def __init__(self, collection: Collection, *args: Any, **kwargs: Any) -> None:
-        super().__init__(collection, *args, **kwargs)
+    delegate: "AsyncCollection"
+
+    def __init__(self, collection: "AsyncCollection", *args: Any, **kwargs: Any) -> None:
+        self.delegate = collection
+
+        super().__init__(collection.dispatch, *args, **kwargs)
 
     @property
     def _AsyncCursor__data(self) -> Deque[Any]:
@@ -129,6 +132,8 @@ class CommandCursor(_CommandCursor):
     _CommandCursor__data: Deque[Any]
     _CommandCursor__killed: bool
 
+    delegate: "AsyncCollection"
+
     def __init__(
         self,
         collection: "AsyncCollection",
@@ -140,8 +145,10 @@ class CommandCursor(_CommandCursor):
         session: Optional["AsyncClientSession"] = None,
         explicit_session: bool = False,
     ) -> None:
+        self.delegate = collection
+
         super().__init__(
-            collection,
+            collection.dispatch,
             cursor_info,
             address,
             batch_size=batch_size,
@@ -401,7 +408,7 @@ class AsyncClient(AsyncBaseProperty):
         kwargs.update({"driver":
                        DriverInfo(
                            name="AsyncIOMongoDB",
-                           version="caligo-staging",
+                           version="staging",
                            platform="AsyncIO"
                         )})
         dispatch = MongoClient(*args, **kwargs)
@@ -1049,8 +1056,8 @@ class AsyncCollection(AsyncBaseProperty):
     async def estimated_document_count(self, **kwargs: Any) -> int:
         return await util.run_sync(self.dispatch.estimated_document_count, **kwargs)
 
-    def find(self, *args: Any, **kwargs: Any) -> AsyncIterator[MutableMapping[str, Any]]:
-        return AsyncCursor(Cursor(self.dispatch, *args, **kwargs), self)
+    def find(self, *args: Any, **kwargs: Any) -> "AsyncCursor":
+        return AsyncCursor(Cursor(self, *args, **kwargs), self)
 
     async def find_one(
         self,
@@ -1135,7 +1142,7 @@ class AsyncCollection(AsyncBaseProperty):
             **kwargs
         )
 
-    def find_raw_batches(self, *args: Any, **kwargs: Any) -> AsyncIterable["AsyncCommandCursor"]:
+    def find_raw_batches(self, *args: Any, **kwargs: Any) -> "AsyncRawBatchCursor":
         if "session" in kwargs:
             session = kwargs["session"]
             kwargs["session"] = session.dispatch if session else session
@@ -1202,7 +1209,7 @@ class AsyncCollection(AsyncBaseProperty):
 
     def list_indexes(
         self, session: Optional[AsyncClientSession] = None
-    ) -> AsyncIterable[IndexModel]:
+    ) -> "AsyncLatentCommandCursor":
         return AsyncLatentCommandCursor(
             self,
             self.dispatch.list_indexes,
@@ -1409,10 +1416,8 @@ class AsyncCursorBase(AsyncBase):
     def __aiter__(self) -> "AsyncCursorBase":
         return self
 
-    async def __anext__(self) -> Any:
-        if self.alive and (self._buffer_size() or await self._get_more()):
-            return await util.run_sync(next, self.dispatch)
-        raise StopAsyncIteration
+    async def __anext__(self) -> MutableMapping[str, Any]:
+        return await self.next()
 
     def _buffer_size(self) -> int:
         return len(self._data())
@@ -1437,10 +1442,10 @@ class AsyncCursorBase(AsyncBase):
 
     def _to_list(
         self,
-        length: int,
+        length: Optional[int],
         the_list: List[MutableMapping[str, Any]],
-        future: asyncio.Future,
-        get_more_future: asyncio.Future
+        future: asyncio.Future[List[MutableMapping[str, Any]]],
+        get_more_future: asyncio.Future[int]
     ) -> None:
         # get_more_future is the result of self._get_more().
         # future will be the result of the user's to_list() call.
@@ -1457,9 +1462,12 @@ class AsyncCursorBase(AsyncBase):
             else:
                 n = min(length, result)
 
-            for _ in range(n):
-                the_list.append(fix_outgoing(self._data().popleft(),
-                                             collection))
+            i = 0
+            while i < n:
+                the_list.append(
+                    fix_outgoing(self._data().popleft(), collection)
+                )
+                i += 1
 
             reached_length = (length is not None and len(the_list) >= length)
             if reached_length or not self.alive:
@@ -1482,7 +1490,7 @@ class AsyncCursorBase(AsyncBase):
     async def _refresh(self) -> int:
         return await util.run_sync(self.dispatch._refresh)
 
-    def batch_size(self, batch_size) -> "AsyncCursorBase":
+    def batch_size(self, batch_size: int) -> "AsyncCursorBase":
         self.dispatch.batch_size(batch_size)
         return self
 
@@ -1491,11 +1499,15 @@ class AsyncCursorBase(AsyncBase):
             self.closed = True
             await util.run_sync(self.dispatch.close)
 
-    async def next(self) -> MutableMapping[str, Any]:
-        return await self.__anext__()
+    async def next(self) -> Any:
+        if self.alive and (self._buffer_size() or await self._get_more()):
+            return await util.run_sync(next, self.dispatch)
+        raise StopAsyncIteration
 
-    def to_list(self, length: int) -> asyncio.Future[List[MutableMapping[str, Any]]]:
-        if length is not None and  length < 0:
+    def to_list(
+        self, length: Optional[int] = None
+    ) -> asyncio.Future[List[MutableMapping[str, Any]]]:
+        if length is not None and length < 0:
                 raise ValueError("length must be non-negative")
 
         if self._query_flags() & _QUERY_OPTIONS["tailable_cursor"]:
@@ -1586,7 +1598,7 @@ class _LatentCursor:
     def _refresh(self) -> int:
         return 0
 
-    def batch_size(self, _: int) -> None:
+    def batch_size(self, batch_size: int) -> None:
         pass
 
     def close(self) -> None:
@@ -1626,7 +1638,7 @@ class AsyncLatentCommandCursor(AsyncCommandCursor):
         self.kwargs["batchSize"] = batch_size
         return self
 
-    def _get_more(self) -> Union[asyncio.Future, Coroutine[Any, Any, int]]:
+    def _get_more(self) -> Union[asyncio.Future[int], Coroutine[Any, Any, int]]:
         if not self.started:
             self.started = True
             original_future = self.loop.create_future()
@@ -1643,7 +1655,7 @@ class AsyncLatentCommandCursor(AsyncCommandCursor):
         return super()._get_more()
 
     def _on_started(
-        self, original_future: asyncio.Future, future: asyncio.Future
+        self, original_future: asyncio.Future[int], future: asyncio.Future[CommandCursor]
     ) -> None:
         try:
             self.dispatch = future.result()
@@ -1778,7 +1790,7 @@ class AsyncChangeStream(AsyncBase):
 
     _target: Union[AsyncClient, AsyncDB, AsyncCollection]
 
-    dispatch: Optional[ChangeStream]
+    dispatch: ChangeStream
 
     def __init__(
         self,

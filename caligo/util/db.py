@@ -1593,7 +1593,7 @@ class _LatentCursor:
     def _CommandCursor__die(self, *args: Any, **kwargs: Any) -> None:
         pass  # Only for initialization
 
-    def _refresh(self) -> int:
+    def _refresh(self) -> int:  # skipcq: PYL-R0201
         """Only for initialization"""
         return 0
 

@@ -1058,8 +1058,8 @@ class AsyncCollection(AsyncBaseProperty):
 
     async def find_one(
         self,
+        query: Optional[MutableMapping[str, Any]],
         *args: Any,
-        query: Optional[MutableMapping[str, Any]] = None,
         **kwargs: Any
     ) -> Optional[MutableMapping[str, Any]]:
         return await util.run_sync(

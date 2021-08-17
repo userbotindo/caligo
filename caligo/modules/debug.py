@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 
 import aiohttp
+from aiohttp.client_exceptions import ClientConnectorError
 from pyrogram.errors import UsernameInvalid, PeerIdInvalid
 
 from .. import command, module, util
@@ -137,10 +138,13 @@ class DebugModule(module.Module):
 
         await ctx.respond("Uploading text to [Dogbin](https://del.dog/)...")
 
-        async with self.bot.http.post("https://del.dog/documents", data=text) as resp:
-            try:
-                resp_data = await resp.json()
-            except aiohttp.ContentTypeError:
-                return "__Dogbin is currently experiencing issues. Try again later.__"
+        try:
+            async with self.bot.http.post("https://del.dog/documents", data=text) as resp:
+                try:
+                    resp_data = await resp.json()
+                except aiohttp.ContentTypeError:
+                    return "__Dogbin is currently experiencing issues. Try again later.__"
 
-            return f'https://del.dog/{resp_data["key"]}'
+                return f'https://del.dog/{resp_data["key"]}'
+        except ClientConnectorError:
+            return "__Dogbin is currently experiencing issues. Try again later.__"

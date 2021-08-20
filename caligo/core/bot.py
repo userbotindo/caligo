@@ -58,7 +58,7 @@ class Bot(TelegramBot, CommandDispatcher, DatabaseProvider, EventDispatcher,
         if self.loaded:
             await self.dispatch_event("stop")
         await self.http.close()
-        await self.close_db()
+        await self.db.close()
 
         self.log.info("Running post-stop hooks")
         if self.loaded:

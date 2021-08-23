@@ -3,7 +3,7 @@ from pyrogram import Client, asyncio
 
 
 async def Session(mode: str) -> None:
-    async with Client("caligo",
+    async with Client(session_name=":memory:",
                       api_id=input("Please enter Telegram API ID: "),
                       api_hash=input("Please enter Telegram API HASH: "),
                       workdir='caligo') as caligo:

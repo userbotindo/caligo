@@ -1,18 +1,21 @@
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar, Iterator, MutableMapping, TypeVar
 
-from dotenv import load_dotenv
+from aiopath import AsyncPath
+
+_KT = TypeVar("_KT", bound=str, contravariant=True)
+_VT = TypeVar("_VT", covariant=True)
 
 
-class BotConfig:
+class TelegramConfig(MutableMapping[_KT, _VT]):
+
+    __data: ClassVar[MutableMapping[_KT, Any]] = {}
 
     def __init__(self) -> None:
-        if os.path.isfile("config.env"):
-            load_dotenv("config.env")
 
-        config = {
+        config: MutableMapping[_KT, Any] = {
             "api_id": os.environ.get("API_ID"),
             "api_hash": os.environ.get("API_HASH"),
             "bot_token": os.environ.get("BOT_TOKEN"),
@@ -31,25 +34,45 @@ class BotConfig:
         }
 
         for key, value in config.items():
-            if value == "" and key == "api_id":
-                value = 0
-            elif value == "":
-                value = None
+            if not value:
+                if key == "download_path":
+                    value = AsyncPath(Path.home() / "downloads")
+                elif key == "github_repo":
+                    value = "adekmaulana/caligo"
 
-            setattr(self, key, value)
+                if value == "":
+                    value = None
+            else:
+                if key == "download_path":
+                    value = AsyncPath(value)
+                elif key == "gdrive_index_link":
+                    value = value.rstrip("/")
+                elif key == "gdrive_secret":
+                    value = json.loads(value)
 
-    def __getattr__(self, name: str) -> Any:
-        val = self.__getattribute__(name)
-        if name == "download_path":
-            return Path(val) if val is not None else Path.home() / "downloads"
-        if name == "gdrive_index_link":
-            return val.rstrip("/") if val is not None else val
-        if name == "gdrive_secret":
-            return json.loads(val) if val is not None else val
-        if name == "github_repo":
-            return val if val is not None else "adekmaulana/caligo"
+            super().__setattr__(key, value)
+            self.__data[key] = value
 
-        return val
+    def __delattr__(self, obj: object) -> None:  # skipcq: PYL-W0613
+        raise RuntimeError("Can't delete configuration while running the bot.")
 
-    def __getitem__(self, item: str) -> Any:
-        return self.__getattr__(item)
+    def __delitem__(self, k: _KT) -> None:  # skipcq: PYL-W0613
+        raise RuntimeError("Can't delete configuration while running the bot.")
+
+    def __getattr__(self, name: str) -> _VT:
+        return self.__getattribute__(name)
+
+    def __getitem__(self, k: _KT) -> _VT:
+        return self.__data[k]
+
+    def __iter__(self) -> Iterator[_KT]:
+        return self.__data.__iter__()
+
+    def __len__(self) -> int:
+        return len(self.__data)
+
+    def __setattr__(self, name: str, value: Any) -> None:  # skipcq: PYL-W0613
+        raise RuntimeError("Configuration must be done before running the bot.")
+
+    def __setitem__(self, k: str, v: Any) -> None:  # skipcq: PYL-W0613
+        raise RuntimeError("Configuration must be done before running the bot.")

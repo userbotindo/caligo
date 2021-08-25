@@ -1,9 +1,10 @@
 import platform
 import uuid
 from collections import defaultdict
-from typing import Any, ClassVar, Dict, List, MutableMapping, Optional
+from typing import ClassVar, Dict, List, MutableMapping, Optional
 
 import pyrogram
+from pyrogram.errors import PeerIdInvalid
 from pyrogram.types import (
     CallbackQuery,
     InlineQuery,
@@ -51,7 +52,7 @@ class CoreModule(module.Module):
         repo = self.bot.getConfig["github_repo"]
         answer = [
             InlineQueryResultArticle(
-                id=uuid.uuid4(),
+                id=str(uuid.uuid4()),
                 title="About Caligo",
                 input_message_content=InputTextMessageContent(
                     "__Caligo is SelfBot based on Pyrogram library.__"),
@@ -76,7 +77,7 @@ class CoreModule(module.Module):
             button = await util.run_sync(self.build_button)
             answer.append(
                 InlineQueryResultArticle(
-                    id=uuid.uuid4(),
+                    id=str(uuid.uuid4()),
                     title="Menu",
                     input_message_content=InputTextMessageContent(
                         "**Caligo Menu Helper**"),
@@ -108,19 +109,10 @@ class CoreModule(module.Module):
             button = await util.run_sync(self.build_button)
             for msg_id, chat_id in list(self.cache.items()):
                 try:
-                    msg = await self.bot.client.get_messages(chat_id, msg_id)
-                except pyrogram.errors.PeerIdInvalid:
-                    continue
-                else:
-                    try:
-                        await msg.delete()
-                    except AttributeError:
-                        # Trying to delete the deleted message already
-                        del self.cache[msg_id]
-                        continue
-                    else:
-                        del self.cache[msg_id]
-                        break
+                    await self.bot.client.delete_messages(chat_id, msg_id)
+                finally:
+                    del self.cache[msg_id]
+                    break
             else:
                 await query.answer("😿️ Couldn't close expired message")
                 await query.edit_message_text(

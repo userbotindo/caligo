@@ -69,12 +69,12 @@ def pattern(_pattern: str) -> Decorator:
 
 class Command:
     name: str
-    desc: str
-    usage: str
+    desc: Optional[str]
+    usage: Optional[str]
     usage_optional: bool
     usage_reply: bool
     aliases: Sequence[str]
-    pattern: Pattern[str]
+    pattern: Optional[Pattern[str]]
     module: Any
     func: CommandFunc
 
@@ -97,23 +97,23 @@ class Context:
     cmd_len: int
     invoker: str
 
-    response: Optional[pyrogram.types.Message]
+    response: pyrogram.types.Message
     response_mode: Optional[str]
 
     input: Optional[Union[str, None]]
     args: Sequence[str]
-    matches: Optional[List[Match[str]]]
+    matches: List[Match[str]]
 
     def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
                  segments: Sequence[str], cmd_len: int,
-                 matches: Optional[List[Match[str]]]) -> None:
+                 matches: List[Match[str]]) -> None:
         self.bot = bot
         self.msg = msg
         self.segments = segments
         self.cmd_len = cmd_len
         self.invoker = segments[0]
 
-        self.response = None
+        self.response = None  # type: ignore
         self.response_mode = None
 
         self.input = self.msg.text[self.cmd_len:]

@@ -3,11 +3,11 @@ import base64
 import pickle
 import re
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 import aiofile
 import pyrogram
+from aiopath import AsyncPath
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -50,16 +50,20 @@ DOMAIN = re.compile(r"https?:\/\/(?:www\.|:?www\d+\.|(?!www))"
                     r"([a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9])\.[^\s]{2,}")
 
 
-def getIdFromUrl(url: Any) -> Any:
-    try:
-        return PATTERN.search(url)[0]
-    except (TypeError, IndexError):
-        return url
+def getIdFromUrl(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+
+    regex = PATTERN.search(url)
+    if not regex:
+        return None
+
+    return regex[0]
 
 
 class GoogleDrive(module.Module):
     name: ClassVar[str] = "GoogleDrive"
-    disabled: ClassVar[bool] = not util.BotConfig.mirror_enabled
+    disabled: ClassVar[bool] = not util.TelegramConfig["mirror_enabled"]
 
     configs: Dict[str, Any]
     creds: Optional[Credentials]
@@ -254,21 +258,21 @@ class GoogleDrive(module.Module):
 
     async def uploadFolder(
         self,
-        sourceFolder: Path,
+        sourceFolder: AsyncPath,
         *,
         gid: Optional[str] = None,
         parent_id: Optional[str] = None,
         msg: Optional[pyrogram.types.Message] = None
-    ) -> AsyncIterator[asyncio.Task]:
-        for content in sourceFolder.iterdir():
-            if content.is_dir():
+    ) -> AsyncIterator[asyncio.Task[None]]:
+        async for content in sourceFolder.iterdir():
+            if await content.is_dir():
                 childFolder = await self.createFolder(content.name, parent_id)
                 async for task in self.uploadFolder(content,
                                                     gid=gid,
                                                     parent_id=childFolder,
                                                     msg=msg):
                     yield task
-            elif content.is_file():
+            elif await content.is_file():
                 file = util.File(content)
                 content = await self.uploadFile(file, parent_id, msg)
                 if isinstance(content, str):  # Skip because file size is 0
@@ -277,6 +281,8 @@ class GoogleDrive(module.Module):
                 yield self.bot.loop.create_task(file.progress(update=False),
                                                 name=gid)
                 await asyncio.sleep(0.5)
+            else:
+                raise ValueError(f"{content} is not a file or folder")
 
     async def uploadFile(self,
                          file: Union[util.File, util.aria2.Download],
@@ -289,7 +295,7 @@ class GoogleDrive(module.Module):
         elif parent_id is None and self.parent_id is not None:
             body["parents"] = [self.parent_id]
 
-        if file.path.stat().st_size > 0:
+        if (await file.path.stat()).st_size > 0:
             media_body = MediaFileUpload(file.path,
                                          mimetype=file.mime_type,
                                          resumable=True,
@@ -321,8 +327,9 @@ class GoogleDrive(module.Module):
 
         return content
 
-    async def downloadFile(self, ctx: command.Context,
-                           msg: pyrogram.types.Message) -> Optional[Path]:
+    async def downloadFile(
+        self, ctx: command.Context, msg: pyrogram.types.Message
+    ) -> Optional[AsyncPath]:
         download_path = self.bot.getConfig["download_path"]
 
         before = util.time.sec()
@@ -382,10 +389,11 @@ class GoogleDrive(module.Module):
                                                         file_name=file_path,
                                                         progress=prog_func)
 
-        return Path(file_path) if file_path is not None else file_path
+        return AsyncPath(file_path) if file_path is not None else file_path
 
-    async def searchContent(self, query: str,
-                            limit: int) -> AsyncIterator[List[Dict[str, Any]]]:
+    async def searchContent(
+        self, query: str, limit: int
+    ) -> AsyncIterator[List[Dict[str, Any]]]:
         fields = "nextPageToken, files(name, id, mimeType, webViewLink)"
         pageToken = None
 
@@ -444,15 +452,21 @@ class GoogleDrive(module.Module):
 
             return "__Aborted__", 1
 
+        if not ctx.input:
+            return "__Pass the id of the file/folder to copy it__", 5
+
         await ctx.respond("Gathering...")
         identifier = getIdFromUrl(ctx.input)
+        if not identifier:
+            return "__Invalid id__", 5
 
         try:
             content = await self.getInfo(identifier, ["id", "name", "mimeType"])
         except HttpError as e:
-            content = None
             if "'location': 'fileId'" in str(e):
                 return "__Invalid input of id.__", 5
+
+            raise
 
         if content["mimeType"] == FOLDER:
             cancelled = False
@@ -540,8 +554,7 @@ class GoogleDrive(module.Module):
                         return "__Something went wrong, file probably corrupt__"
 
                 if path.suffix == ".torrent":
-                    async with aiofile.async_open(path, "rb") as afp:
-                        types = base64.b64encode(await afp.read())
+                    types = base64.b64encode(await path.read_bytes())
                 else:
                     file = util.File(path)
                     await self.uploadFile(file, msg=ctx.msg)

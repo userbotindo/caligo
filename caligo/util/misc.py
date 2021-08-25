@@ -1,4 +1,4 @@
-from typing import Any, Callable, Sequence, Tuple
+from typing import Any, Callable, Sequence, Tuple, Union
 
 
 def find_prefixed_funcs(obj: Any,
@@ -19,7 +19,7 @@ def find_prefixed_funcs(obj: Any,
     return results
 
 
-def human_readable_bytes(value: int,
+def human_readable_bytes(value: Union[int, float],
                          digits: int = 2,
                          delim: str = "",
                          postfix: str = "") -> str:

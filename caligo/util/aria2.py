@@ -3,10 +3,10 @@ import re
 import socket
 from datetime import datetime, timedelta
 from mimetypes import guess_type
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import aiohttp
+from aiopath import AsyncPath
 from aioaria2 import Aria2WebsocketTrigger
 from bs4 import BeautifulSoup
 
@@ -64,8 +64,8 @@ class File:
         return int(self._data["index"])
 
     @property
-    def path(self) -> Path:
-        return Path(self._data["path"])
+    def path(self) -> AsyncPath:
+        return AsyncPath(self._data["path"])
 
     @property
     def mime_type(self) -> Optional[str]:
@@ -98,8 +98,9 @@ class Download:
     _files: List[File]
     _name: str
 
-    def __init__(self, client: Aria2WebsocketTrigger, data: Dict[str,
-                                                                 Any]) -> None:
+    def __init__(
+        self, client: Aria2WebsocketTrigger, data: Dict[str, Any]
+    ) -> None:
         self.client = client
         self._data = data or {}
 
@@ -134,7 +135,7 @@ class Download:
                 dir_path = str(self.dir.absolute())
                 if file_path.startswith(dir_path):
                     start_pos = len(dir_path) + 1
-                    self._name = Path(file_path[start_pos:]).parts[0]
+                    self._name = AsyncPath(file_path[start_pos:]).parts[0]
                 else:
                     try:
                         self._name = self.files[0].uris[0]["uri"].split("/")[-1]
@@ -217,19 +218,17 @@ class Download:
         return self._data.get("errorMessage")
 
     @property
-    def dir(self) -> Path:
-        return Path(self._data["dir"])
+    def dir(self) -> AsyncPath:
+        return AsyncPath(self._data["dir"])
+
+    async def is_file(self) -> bool:
+        return await (self.dir / self.name).is_file()
+
+    async def is_dir(self) -> bool:
+        return await (self.dir / self.name).is_dir()
 
     @property
-    def is_file(self) -> bool:
-        return (self.dir / self.name).is_file()
-
-    @property
-    def is_dir(self) -> bool:
-        return (self.dir / self.name).is_dir()
-
-    @property
-    def path(self) -> Path:
+    def path(self) -> AsyncPath:
         return self.files[0].path
 
     @property
@@ -302,7 +301,11 @@ class DirectLinks:
         return await func(url)
 
     async def androidfilehost(self, url: str) -> List[Dict[str, str]]:
-        fid = re.compile(r"\?fid=(\d+)").search(url).group(1)
+        regex = re.compile(r"\?fid=(\d+)").search(url)
+        if not regex:
+            return []
+
+        fid = regex.group(1)
         uri = "https://androidfilehost.com/libs/otf/mirrors.otf.php"
         async with self.http.get(url, headers={"user-agent": self.useragent},
                                  allow_redirects=True) as r:
@@ -333,7 +336,11 @@ class DirectLinks:
             return info["href"]
 
     async def zippyshare(self, url: str) -> Optional[str]:
-        www = re.match(r"https://([\w\d]+).zippyshare", url).group(1)
+        www = re.match(r"https://([\w\d]+).zippyshare", url)
+        if not www:
+            return
+
+        www = www.group(1)
         async with self.http.get(url) as resp:
             page = BeautifulSoup(await resp.text(), "lxml")
             try:
@@ -346,11 +353,15 @@ class DirectLinks:
             for tag in js_script:
                 if "document.getElementById('dlbutton')" in tag:
                     url_raw = re.search(r'= (?P<url>\".+\" \+ '
-                                        r'(?P<math>\(.+\)) .+);', tag
-                                        ).group('url')
+                                        r'(?P<math>\(.+\)) .+);', tag)
                     math = re.search(r'= (?P<url>\".+\" \+ '
-                                     r'(?P<math>\(.+\)) .+);', tag
-                                     ).group('math')
+                                     r'(?P<math>\(.+\)) .+);', tag)
+                    if not url_raw:
+                        continue
+                    if not math:
+                        continue
+
+                    url_raw, math = url_raw.group("url"), math.group("math")
                     numbers = []
                     expression = []
                     for e in math.strip("()").split():

@@ -2,12 +2,12 @@ import asyncio
 import io
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
 import aiofile
 import bprint
 import pyrogram
+from aiopath import AsyncPath
 
 from .. import command
 from .misc import human_readable_bytes as human
@@ -52,7 +52,7 @@ def _bprint_skip_predicate(name: str, value: Any) -> bool:
     return (name.startswith("_") or value is None or callable(value))
 
 
-def pretty_print_entity(entity) -> str:
+def pretty_print_entity(entity) -> Optional[str]:
     """Pretty-prints the given Telegram entity with recursive details."""
 
     return bprint.bprint(entity,
@@ -60,20 +60,22 @@ def pretty_print_entity(entity) -> str:
                          skip_predicate=_bprint_skip_predicate)
 
 
-async def download_file(ctx: command.Context,
-                        msg: pyrogram.types.Message,
-                        text: Optional[bool] = False) -> Optional[Union[Path, str, bytes]]:
+async def download_file(
+    ctx: command.Context,
+    msg: pyrogram.types.Message,
+    text: Optional[bool] = False
+) -> Optional[Union[AsyncPath, str, bytes]]:
     """Downloads the file embedded in the given message."""
     download_path = ctx.bot.getConfig["download_path"]
 
     if text is True:
         path = await ctx.bot.client.download_media(msg)
         if path:
-            path = Path(path)
+            path = AsyncPath(path)
             async with aiofile.async_open(path, "r") as file:
                 content = await file.read()
 
-            path.unlink()
+            await path.unlink()
             return content
 
     before = sec()
@@ -132,7 +134,7 @@ async def download_file(ctx: command.Context,
 
     path = await ctx.bot.client.download_media(msg, file_name=str(download_path) + 
                                                "/" + file_name, progress=prog_func)
-    return Path(path) if path is not None else path
+    return AsyncPath(path) if path is not None else path
 
 
 def truncate(text: str) -> str:
@@ -159,8 +161,9 @@ async def send_as_document(content: str,
 
 
 async def get_text_input(
-        ctx: command.Context,
-        input_arg: Optional[str]) -> Tuple[bool, Optional[Union[str, Path, bytes]]]:
+    ctx: command.Context,
+    input_arg: Optional[str]
+) -> Tuple[bool, Optional[Union[str, AsyncPath, bytes]]]:
     """Returns input text from various sources in the given command context."""
 
     if ctx.msg.document:

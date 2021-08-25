@@ -1,7 +1,6 @@
 import ast
 import asyncio
 import logging
-import re
 from datetime import datetime, timedelta
 from os.path import join
 from pathlib import Path
@@ -11,7 +10,9 @@ from urllib import parse
 import pyrogram
 from aioaria2 import Aria2WebsocketClient, AsyncAria2Server
 from aioaria2.exceptions import Aria2rpcException
+from aiopath import AsyncPath
 from googleapiclient.http import MediaFileUpload
+from pyrogram.errors import FloodWait, MessageNotModified
 from tenacity import (
     before_log,
     retry,
@@ -47,7 +48,7 @@ class Aria2WebSocketServer:
     uploads: Dict[str, Any]
 
     index_link: str
-    invoker: Optional[pyrogram.types.Message]
+    invoker: pyrogram.types.Message
     stopping: bool
 
     _protocol: str
@@ -63,7 +64,7 @@ class Aria2WebSocketServer:
         self.uploads = {}
 
         self.index_link = self.drive.index_link
-        self.invoker = None
+        self.invoker = None  # type: ignore
         self.stopping = False
 
     @classmethod
@@ -71,7 +72,7 @@ class Aria2WebSocketServer:
         self = cls(bot, drive)
 
         download_path = self.bot.getConfig["download_path"]
-        download_path.mkdir(parents=True, exist_ok=True)
+        await download_path.mkdir(parents=True, exist_ok=True)
 
         link = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt"
         async with self.bot.http.get(link) as resp:
@@ -87,9 +88,9 @@ class Aria2WebSocketServer:
             "--bt-save-metadata=true", f"--bt-tracker={trackers}",
             "--daemon=true", "--allow-overwrite=true"
         ]
-        key_path = Path.home() / ".cache" / "caligo" / ".certs"
-        if (key_path / "cert.pem").is_file() and (key_path /
-                                                  "key.pem").is_file():
+        key_path = AsyncPath(Path.home() / ".cache" / "caligo" / ".certs")
+        if await (key_path / "cert.pem").is_file() and (
+                await (key_path / "key.pem").is_file()):
             cmd.insert(4, "--rpc-listen-port=8443")
             cmd.insert(3, "--rpc-secure=true")
             cmd.insert(3, "--rpc-private-key=" + str(key_path / "key.pem"))
@@ -126,7 +127,7 @@ class Aria2WebSocketServer:
     async def checkDelete(self) -> None:
         if self.count == 0 and self.invoker is not None:
             await self.invoker.delete()
-            self.invoker = None
+            self.invoker = None  # type: ignore
 
     async def getDownload(self, client: Aria2WebsocketClient,
                           gid: str) -> util.aria2.Download:
@@ -152,10 +153,10 @@ class Aria2WebSocketServer:
                 self.log.info(f"Complete download: [gid: '{gid}'] - Metadata")
                 return
 
-        if file.is_file:
+        if await file.is_file():
             async with self.lock:
                 self.uploads[gid] = await self.drive.uploadFile(file)
-        elif file.is_dir:
+        elif await file.is_dir():
             folderId = await self.drive.createFolder(file.name)
             folderTasks = self.drive.uploadFolder(file.dir / file.name,
                                                   gid=gid,
@@ -194,7 +195,7 @@ class Aria2WebSocketServer:
                                              folderLink,
                                              mode="reply"),
                             self.invoker.delete())
-                        self.invoker = None
+                        self.invoker = None  # type: ignore
                     else:
                         await self.bot.respond(self.invoker,
                                                folderLink,
@@ -259,7 +260,7 @@ class Aria2WebSocketServer:
                 continue
 
             if file.complete and not file.metadata:
-                if file.is_dir:
+                if await file.is_dir():
                     counter = self.uploads[file.gid]["counter"]
                     length = len(file.files)
                     percent = round(((counter / length) * 100), 2)
@@ -267,10 +268,10 @@ class Aria2WebSocketServer:
                         f"`{file.name}`\nGID: `{file.gid}`\n"
                         f"__ComputingFolder: [{counter}/{length}] "
                         f"{percent}%__\n\n")
-                elif file.is_file:
+                elif await file.is_file():
                     f = self.uploads[file.gid]
                     progress, done = await self.uploadProgress(f)
-                    if not done:
+                    if not done and progress is not None:
                         progress_string += progress
 
                 continue
@@ -303,10 +304,10 @@ class Aria2WebSocketServer:
                     if gid in self.downloads:
                         file = self.downloads[gid]
                         del self.downloads[gid]
-                    if (file is not None and file.is_file and
+                    if (file is not None and await file.is_file() and
                             gid in self.uploads):
                         del self.uploads[gid]
-                    elif (file is not None and file.is_dir and
+                    elif (file is not None and await file.is_dir() and
                             gid in self.uploads):
                         for task in asyncio.all_tasks():
                             if task.get_name() == gid:
@@ -326,16 +327,10 @@ class Aria2WebSocketServer:
                     if self.invoker is not None:
                         async with self.lock:
                             await self.bot.respond(self.invoker, progress)
-                except pyrogram.errors.MessageNotModified:
+                except MessageNotModified:
                     pass
-                except pyrogram.errors.FloodWait as err:
-                    try:
-                        wait_until = int(re.search(r"\d+", str(err)[20:])[0])
-                    except IndexError:
-                        pass
-                    else:
-                        self.log.info(f"Flood wait for '{wait_until} seconds'")
-                        await asyncio.sleep(wait_until)
+                except FloodWait as err:
+                    await asyncio.sleep(err.x)
                 finally:
                     last_update_time = now
 
@@ -387,8 +382,11 @@ class Aria2WebSocketServer:
         return None, True
 
     async def seedFile(self, file: util.aria2.Download) -> Optional[str]:
+        if not file.info_hash:
+            return
+
         file_path = file.dir / (file.info_hash + ".torrent")
-        if not file_path.is_file():
+        if not await file_path.is_file():
             return
 
         port = util.aria2.get_free_port()
@@ -415,7 +413,7 @@ class Aria2WebSocketServer:
 
 class Aria2(module.Module):
     name: ClassVar[str] = "Aria2"
-    disabled: ClassVar[bool] = not util.BotConfig.mirror_enabled
+    disabled: ClassVar[bool] = not util.TelegramConfig["mirror_enabled"]
 
     client: Aria2WebsocketClient
 
@@ -447,7 +445,7 @@ class Aria2(module.Module):
             self._ws.stopping = True
             await self.client.shutdown()
             await self.client.close()
-            self._ws.invoker = None
+            self._ws.invoker = None  # type: ignore
 
     async def _formatSE(self, err: Exception) -> str:
         res = await util.run_sync(ast.literal_eval,

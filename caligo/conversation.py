@@ -1,8 +1,8 @@
 import asyncio
-import inspect
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import pyrogram
+from pyrogram.filters import Filter
 from pyrogram.types import Chat, Message
 
 from . import util
@@ -73,11 +73,11 @@ class Conversation:
     async def mark_read(self, max_id: int = 0) -> bool:
         return await self.bot.client.read_history(self.chat.id, max_id)
 
-    async def _get_message(self, **kwargs) -> Message:
+    async def _get_message(self, **kwargs: Any) -> Message:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages")
 
-        filters = kwargs.get("filters")
+        filters: Optional[Filter] = kwargs.get("filters")
         fut = self.bot.CONVERSATION[self.chat.id]
         timeout = kwargs.get("timeout") or self._timeout
         before = util.time.usec()
@@ -85,10 +85,8 @@ class Conversation:
             after = before - util.time.usec()
             result = await asyncio.wait_for(fut.get(), timeout - after)
 
-            if filters is not None and callable(filters):
-                ready = filters(self.bot.client, result)
-                if inspect.iscoroutine(ready):
-                    ready = await ready
+            if filters is not None:
+                ready: bool = await filters(self.bot.client, result)
                 if not ready:
                     continue
 

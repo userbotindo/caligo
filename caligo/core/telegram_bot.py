@@ -1,6 +1,6 @@
 import asyncio
 import signal
-from typing import TYPE_CHECKING, Any, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 
 import pyrogram
 from pyrogram import Client, filters
@@ -13,21 +13,21 @@ from pyrogram.handlers import (
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
 from ..custom_filter import chat_action
-from ..util import BotConfig, config, tg, time
+from ..util import TelegramConfig, config, tg, time
 from .base import Base
 
 if TYPE_CHECKING:
     from .bot import Bot
 
-handler = Union[CallbackQueryHandler, DeletedMessagesHandler,
+Handler = Union[CallbackQueryHandler, DeletedMessagesHandler,
                 InlineQueryHandler, MessageHandler]
-update = Union[CallbackQuery, InlineQuery, Message]
+Update = Union[CallbackQuery, InlineQuery, List[Message], Message]
 
 
 class TelegramBot(Base):
     bot_client: Client
     client: Client
-    getConfig: config.BotConfig
+    getConfig: config.TelegramConfig[str, Any]
     prefix: str
     user: pyrogram.types.User
     uid: int
@@ -40,7 +40,7 @@ class TelegramBot(Base):
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
         self.loaded = False
-        self.getConfig = BotConfig
+        self.getConfig = TelegramConfig
 
         self._mevent_handlers = {}
 
@@ -48,7 +48,7 @@ class TelegramBot(Base):
 
     async def init_client(self: "Bot") -> None:
         api_id = self.getConfig["api_id"]
-        if api_id == 0:
+        if not api_id or not api_id.isdigit():
             raise ValueError("API ID is invalid nor empty.")
 
         api_hash = self.getConfig["api_hash"]
@@ -161,17 +161,17 @@ class TelegramBot(Base):
 
     def update_module_event(self: "Bot",
                             name: str,
-                            event_type: Type[handler],
+                            event_type: Type[Handler],
                             flt: Optional[filters.Filter] = None,
                             group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
 
-                async def update_event(_: Client, event: Type[update]) -> None:
+                async def update_event(_: Client, event: Update) -> None:
                     await self.dispatch_event(name, event)
 
-                event_info = self.client.add_handler(  # skipcq: PYL-E1111
-                    event_type(update_event, flt), group)
+                event_info = (event_type(update_event, flt), group)
+                self.client.add_handler(*event_info)
                 self._mevent_handlers[name] = event_info
         elif name in self._mevent_handlers:
             self.client.remove_handler(*self._mevent_handlers[name])
@@ -179,25 +179,25 @@ class TelegramBot(Base):
 
     def update_bot_module_event(self: "Bot",
                                 name: str,
-                                event_type: Type[handler],
+                                event_type: Type[Handler],
                                 flt: Optional[filters.Filter] = None,
                                 group: int = 0) -> None:
         if name in self.listeners:
             if name not in self._mevent_handlers:
 
-                async def update_event(_: Client, event: Type[update]) -> None:
+                async def update_event(_: Client, event: Update) -> None:
                     await self.dispatch_event(name, event)
 
-                event_info = self.bot_client.add_handler(  # skipcq: PYL-E1111
-                    event_type(update_event, flt), group)
+                event_info = (event_type(update_event, flt), group)
+                self.bot_client.add_handler(*event_info)
                 self._mevent_handlers[name] = event_info
         elif name in self._mevent_handlers:
             self.bot_client.remove_handler(*self._mevent_handlers[name])
             del self._mevent_handlers[name]
 
     def update_module_events(self: "Bot") -> None:
-        self.update_module_event("message", MessageHandler, ~filters.edited)
-        self.update_module_event("message_edit", MessageHandler, filters.edited)
+        self.update_module_event("message", MessageHandler, ~filters.edited & ~chat_action())
+        self.update_module_event("message_edit", MessageHandler, filters.edited & ~chat_action())
         self.update_module_event("message_delete", DeletedMessagesHandler)
         self.update_module_event("chat_action", MessageHandler, chat_action())
         if self.has_bot:
@@ -216,7 +216,7 @@ class TelegramBot(Base):
     def redact_message(self: "Bot", text: str) -> str:
         redacted = "[REDACTED]"
 
-        api_id = str(self.getConfig["api_id"])
+        api_id = self.getConfig["api_id"]
         api_hash = self.getConfig["api_hash"]
         bot_token = self.getConfig["bot_token"]
         db_uri = self.getConfig["db_uri"]

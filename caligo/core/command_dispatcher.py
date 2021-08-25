@@ -1,7 +1,7 @@
-import re
 from typing import TYPE_CHECKING, Any, MutableMapping, Tuple
 
 import pyrogram
+from pyrogram.errors import MessageNotModified
 from pyrogram.filters import Filter, create
 
 from .. import command, module, util
@@ -75,7 +75,7 @@ class CommandDispatcher(Base):
             if msg.text is not None and msg.text.startswith(self.prefix):
                 parts = msg.text.split()
                 parts[0] = parts[0][len(self.prefix):]
-                msg.segments = parts
+                msg.command = parts
                 return True
 
             return False
@@ -92,7 +92,7 @@ class CommandDispatcher(Base):
 
         try:
             try:
-                cmd = self.commands[msg.segments[0]]
+                cmd = self.commands[msg.command[0]]
             except KeyError:
                 return
 
@@ -103,15 +103,15 @@ class CommandDispatcher(Base):
                 if ret is False:
                     return
 
-            cmd_len = len(self.prefix) + len(msg.segments[0]) + 1
+            cmd_len = len(self.prefix) + len(msg.command[0]) + 1
             if cmd.pattern is not None and msg.reply_to_message:
                 matches = list(cmd.pattern.finditer(msg.reply_to_message.text))
             elif cmd.pattern and msg.text:
                 matches = list(cmd.pattern.finditer(msg.text[cmd_len:]))
             else:
-                matches = None
+                matches = []
 
-            ctx = command.Context(self, msg, msg.segments, cmd_len, matches)
+            ctx = command.Context(self, msg, msg.command, cmd_len, matches)
 
             try:
                 ret = await cmd.func(ctx)
@@ -124,7 +124,7 @@ class CommandDispatcher(Base):
                 else:
                     if ret is not None:
                         await ctx.respond(ret)
-            except pyrogram.errors.MessageNotModified:
+            except MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
                 )

@@ -15,7 +15,7 @@ from . import (
     version,
 )
 
-BotConfig = config.BotConfig()
 File = file.File
+TelegramConfig = config.TelegramConfig()
 
 run_sync = async_helpers.run_sync

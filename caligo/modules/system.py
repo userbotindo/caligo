@@ -6,7 +6,7 @@ import io
 import sys
 import traceback
 from pathlib import Path
-from typing import Any, ClassVar, Dict, Optional, Tuple
+from typing import Any, ClassVar, MutableMapping, Optional, Tuple
 
 import aiohttp
 import pyrogram
@@ -28,7 +28,7 @@ class SystemModule(module.Module):
         self.db = self.bot.db.get_collection("system")
 
     @command.desc("Get how long this bot has been up for")
-    async def cmd_uptime(self, ctx: command.Context) -> str:
+    async def cmd_uptime(self, ctx: command.Context) -> None:
         delta_us = util.time.usec() - self.bot.start_time_us
         await ctx.respond(f"Uptime: {util.time.format_duration_us(delta_us)}")
 
@@ -139,7 +139,7 @@ class SystemModule(module.Module):
 
         out_buf = io.StringIO()
 
-        async def _eval() -> Tuple[str, str]:
+        async def _eval() -> Tuple[str, Optional[str]]:
             async def send(*args: Any, **kwargs: Any) -> pyrogram.types.Message:
                 return await ctx.msg.reply(*args, **kwargs)
 
@@ -269,10 +269,11 @@ Time: {el_str}"""
 
     async def on_start(self, time_us: int) -> None:  # skipcq: PYL-W0613
         # Update restart status message if applicable
-        data: Optional[Dict[str, Dict[str, Any]]
-                       ] = await self.db.find_one({"_id": self.name})
+        data: Optional[
+            MutableMapping[str, MutableMapping[str, Any]]
+        ] = await self.db.find_one({"_id": self.name})
         if data is not None:
-            restart = data.get("restart")
+            restart = data["restart"]
             # Fetch status message info
             rs_time: Optional[int] = restart.get("time")
             rs_chat_id: Optional[int] = restart.get("status_chat_id")
@@ -283,7 +284,7 @@ Time: {el_str}"""
             await self.db.delete_one({"_id": self.name})
 
             # Bail out if we're missing necessary values
-            if rs_chat_id is None or rs_message_id is None:
+            if rs_chat_id is None or rs_message_id is None or rs_time is None:
                 return
 
             # Show message

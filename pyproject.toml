@@ -58,7 +58,7 @@ beauty-print = "^0.6.1"
 # GoogleDrive
 google-api-python-client = "^2.19.0"
 google-auth-httplib2 = "^0.1.0"
-google-auth-oauthlib = "^0.4.5"
+google-auth-oauthlib = "^0.4.6"
 
 # Util
 aiofile = "^3.7.1"

@@ -52,6 +52,10 @@ Copy `config.env_sample` to `config.env` and edit the settings as desired. Each 
 
 Obtain the _API ID_ and _API HASH_ from [Telegram's website](https://my.telegram.org/apps). **TREAT THESE SECRETS LIKE A PASSWORD!**
 
+Obtain the DB_URI from [MongoDB](https://cloud.mongodb.com/). **TREAT THIS SECRETS LIKE A PASSWORD!**
+
+Obtain the SESSION_STRING by running `python3 session.py`. **TREAT THESE SECRETS LIKE A PASSWORD!**
+
 Configuration must be complete before starting the bot for the first time for it to work properly.
 
 ## Usage

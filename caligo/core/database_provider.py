@@ -10,8 +10,12 @@ if TYPE_CHECKING:
 class DatabaseProvider(Base):
     db: util.db.AsyncDB
 
-    def __init__(self: "Bot", **kwargs: Any):
-        client = util.db.AsyncClient(self.getConfig["db_uri"], connect=False)
+    def __init__(self: "Bot", **kwargs: Any) -> None:
+        uri = self.getConfig["db_uri"]
+        if not uri:
+            raise RuntimeError("DB_URI must be set before running the bot")
+
+        client = util.db.AsyncClient(uri, connect=False)
         self.db = client.get_database("caligo")
 
         super().__init__(**kwargs)

@@ -54,11 +54,8 @@ def getIdFromUrl(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
 
-    regex = PATTERN.search(url)
-    if not regex:
-        return None
-
-    return regex[0]
+    match = PATTERN.search(url)
+    return match[0] if match else url
 
 
 class GoogleDrive(module.Module):

@@ -1,10 +1,10 @@
 import platform
 import uuid
 from collections import defaultdict
-from typing import ClassVar, Dict, List, MutableMapping, Optional
+from typing import Any, ClassVar, Dict, List, MutableMapping, Optional
 
 import pyrogram
-from pyrogram.errors import PeerIdInvalid
+from pyrogram.errors import BotInlineDisabled
 from pyrogram.types import (
     CallbackQuery,
     InlineQuery,
@@ -154,10 +154,16 @@ class CoreModule(module.Module):
     @command.usage("[filter: command or module name?]", optional=True)
     async def cmd_help(self, ctx: command.Context) -> Optional[str]:
         if self.bot.has_bot and not ctx.input:
-            await ctx.msg.delete()
-            response = await self.bot.client.get_inline_bot_results(
-                self.bot.bot_user.username)
-            res = await self.bot.client.send_inline_bot_result(
+            response: Any
+            try:
+                response = await self.bot.client.get_inline_bot_results(
+                    self.bot.bot_user.username)
+            except BotInlineDisabled:
+                return "__Bot Inline Disabled__"
+            else:
+                await ctx.msg.delete()
+    
+            res: Any = await self.bot.client.send_inline_bot_result(
                 ctx.msg.chat.id, response.query_id, response.results[1].id)
             self.cache[res.updates[0].id] = ctx.msg.chat.id
 

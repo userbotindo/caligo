@@ -13,7 +13,7 @@ typing-extensions = "*"
 
 [[package]]
 name = "aiofile"
-version = "3.7.1"
+version = "3.7.2"
 description = "Asynchronous file operations."
 category = "main"
 optional = false
@@ -814,7 +814,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "473c8470755e8ba84dcbe73a1f9b649229fe430e3c162c4a12799fd1ae9a8e76"
+content-hash = "216c47d3c66c78bfa1ec5017ed811c665759f941456173ed05566c25ca9aa20a"
 
 [metadata.files]
 aioaria2 = [
@@ -822,8 +822,8 @@ aioaria2 = [
     {file = "aioaria2-1.3.3.tar.gz", hash = "sha256:079caa60205a8d524711db757f103bfd0e01df8b8937e35f116c53467af9c8be"},
 ]
 aiofile = [
-    {file = "aiofile-3.7.1-py3-none-any.whl", hash = "sha256:cab1d3deb1545b7a9d92de16c021a8c90ac739b875336d4da82fea58a2ed60a5"},
-    {file = "aiofile-3.7.1.tar.gz", hash = "sha256:068f38b8fce3bae17a324a8dc8aac61f5f71fdd218f14222186cc2be507f92c1"},
+    {file = "aiofile-3.7.2-py3-none-any.whl", hash = "sha256:b2a153a2f8688c9e7c2df00f26024cc4ae03ad2de15aa41a68d939b46eaad859"},
+    {file = "aiofile-3.7.2.tar.gz", hash = "sha256:e1c577ab033cf1fd01ff33e033431223c5310254cc41bc3c6bf467e702a29791"},
 ]
 aiofiles = [
     {file = "aiofiles-0.6.0-py3-none-any.whl", hash = "sha256:bd3019af67f83b739f8e4053c6c0512a7f545b9a8d91aaeab55e6e0f9d123c27"},

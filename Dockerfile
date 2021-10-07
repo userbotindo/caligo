@@ -90,8 +90,9 @@ RUN chmod +x /home/caligo/bot
 RUN cp /home/caligo/bot /usr/local/bin
 
 # Download aria with sftp and gzip support
-RUN curl -LJO https://techdro.id/techdroid/aria2-1.35.0-r3.apk
-RUN apk add --allow-untrusted --no-cache aria2-1.35.0-r3.apk
+ARG ARIA2=aria2-1.36.0-r0.apk
+RUN curl -LJO https://raw.githubusercontent.com/adekmaulana/docker/master/aria2/$ARIA2
+RUN apk add --allow-untrusted --no-cache $ARIA2
 
 # Certs for aria2 https websocket
 RUN mkdir -p /home/caligo/.cache/caligo/.certs

@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Any, ClassVar, Dict, List, MutableMapping, Optional
 
 import pyrogram
-from pyrogram.errors import BotInlineDisabled
+from pyrogram.errors import BotInlineDisabled, MessageDeleteForbidden
 from pyrogram.types import (
     CallbackQuery,
     InlineQuery,
@@ -110,10 +110,14 @@ class CoreModule(module.Module):
             for msg_id, chat_id in list(self.cache.items()):
                 try:
                     await self.bot.client.delete_messages(chat_id, msg_id)
+                except Exception:
+                    break
+                else:
+                    break
                 finally:
                     del self.cache[msg_id]
             else:
-                await query.answer("😿️ Couldn't close expired message")
+                await query.answer("😿️ Couldn't close message")
                 await query.edit_message_text(
                     "**Caligo Menu Helper**",
                     reply_markup=InlineKeyboardMarkup(button[:-1]))

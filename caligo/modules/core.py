@@ -112,7 +112,6 @@ class CoreModule(module.Module):
                     await self.bot.client.delete_messages(chat_id, msg_id)
                 finally:
                     del self.cache[msg_id]
-                    break
             else:
                 await query.answer("😿️ Couldn't close expired message")
                 await query.edit_message_text(

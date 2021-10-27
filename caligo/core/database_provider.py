@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 
 class DatabaseProvider(Base):
-    db: util.db.AsyncDB
+    db: util.db.AsyncDatabase
 
     def __init__(self: "Bot", **kwargs: Any) -> None:
         uri = self.getConfig["db_uri"]

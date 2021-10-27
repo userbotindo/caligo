@@ -57,19 +57,15 @@ class Bot(TelegramBot, CommandDispatcher, DatabaseProvider, EventDispatcher,
         self.log.info("Stopping")
         if self.loaded:
             await self.dispatch_event("stop")
+            if self.client.is_connected:
+                if self.stop_manual:
+                    await self.client.stop(block=False)
+                else:
+                    await self.client.stop()
         await self.http.close()
         await self.db.close()
 
         self.log.info("Running post-stop hooks")
         if self.loaded:
-            if self.client.is_initialized:
-                if self.stop_manual:
-                    await self.client.stop(block=False)
-                else:
-                    await self.client.stop()
-            for task in asyncio.all_tasks():
-                if task is not asyncio.current_task():
-                    task.cancel()
-            await self.loop.shutdown_asyncgens()
             await self.dispatch_event("stopped")
         self.loop.stop()

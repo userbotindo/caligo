@@ -110,7 +110,7 @@ class CoreModule(module.Module):
             for msg_id, chat_id in list(self.cache.items()):
                 try:
                     await self.bot.client.delete_messages(chat_id, msg_id)
-                except Exception:
+                except Exception:  # skipcq: PYL-W0703
                     break
                 else:
                     break

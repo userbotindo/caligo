@@ -1,13 +1,13 @@
-from typing import TYPE_CHECKING, Any, List, MutableMapping, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Literal, Mapping, Optional, Union
 
 from bson.timestamp import Timestamp
 from pymongo.change_stream import ChangeStream
 from pymongo.collation import Collation
 
+from caligo import util
+
 from .base import AsyncBase
 from .client_session import AsyncClientSession
-
-from caligo import util
 
 if TYPE_CHECKING:
     from .client import AsyncClient
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class AsyncChangeStream(AsyncBase):
     """AsyncIO :obj:`~ChangeStream`
 
-       *DEPRECATED* methods are removed in this class.
+    *DEPRECATED* methods are removed in this class.
     """
 
     _target: Union["AsyncClient", "AsyncDatabase", "AsyncCollection"]
@@ -28,18 +28,22 @@ class AsyncChangeStream(AsyncBase):
     def __init__(
         self,
         target: Union["AsyncClient", "AsyncDatabase", "AsyncCollection"],
-        pipeline: Optional[List[MutableMapping[str, Any]]],
-        full_document: Optional[str],
-        resume_after: Optional[Any],
+        pipeline: Optional[List[Mapping[str, Any]]],
+        full_document: Optional[Literal["updateLookup"]],
+        resume_after: Optional[Mapping[str, str]],
         max_await_time_ms: Optional[int],
         batch_size: Optional[int],
         collation: Optional[Collation],
         start_at_operation_time: Optional[Timestamp],
         session: Optional[AsyncClientSession],
-        start_after: Optional[Any]
+        start_after: Optional[Mapping[str, str]],
+        comment: Optional[str],
+        full_document_before_change: Optional[
+            Literal["required", "whenAvailable"]
+        ] = None,
     ) -> None:
         self._target = target
-        self._options: MutableMapping[str, Any] = {
+        self._options: Mapping[str, Any] = {
             "pipeline": pipeline,
             "full_document": full_document,
             "resume_after": resume_after,
@@ -48,7 +52,9 @@ class AsyncChangeStream(AsyncBase):
             "collation": collation,
             "start_at_operation_time": start_at_operation_time,
             "session": session.dispatch if session else session,
-            "start_after": start_after
+            "start_after": start_after,
+            "comment": comment,
+            "full_document_before_change": full_document_before_change,
         }
 
         super().__init__(None)  # type: ignore
@@ -59,7 +65,7 @@ class AsyncChangeStream(AsyncBase):
     def __iter__(self) -> None:
         raise RuntimeError("Use 'async for' instead of 'for'")
 
-    async def __anext__(self) -> MutableMapping[str, Any]:
+    async def __anext__(self) -> Mapping[str, Any]:
         return await self.next()
 
     async def __aenter__(self) -> "AsyncChangeStream":
@@ -78,7 +84,8 @@ class AsyncChangeStream(AsyncBase):
     async def _init(self) -> ChangeStream:
         if not self.dispatch:
             self.dispatch = await util.run_sync(
-                self._target.dispatch.watch, **self._options)
+                self._target.dispatch.watch, **self._options
+            )
 
         return self.dispatch
 
@@ -86,7 +93,7 @@ class AsyncChangeStream(AsyncBase):
         if self.dispatch:
             await util.run_sync(self.dispatch.close)
 
-    async def next(self) -> MutableMapping[str, Any]:
+    async def next(self) -> Mapping[str, Any]:
         while self.alive:
             document = await self.try_next()
             if document:
@@ -94,7 +101,7 @@ class AsyncChangeStream(AsyncBase):
 
         raise StopAsyncIteration
 
-    async def try_next(self) -> Optional[MutableMapping[str, Any]]:
+    async def try_next(self) -> Optional[Mapping[str, Any]]:
         self.dispatch = await self._init()
         return await util.run_sync(self.dispatch.try_next)
 

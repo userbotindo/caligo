@@ -8,24 +8,27 @@ from typing import (
     ClassVar,
     Coroutine,
     Deque,
-    MutableMapping,
+    Generic,
+    Mapping,
     Optional,
     Tuple,
-    Union
+    Union,
 )
 
+from pymongo.client_session import ClientSession
 from pymongo.command_cursor import CommandCursor as _CommandCursor
+from pymongo.typings import _Address, _DocumentType
+
+from caligo import util
 
 from .client_session import AsyncClientSession
 from .cursor_base import AsyncCursorBase
-
-from caligo import util
 
 if TYPE_CHECKING:
     from .collection import AsyncCollection
 
 
-class CommandCursor(_CommandCursor):
+class CommandCursor(_CommandCursor, Generic[_DocumentType]):
 
     _CommandCursor__data: Deque[Any]
     _CommandCursor__killed: bool
@@ -35,8 +38,8 @@ class CommandCursor(_CommandCursor):
     def __init__(
         self,
         collection: "AsyncCollection",
-        cursor_info: MutableMapping[str, Any],
-        address: Optional[Tuple[str, int]] = None,
+        cursor_info: Mapping[str, Any],
+        address: Optional[Union[Tuple[str, int], _Address]] = None,
         *,
         batch_size: int = 0,
         max_await_time_ms: Optional[int] = None,
@@ -55,7 +58,6 @@ class CommandCursor(_CommandCursor):
             explicit_session=explicit_session,
         )
 
-
     async def _AsyncCommandCursor__die(self, synchronous: bool = False) -> None:
         await util.run_sync(self.__die, synchronous=synchronous)
 
@@ -68,18 +70,18 @@ class CommandCursor(_CommandCursor):
         return self.__killed
 
     @property
-    def collection(self) -> "AsyncCollection":
-        return self.__collection
+    def collection(self) -> "AsyncCollection[_DocumentType]":
+        return self.delegate
 
 
-class RawBatchCommandCursor(CommandCursor):
+class RawBatchCommandCursor(CommandCursor, Generic[_DocumentType]):
     pass
 
 
 class AsyncCommandCursor(AsyncCursorBase):
     """AsyncIO :obj:`~CommandCursor`
 
-       *DEPRECATED* methods are removed in this class.
+    *DEPRECATED* methods are removed in this class.
     """
 
     dispatch: CommandCursor
@@ -94,8 +96,9 @@ class AsyncCommandCursor(AsyncCursorBase):
         return self.dispatch._CommandCursor__killed  # skipcq: PYL-W0212
 
 
-class _LatentCursor:
+class _LatentCursor(Generic[_DocumentType]):
     """Base class for LatentCursor AsyncIOMongoDB instance"""
+
     # ClassVar
     alive: ClassVar[bool] = True
     _CommandCursor__data: ClassVar[Deque[Any]] = deque()
@@ -104,9 +107,9 @@ class _LatentCursor:
     _CommandCursor__sock_mgr: ClassVar[Optional[Any]] = None
     _CommandCursor__session: ClassVar[Optional[AsyncClientSession]] = None
     _CommandCursor__explicit_session: ClassVar[Optional[bool]] = None
-    address: ClassVar[Optional[Tuple[str, int]]] = None
+    address: ClassVar[Optional[Union[Tuple[str, int], _Address]]] = None
     cursor_id: ClassVar[Optional[Any]] = None
-    session: ClassVar[Optional[AsyncClientSession]] = None
+    session: Optional[ClientSession] = None
 
     _CommandCursor__collection: "AsyncCollection"
 
@@ -142,16 +145,16 @@ class _LatentCursor:
 
 class AsyncLatentCommandCursor(AsyncCommandCursor):
     """Temporary Cursor for initializing in aggregate,
-       and will be overwrite by :obj:`~asyncio.Future`"""
+    and will be overwrite by :obj:`~asyncio.Future`"""
 
     dispatch: Union[CommandCursor, RawBatchCommandCursor]
 
     def __init__(
         self,
         collection: "AsyncCollection",
-        start: Callable[..., Union[CommandCursor, RawBatchCommandCursor]],
+        start: Callable[..., Any],
         *args: Any,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         self.start = start
         self.args = args
@@ -161,6 +164,7 @@ class AsyncLatentCommandCursor(AsyncCommandCursor):
 
     def batch_size(self, batch_size: int) -> "AsyncLatentCommandCursor":
         self.kwargs["batchSize"] = batch_size
+
         return self
 
     def _get_more(self) -> Union[asyncio.Future[int], Coroutine[Any, Any, int]]:
@@ -168,12 +172,15 @@ class AsyncLatentCommandCursor(AsyncCommandCursor):
             self.started = True
             original_future = self.loop.create_future()
             future = self.loop.create_task(
-                util.run_sync(self.start, *self.args, **self.kwargs))
-            future.add_done_callback(
-                partial(self.loop.call_soon_threadsafe,
-                        self._on_started,
-                        original_future)
+                util.run_sync(self.start, *self.args, **self.kwargs)
             )
+            future.add_done_callback(
+                partial(
+                    self.loop.call_soon_threadsafe, self._on_started, original_future
+                )
+            )
+
+            self.start, self.args, self.kwargs = lambda _: None, (), {}
 
             return original_future
 
@@ -182,7 +189,7 @@ class AsyncLatentCommandCursor(AsyncCommandCursor):
     def _on_started(
         self,
         original_future: asyncio.Future[int],
-        future: asyncio.Future[Union[CommandCursor, RawBatchCommandCursor]]
+        future: asyncio.Future[Union[CommandCursor, RawBatchCommandCursor]],
     ) -> None:
         try:
             self.dispatch = future.result()
@@ -194,22 +201,25 @@ class AsyncLatentCommandCursor(AsyncCommandCursor):
             if original_future.done():
                 return
 
-            if self.dispatch._CommandCursor__data or not self.dispatch.alive:  # skipcq: PYL-W0212
+            if (
+                self.dispatch._CommandCursor__data or not self.dispatch.alive
+            ):  # skipcq: PYL-W0212
                 # _get_more is complete.
-                original_future.set_result(len(self.dispatch._CommandCursor__data))  # skipcq: PYL-W0212
+                original_future.set_result(
+                    len(self.dispatch._CommandCursor__data)  # skipcq: PYL-W0212
+                )
             else:
                 # Send a getMore.
-                fut = super()._get_more()
-                if isinstance(fut, asyncio.Future):
+                fut = self.loop.create_task(super()._get_more())
 
-                    def copy(f: asyncio.Future) -> None:
-                        if original_future.done():
-                            return
+                def copy(f: asyncio.Future[int]) -> None:
+                    if original_future.done():
+                        return
 
-                        exc = f.exception()
-                        if exc is not None:
-                            original_future.set_exception(exc)
-                        else:
-                            original_future.set_result(f.result())
+                    exc = f.exception()
+                    if exc is not None:
+                        original_future.set_exception(exc)
+                    else:
+                        original_future.set_result(f.result())
 
-                    fut.add_done_callback(copy)
+                fut.add_done_callback(copy)

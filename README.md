@@ -2,7 +2,7 @@
 
 A SelfBot for Telegram made with Python using [Pyrogram](https://github.com/pyrogram/pyrogram) library. It's highly inspired from [pyrobud](https://github.com/kdrag0n/pyrobud) that writtens in [Telethon](https://github.com/LonamiWebs/Telethon) library.  
 It's the same but different, you know what i mean?  
-Caligo needs **Python 3.8** or newer to run.
+Caligo needs **Python 3.10** or newer to run.
 
 ## Compatibility
 

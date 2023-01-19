@@ -1,12 +1,25 @@
 **/__pycache__/**
 
-# file
+# environment file
 *.env
+!sample_config.env
+
+# Build folder
+dist/
+
+# Runtime data
+.cache/
+downloads/
+caligo/downloads/
+
+# file
+.DS_Store
 *.pyc
 *.log
 *.session
+*.session-journal
 
-caligo/downloads
-downloads
-.cache
-.vscode
+# IDE specific files
+.idea/
+.vscode/
+*.sw*

@@ -1,11 +1,5 @@
-# Build Go programs (only corrupter at the moment)
-FROM golang:1-alpine AS go-build
-RUN apk add --no-cache git
-RUN go get github.com/r00tman/corrupter
-
-
 # Build Python package and dependencies
-FROM python:3.9-alpine AS python-build
+FROM python:3.10-alpine AS python-build
 RUN apk add --no-cache \
         git \
         libffi-dev \
@@ -21,6 +15,7 @@ RUN apk add --no-cache \
         lcms2-dev \
         libwebp-dev \
         openssl-dev
+
 RUN mkdir -p /opt/venv
 WORKDIR /opt/venv
 RUN python3 -m venv /opt/venv
@@ -39,7 +34,7 @@ RUN pip install .
 
 
 # Package everything
-FROM python:3.9-alpine AS final
+FROM python:3.10-alpine AS final
 # Update system first
 RUN apk update
 
@@ -74,9 +69,6 @@ RUN apk add --no-cache \
 # Create bot user
 RUN adduser -D caligo
 
-# Copy Go programs
-COPY --from=go-build /go/bin/corrupter /usr/local/bin
-
 # Copy Python venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=python-build /opt/venv /opt/venv
@@ -89,21 +81,23 @@ RUN git clone https://github.com/adekmaulana/caligo /home/caligo
 RUN chmod +x /home/caligo/bot
 RUN cp /home/caligo/bot /usr/local/bin
 
+# {
 # Download aria with sftp and gzip support
-ARG ARIA2=aria2-1.36.0-r0.apk
-RUN curl -LJO https://raw.githubusercontent.com/adekmaulana/docker/master/aria2/$ARIA2
-RUN apk add --allow-untrusted --no-cache $ARIA2
+# ARG ARIA2=aria2-1.36.0-r0.apk
+# RUN curl -LJO https://raw.githubusercontent.com/adekmaulana/docker/master/aria2/$ARIA2
+# RUN apk add --allow-untrusted --no-cache $ARIA2
 
 # Certs for aria2 https websocket
-RUN mkdir -p /home/caligo/.cache/caligo/.certs
+# RUN mkdir -p /home/caligo/.cache/caligo/.certs
 
 # Initialize mkcert
-RUN curl -LJO https://github.com/FiloSottile/mkcert/releases/download/v1.4.3/mkcert-v1.4.3-linux-amd64
-RUN mv mkcert-v1.4.3-linux-amd64 /usr/local/bin/mkcert
-RUN chmod +x /usr/local/bin/mkcert
+# RUN curl -LJO https://github.com/FiloSottile/mkcert/releases/download/v1.4.3/mkcert-v1.4.3-linux-amd64
+# RUN mv mkcert-v1.4.3-linux-amd64 /usr/local/bin/mkcert
+# RUN chmod +x /usr/local/bin/mkcert
 
-RUN mkcert -install
-RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost 127.0.0.1
+# RUN mkcert -install
+# RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost 127.0.0.1
+# }
 
 # Change permission of home folder
 RUN chown -hR caligo /home/caligo

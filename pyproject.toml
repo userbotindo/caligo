@@ -34,7 +34,7 @@ caligo = "caligo.main:main"
 "Community" = ""
 
 [tool.poetry.dependencies]
-python = ">=3.10, <=3.11"
+python = "~=3.10"
 
 aiohttp = "^3.8.3"
 aiopath = "^0.6.11"

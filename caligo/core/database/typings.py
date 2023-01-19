@@ -1,6 +1,13 @@
 from typing import TypeVar, Union
 
-from pymongo.operations import DeleteOne, InsertOne, ReplaceOne
+from pymongo.operations import (
+    DeleteMany,
+    DeleteOne,
+    InsertOne,
+    ReplaceOne,
+    UpdateMany,
+    UpdateOne,
+)
 from pymongo.read_preferences import (
     Nearest,
     Primary,
@@ -12,5 +19,7 @@ from pymongo.read_preferences import (
 ReadPreferences = Union[
     Primary, PrimaryPreferred, Secondary, SecondaryPreferred, Nearest
 ]
-Request = Union[DeleteOne, InsertOne, ReplaceOne]
+Request = TypeVar(
+    "Request", DeleteMany, DeleteOne, InsertOne, ReplaceOne, UpdateMany, UpdateOne
+)
 Results = TypeVar("Results")

@@ -17,6 +17,7 @@ class Main(module.Module):
     async def on_stop(self) -> None:
         return
 
+        # skipcq: PYL-W0101
         file = AsyncPath("caligo/caligo.session")
         if not await file.exists():
             return

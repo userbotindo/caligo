@@ -50,7 +50,9 @@ class ConversationDispatcher(CaligoBase):
             self.CONVERSATION[conv.chat.id].put_nowait(None)
             del self.CONVERSATION[conv.chat.id]
 
-    async def on_conversation(self: "Caligo", client: Client, msg: Message) -> None:
+    async def on_conversation(
+        self: "Caligo", client: Client, msg: Message  # skipcq: PYL-W0613
+    ) -> None:
         cache = self.CONVERSATION[msg.chat.id]
         cache.put_nowait(msg)
         msg.continue_propagation()

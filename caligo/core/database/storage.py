@@ -3,7 +3,7 @@
 import asyncio
 import inspect
 import time
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 from pymongo import UpdateOne
 from pyrogram.raw.types.input_peer_channel import InputPeerChannel
@@ -65,6 +65,12 @@ class PersistentStorage(Storage):
             }
         )
 
+    async def save(self) -> None:
+        pass
+
+    async def close(self) -> None:
+        pass
+
     async def delete(self) -> None:
         try:
             await self._session.delete_one({"_id": 0})
@@ -99,7 +105,7 @@ class PersistentStorage(Storage):
 
     async def get_peer_by_id(
         self, peer_id: int
-    ) -> InputPeerUser | InputPeerChat | InputPeerChannel:
+    ) -> Union[InputPeerUser, InputPeerChat, InputPeerChannel]:
         # id, access_hash, type
         res = await self._peer.find_one(
             {"_id": peer_id}, {"_id": 1, "access_hash": 1, "type": 1}
@@ -111,7 +117,7 @@ class PersistentStorage(Storage):
 
     async def get_peer_by_username(
         self, username: str
-    ) -> InputPeerUser | InputPeerChat | InputPeerChannel:
+    ) -> Union[InputPeerUser, InputPeerChat, InputPeerChannel]:
         # id, access_hash, type, last_update_on,
         res = await self._peer.find_one(
             {"username": username},
@@ -121,14 +127,14 @@ class PersistentStorage(Storage):
         if not res:
             raise KeyError(f"Username not found: {username}")
 
-        if abs(time.time() - res["last"]) > self.USERNAME_TTL:
+        if abs(time.time() - res["last_update_on"]) > self.USERNAME_TTL:
             raise KeyError(f"Username expired: {username}")
 
-        return get_input_peer(*list(res.values())[:3])
+        return get_input_peer(res["_id"], res["access_hash"], res["type"])
 
     async def get_peer_by_phone_number(
         self, phone_number: str
-    ) -> InputPeerUser | InputPeerChat | InputPeerChannel:
+    ) -> Union[InputPeerUser, InputPeerChat, InputPeerChannel]:
         #  _id, access_hash, type,
         res = await self._peer.find_one(
             {"phone_number": phone_number}, {"_id": 1, "access_hash": 1, "type": 1}
@@ -139,7 +145,7 @@ class PersistentStorage(Storage):
 
         return get_input_peer(*res.values())
 
-    async def _get(self) -> Any | None:
+    async def _get(self) -> Optional[Any]:
         attr = inspect.stack()[2].function
         data = await self._session.find_one({"_id": 0}, {attr: 1})
         if not data:
@@ -151,26 +157,26 @@ class PersistentStorage(Storage):
         attr = inspect.stack()[2].function
         await self._session.update_one({"_id": 0}, {"$set": {attr: value}}, upsert=True)
 
-    async def _accessor(self, value: Any = None) -> Any:
-        return await self._get() if value is None else await self._set(value)
+    async def _accessor(self, value: Any = object) -> Any:
+        return await self._get() if value == object else await self._set(value)
 
-    async def dc_id(self, value: Optional[int] = None) -> int | None:
+    async def dc_id(self, value=object) -> Optional[int]:
         return await self._accessor(value)
 
-    async def api_id(self, value: Optional[int] = None) -> int | None:
+    async def api_id(self, value=object) -> Optional[int]:
         return await self._accessor(value)
 
-    async def test_mode(self, value: Optional[bool] = None) -> bool | None:
+    async def test_mode(self, value=object) -> Optional[bool]:
         return await self._accessor(value)
 
-    async def auth_key(self, value: Optional[bytes] = None) -> bytes | None:
+    async def auth_key(self, value=object) -> Optional[bytes]:
         return await self._accessor(value)
 
-    async def date(self, value: Optional[int] = None) -> int | None:
+    async def date(self, value=object) -> Optional[int]:
         return await self._accessor(value)
 
-    async def user_id(self, value: Optional[int] = None) -> int | None:
+    async def user_id(self, value=object) -> Optional[int]:
         return await self._accessor(value)
 
-    async def is_bot(self, value: Optional[bool] = None) -> bool | None:
+    async def is_bot(self, value=object) -> Optional[bool]:
         return await self._accessor(value)

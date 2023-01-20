@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+# ---- REQUIRED ---- #
+
+[telegram]
+# Get this value from https://my.telegram.org/apps
+api_id = 123 # Client API ID used for authentication
+api_hash = "12345678" # Client API hash used for authentication
+
+[bot]
+# Mongodb url from https://cloud.mongodb.com/
+db_uri = "mongodb://srv+"
+
+
+# ---- OPTIONAL ---- #
+
+# Bot command prefix
+prefix = "."
+
+# Environment path
+# Your download location
+download_path = "caligo/downloads/"
+
+# GitHub
+# Your forked repo link leave empty if you want official
+github_repo = "https://github.com/adekmaulana/caligo"
+# Your GitHub token with workflow enabled for deploying into Heroku
+github_token = "asd02m0d0m2d"

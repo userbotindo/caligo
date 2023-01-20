@@ -5,18 +5,18 @@ from typing import TYPE_CHECKING, ClassVar, Optional, Type
 
 if TYPE_CHECKING:
     from .command import Command
-    from .core import Bot
+    from .core import Caligo
 
 
 class Module:
     name: ClassVar[str] = "Unnamed"
     disabled: ClassVar[bool] = False
 
-    bot: "Bot"
+    bot: "Caligo"
     log: logging.Logger
     comment: Optional[str]
 
-    def __init__(self, bot: "Bot") -> None:
+    def __init__(self, bot: "Caligo") -> None:
         self.bot = bot
         self.log = logging.getLogger(type(self).name)
         self.comment = None
@@ -38,8 +38,7 @@ class ExistingModuleError(ModuleLoadError):
     old_module: Type[Module]
     new_module: Type[Module]
 
-    def __init__(self, old_module: Type[Module],
-                 new_module: Type[Module]) -> None:
+    def __init__(self, old_module: Type[Module], new_module: Type[Module]) -> None:
         super().__init__(
             f"Module '{old_module.name}' ({old_module.__name__}) already exists"
         )
@@ -53,10 +52,9 @@ class ExistingCommandError(ModuleLoadError):
     new_cmd: "Command"
     alias: bool
 
-    def __init__(self,
-                 old_cmd: "Command",
-                 new_cmd: "Command",
-                 alias: bool = False) -> None:
+    def __init__(
+        self, old_cmd: "Command", new_cmd: "Command", alias: bool = False
+    ) -> None:
         al_str = "alias of " if alias else ""
         old_name = type(old_cmd.module).__name__
         new_name = type(new_cmd.module).__name__

@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Any
 
-Base: Any
+CaligoBase: Any
 if TYPE_CHECKING:
-    from .bot import Bot
+    from .bot import Caligo
 
-    Base = Bot
+    CaligoBase = Caligo
 else:
     import abc
 
-    Base = abc.ABC
+    CaligoBase = abc.ABC

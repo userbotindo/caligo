@@ -1,40 +1,34 @@
 import asyncio
 import bisect
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-)
+from typing import TYPE_CHECKING, Any, MutableMapping, MutableSequence, Optional
 
 from pyrogram.filters import Filter
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
 from .. import module, util
 from ..listener import Listener, ListenerFunc
-from .base import Base
+from .base import CaligoBase
 
 if TYPE_CHECKING:
-    from .bot import Bot
+    from .bot import Caligo
 
 
-class EventDispatcher(Base):
+class EventDispatcher(CaligoBase):
     listeners: MutableMapping[str, MutableSequence[Listener]]
 
-    def __init__(self: "Bot", **kwargs: Any) -> None:
+    def __init__(self: "Caligo", **kwargs: Any) -> None:
         self.listeners = {}
 
         super().__init__(**kwargs)
 
     def register_listener(
-        self: "Bot",
+        self: "Caligo",
         mod: module.Module,
         event: str,
         func: ListenerFunc,
         *,
         priority: int = 100,
-        regex: Optional[Filter] = None
+        regex: Optional[Filter] = None,
     ) -> None:
         listener = Listener(event, func, mod, priority, regex)
 
@@ -45,32 +39,30 @@ class EventDispatcher(Base):
 
         self.update_module_events()
 
-    def unregister_listener(self: "Bot", listener: Listener) -> None:
+    def unregister_listener(self: "Caligo", listener: Listener) -> None:
         self.listeners[listener.event].remove(listener)
         if not self.listeners[listener.event]:
             del self.listeners[listener.event]
 
         self.update_module_events()
 
-    def register_listeners(self: "Bot", mod: module.Module) -> None:
+    def register_listeners(self: "Caligo", mod: module.Module) -> None:
         for event, func in util.misc.find_prefixed_funcs(mod, "on_"):
             done = True
             try:
-                self.register_listener(mod,
-                                       event,
-                                       func,
-                                       priority=getattr(func,
-                                                        "_listener_priority",
-                                                        100),
-                                       regex=getattr(func,
-                                                     "_listener_regex",
-                                                     None))
+                self.register_listener(
+                    mod,
+                    event,
+                    func,
+                    priority=getattr(func, "_listener_priority", 100),
+                    regex=getattr(func, "_listener_regex", None),
+                )
                 done = True
             finally:
                 if not done:
                     self.unregister_listeners(mod)
 
-    def unregister_listeners(self: "Bot", mod: module.Module) -> None:
+    def unregister_listeners(self: "Caligo", mod: module.Module) -> None:
         to_unreg = []
 
         for lst in self.listeners.values():
@@ -81,11 +73,9 @@ class EventDispatcher(Base):
         for listener in to_unreg:
             self.unregister_listener(listener)
 
-    async def dispatch_event(self: "Bot",
-                             event: str,
-                             *args: Any,
-                             wait: bool = True,
-                             **kwargs: Any) -> None:
+    async def dispatch_event(
+        self: "Caligo", event: str, *args: Any, wait: bool = True, **kwargs: Any
+    ) -> None:
         tasks = set()
 
         try:
@@ -128,5 +118,5 @@ class EventDispatcher(Base):
         if wait:
             await asyncio.wait(tasks)
 
-    async def log_stat(self: "Bot", stat: str) -> None:
+    async def log_stat(self: "Caligo", stat: str) -> None:
         await self.dispatch_event("stat_event", stat, wait=False)

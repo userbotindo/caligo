@@ -1,9 +1,9 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Any, Mapping, Optional
 
 import aiohttp
-import pyrogram
+from pyrogram.client import Client
 
 from .command_dispatcher import CommandDispatcher
 from .conversation_dispatcher import ConversationDispatcher
@@ -13,9 +13,16 @@ from .module_extender import ModuleExtender
 from .telegram_bot import TelegramBot
 
 
-class Bot(TelegramBot, CommandDispatcher, DatabaseProvider, EventDispatcher,
-          ConversationDispatcher, ModuleExtender):
-    client: pyrogram.Client
+class Caligo(
+    TelegramBot,
+    CommandDispatcher,
+    DatabaseProvider,
+    EventDispatcher,
+    ConversationDispatcher,
+    ModuleExtender,
+):
+    config: Mapping[str, Any]
+    client: Client
     http: aiohttp.ClientSession
     lock: asyncio.Lock
     log: logging.Logger
@@ -23,7 +30,8 @@ class Bot(TelegramBot, CommandDispatcher, DatabaseProvider, EventDispatcher,
     stop_manual: bool
     stopping: bool
 
-    def __init__(self) -> None:
+    def __init__(self, config: Mapping[str, Any]) -> None:
+        self.config = config
         self.log = logging.getLogger("Bot")
         self.loop = asyncio.get_event_loop()
         self.stop_manual = False
@@ -34,22 +42,23 @@ class Bot(TelegramBot, CommandDispatcher, DatabaseProvider, EventDispatcher,
         self.http = aiohttp.ClientSession()
 
     @classmethod
-    async def create_and_run(cls,
-                             *,
-                             loop: Optional[asyncio.AbstractEventLoop] = None
-                             ) -> "Bot":
+    async def create_and_run(
+        cls,
+        config: Mapping[str, Any],
+        *,
+        loop: Optional[asyncio.AbstractEventLoop] = None
+    ) -> "Caligo":
         bot = None
 
         if loop:
             asyncio.set_event_loop(loop)
 
         try:
-            bot = cls()
+            bot = cls(config)
             await bot.run()
             return bot
         finally:
-            if bot is None or (bot is not None and not bot.stopping):
-                asyncio.get_event_loop().stop()
+            asyncio.get_event_loop().stop()
 
     async def stop(self) -> None:
         self.stopping = True

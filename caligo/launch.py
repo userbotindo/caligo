@@ -1,15 +1,15 @@
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 import aiorun
-from pyrogram.session import Session
+import tomllib
 
-from .core import Bot
+from .core import Caligo
 
 log = logging.getLogger("Launch")
 aiorun.logger.disabled = True
-Session.notice_displayed = True
 
 
 def main() -> None:
@@ -29,4 +29,12 @@ def main() -> None:
 
     log.info("Initializing bot")
     loop = asyncio.new_event_loop()
-    aiorun.run(Bot.create_and_run(loop=loop), loop=loop)
+
+    config_path = Path("config.toml")
+    if not config_path.exists():
+        raise RuntimeError("Configuration must be done before running the bot.")
+
+    with config_path.open(mode="rb") as f:
+        config = tomllib.load(f)
+
+    aiorun.run(Caligo.create_and_run(config, loop=loop), loop=loop)

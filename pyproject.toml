@@ -34,7 +34,7 @@ caligo = "caligo.main:main"
 "Community" = ""
 
 [tool.poetry.dependencies]
-python = "~=3.10"
+python = "~=3.11"
 
 aiohttp = "^3.8.3"
 aiopath = "^0.6.11"
@@ -44,7 +44,6 @@ colorlog = "^6.7.0"
 meval = "^2.5"
 pymongo = "^4.3.3"
 Pyrogram = "^2.0.96"
-python-dotenv = "^0.21.0"
 TgCrypto = "^1.2.5"
 uvloop = {version = "^0.17.0", platform = "linux"}
 

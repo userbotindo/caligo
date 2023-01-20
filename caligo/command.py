@@ -13,13 +13,14 @@ from typing import (
     Union,
 )
 
-import pyrogram
+from pyrogram.types import Message
 
 if TYPE_CHECKING:
-    from .core import Bot
+    from .core import Caligo
 
-CommandFunc = Union[Callable[..., Coroutine[Any, Any, None]],
-                    Callable[..., Coroutine[Any, Any, Any]]]
+CommandFunc = Union[
+    Callable[..., Coroutine[Any, Any, None]], Callable[..., Coroutine[Any, Any, Any]]
+]
 Decorator = Callable[[CommandFunc], CommandFunc]
 
 
@@ -33,9 +34,7 @@ def desc(_desc: str) -> Decorator:
     return desc_decorator
 
 
-def usage(_usage: str,
-          optional: bool = False,
-          reply: bool = False) -> Decorator:
+def usage(_usage: str, optional: bool = False, reply: bool = False) -> Decorator:
     """Sets argument usage help on a command function."""
 
     def usage_decorator(func: CommandFunc) -> CommandFunc:
@@ -91,22 +90,27 @@ class Command:
 
 
 class Context:
-    bot: "Bot"
-    msg: pyrogram.types.Message
+    bot: "Caligo"
+    msg: Message
     segments: Sequence[str]
     cmd_len: int
     invoker: str
 
-    response: pyrogram.types.Message
+    response: Message
     response_mode: Optional[str]
 
-    input: Optional[Union[str, None]]
+    input: str
     args: Sequence[str]
     matches: List[Match[str]]
 
-    def __init__(self, bot: "Bot", msg: pyrogram.types.Message,
-                 segments: Sequence[str], cmd_len: int,
-                 matches: List[Match[str]]) -> None:
+    def __init__(
+        self,
+        bot: "Caligo",
+        msg: Message,
+        segments: Sequence[str],
+        cmd_len: int,
+        matches: List[Match[str]],
+    ) -> None:
         self.bot = bot
         self.msg = msg
         self.segments = segments
@@ -116,7 +120,7 @@ class Context:
         self.response = None  # type: ignore
         self.response_mode = None
 
-        self.input = self.msg.text[self.cmd_len:]
+        self.input = self.msg.text[self.cmd_len :]
         self.matches = matches
 
     def __getattr__(self, name: str) -> Any:
@@ -124,7 +128,8 @@ class Context:
             return self._get_args()
 
         raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'")
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
 
     # Argument segments
     def _get_args(self) -> Sequence[str]:
@@ -133,15 +138,15 @@ class Context:
 
     async def respond(
         self,
-        text: Optional[str] = None,
+        text: str = "",
         *,
-        mode: Optional[str] = None,
-        redact: Optional[bool] = None,
-        msg: Optional[pyrogram.types.Message] = None,
+        mode: str = "edit",
+        redact: bool = True,
+        msg: Optional[Message] = None,
         reuse_response: bool = False,
         delete_after: Union[int, float] = 0,
         **kwargs: Any,
-    ) -> pyrogram.types.Message:
+    ) -> Message:
 
         self.response = await self.bot.respond(
             msg or self.msg,
@@ -150,14 +155,15 @@ class Context:
             mode=mode,
             redact=redact,
             response=self.response
-            if reuse_response and mode == self.response_mode else None,
+            if reuse_response and mode == self.response_mode
+            else None,
             **kwargs,
         )
         self.response_mode = mode
 
         if delete_after != 0:
 
-            async def delete() -> bool:
+            async def delete() -> int:
                 await asyncio.sleep(delete_after)
                 return await self.response.delete()
 
@@ -168,11 +174,11 @@ class Context:
     async def respond_multi(
         self,
         *args: Any,
-        mode: Optional[str] = None,
-        msg: Optional[pyrogram.types.Message] = None,
+        mode: str = "edit",
+        msg: Message = None,  # type: ignore
         reuse_response: bool = False,
         **kwargs: Any,
-    ) -> pyrogram.types.Message:
+    ) -> Message:
         # First response is the same
         if self.response:
             # After that, force a reply to the previous response
@@ -185,8 +191,6 @@ class Context:
             if reuse_response is None:
                 reuse_response = False
 
-        return await self.respond(*args,
-                                  mode=mode,
-                                  msg=msg,
-                                  reuse_response=reuse_response,
-                                  **kwargs)
+        return await self.respond(
+            *args, mode=mode, msg=msg, reuse_response=reuse_response, **kwargs
+        )

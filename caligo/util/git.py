@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 from typing import Optional  # skipcq: PYL-W0611
@@ -12,7 +11,7 @@ except ImportError:
     have_git = False
 
 
-REPO = os.environ.get("GITHUB_REPO", "adekmaulana/caligo")
+REPO = "adekmaulana/caligo"
 
 
 class LazyRepo:

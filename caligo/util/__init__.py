@@ -1,21 +1,3 @@
-from . import (
-    aria2,
-    async_helpers,
-    config,
-    db,
-    error,
-    file,
-    git,
-    image,
-    misc,
-    system,
-    text,
-    tg,
-    time,
-    version,
-)
-
-File = file.File
-TelegramConfig = config.TelegramConfig()
+from . import async_helpers, error, git, misc, system, text, tg, time, version
 
 run_sync = async_helpers.run_sync

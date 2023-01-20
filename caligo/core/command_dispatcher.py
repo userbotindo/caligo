@@ -1,26 +1,28 @@
 from typing import TYPE_CHECKING, Any, MutableMapping, Tuple
 
-import pyrogram
+from pyrogram.client import Client
 from pyrogram.errors import MessageNotModified
 from pyrogram.filters import Filter, create
+from pyrogram.types import Message
 
 from .. import command, module, util
-from .base import Base
+from .base import CaligoBase
 
 if TYPE_CHECKING:
-    from .bot import Bot
+    from .bot import Caligo
 
 
-class CommandDispatcher(Base):
+class CommandDispatcher(CaligoBase):
     commands: MutableMapping[str, command.Command]
 
-    def __init__(self: "Bot", **kwargs: Any) -> None:
+    def __init__(self: "Caligo", **kwargs: Any) -> None:
         self.commands = {}
 
         super().__init__(**kwargs)
 
-    def register_command(self: "Bot", mod: module.Module, name: str,
-                         func: command.CommandFunc) -> None:
+    def register_command(
+        self: "Caligo", mod: module.Module, name: str, func: command.CommandFunc
+    ) -> None:
         cmd = command.Command(name, mod, func)
 
         if name in self.commands:
@@ -36,7 +38,7 @@ class CommandDispatcher(Base):
 
             self.commands[alias] = cmd
 
-    def unregister_command(self: "Bot", cmd: command.Command) -> None:
+    def unregister_command(self: "Caligo", cmd: command.Command) -> None:
         del self.commands[cmd.name]
 
         for alias in cmd.aliases:
@@ -45,7 +47,7 @@ class CommandDispatcher(Base):
             except KeyError:
                 continue
 
-    def register_commands(self: "Bot", mod: module.Module) -> None:
+    def register_commands(self: "Caligo", mod: module.Module) -> None:
         for name, func in util.misc.find_prefixed_funcs(mod, "cmd_"):
             done = False
 
@@ -56,7 +58,7 @@ class CommandDispatcher(Base):
                 if not done:
                     self.unregister_commands(mod)
 
-    def unregister_commands(self: "Bot", mod: module.Module) -> None:
+    def unregister_commands(self: "Caligo", mod: module.Module) -> None:
         to_unreg = []
 
         for name, cmd in self.commands.items():
@@ -69,12 +71,11 @@ class CommandDispatcher(Base):
         for cmd in to_unreg:
             self.unregister_command(cmd)
 
-    def command_predicate(self: "Bot") -> Filter:
-
-        async def func(_, __, msg: pyrogram.types.Message):
+    def command_predicate(self: "Caligo") -> Filter:
+        async def func(_, __, msg: Message) -> bool:
             if msg.text is not None and msg.text.startswith(self.prefix):
                 parts = msg.text.split()
-                parts[0] = parts[0][len(self.prefix):]
+                parts[0] = parts[0][len(self.prefix) :]
                 msg.command = parts
                 return True
 
@@ -82,8 +83,7 @@ class CommandDispatcher(Base):
 
         return create(func)
 
-    async def on_command(self: "Bot", _: pyrogram.Client,
-                         msg: pyrogram.types.Message) -> None:
+    async def on_command(self: "Caligo", _: Client, msg: Message) -> None:
         cmd = None
 
         # Don't process via inline
@@ -95,13 +95,6 @@ class CommandDispatcher(Base):
                 cmd = self.commands[msg.command[0]]
             except KeyError:
                 return
-
-            if ((cmd.module.name == "GoogleDrive" and not cmd.module.disabled)
-                    and cmd.name not in ["gdreset", "gdclear"]):
-                ret = await cmd.module.authorize(msg)
-
-                if ret is False:
-                    return
 
             cmd_len = len(self.prefix) + len(msg.command[0]) + 1
             if cmd.pattern is not None and msg.reply_to_message:
@@ -115,27 +108,20 @@ class CommandDispatcher(Base):
 
             try:
                 ret = await cmd.func(ctx)
-
-                if isinstance(ret, Tuple):
-                    if not isinstance(ret[1], (int, float)):
-                        raise TypeError("Second value must be int/float, "
-                                        f"got: {type(ret[1])}")
-                    await ctx.respond(ret[0], delete_after=ret[1])
-                else:
-                    if ret is not None:
-                        await ctx.respond(ret)
+                if ret is not None:
+                    await ctx.respond(ret)
             except MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
                 )
             except Exception as e:  # skipcq: PYL-W0703
-                cmd.module.log.error(f"Error in command '{cmd.name}'",
-                                     exc_info=e)
+                cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=e)
                 await ctx.respond(
                     "**In**:\n"
                     f"{ctx.input if ctx.input is not None else msg.text}\n\n"
                     "**Out**:\n⚠️ Error executing command:\n"
-                    f"```{util.error.format_exception(e)}```")
+                    f"```{util.error.format_exception(e)}```"
+                )
 
             await self.dispatch_event("command", cmd, msg)
         except Exception as e:  # skipcq: PYL-W0703

@@ -14,17 +14,18 @@ def _calc_pct(num1: int, num2: int) -> str:
     if not num2:
         return "0"
 
+    # skipcq: PYL-C0209
     return "{:.1f}".format((num1 / num2) * 100).rstrip("0").rstrip(".")
 
 
 def _calc_ph(stat: int, uptime: int) -> str:
     up_hr = max(1, uptime) / USEC_PER_HOUR
-    return "{:.1f}".format(stat / up_hr).rstrip("0").rstrip(".")
+    return "{:.1f}".format(stat / up_hr).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
 
 
 def _calc_pd(stat: int, uptime: int) -> str:
     up_day = max(1, uptime) / USEC_PER_DAY
-    return "{:.1f}".format(stat / up_day).rstrip("0").rstrip(".")
+    return "{:.1f}".format(stat / up_day).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
 
 
 class StatsModule(module.Module):
@@ -34,27 +35,24 @@ class StatsModule(module.Module):
     lock: asyncio.Lock
 
     async def get(self, key: str) -> Optional[Any]:
-        collection = await self.db.find_one({"_id": self.name})
-        if collection is not None:
-            return collection.get(key)
-
-        return None
+        collection = await self.db.find_one({"_id": 0})
+        return collection.get(key) if collection else None
 
     async def inc(self, key: str, value: int) -> None:
         await self.db.find_one_and_update(
-            {"_id": self.name}, {"$inc": {key: value}}, upsert=True
+            {"_id": 0}, {"$inc": {key: value}}, upsert=True
         )
 
     async def delete(self, key: str) -> None:
-        await self.db.find_one_and_update({"_id": self.name}, {"$unset": {key: ""}})
+        await self.db.find_one_and_update({"_id": 0}, {"$unset": {key: ""}})
 
     async def put(self, key: str, value: int) -> None:
         await self.db.find_one_and_update(
-            {"_id": self.name}, {"$set": {key: value}}, upsert=True
+            {"_id": 0}, {"$set": {key: value}}, upsert=True
         )
 
     async def on_load(self) -> None:
-        self.db = self.bot.db.get_collection("stats")
+        self.db = self.bot.db.get_collection(self.name.upper())
 
         if await self.get("stop_time_usec") or await self.get("uptime"):
             self.log.info("Migrating stats timekeeping format")
@@ -71,7 +69,7 @@ class StatsModule(module.Module):
 
     async def on_start(self, time_us: int) -> None:
         # Initialize start_time_usec for new instances
-        if not await self.db.find_one({"_id": self.name}):
+        if not await self.db.find_one({"_id": 0}):
             await self.inc("start_time_usec", time_us)
 
     async def on_message(self, msg: Message) -> None:
@@ -104,7 +102,7 @@ class StatsModule(module.Module):
     @command.alias("stat")
     async def cmd_stats(self, ctx: command.Context) -> str:
         if ctx.input == "reset":
-            await self.db.find_one_and_delete({"_id": self.name})
+            await self.db.find_one_and_delete({"_id": 0})
             await self.on_load()
             await self.on_start(util.time.usec())
             return "__All stats have been reset.__"

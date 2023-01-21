@@ -36,11 +36,14 @@ class TelegramBot(CaligoBase):
     bot_user: User
     bot_uid: int
 
+    __idle__: asyncio.Task[None]
+
     def __init__(self: "Caligo", **kwargs: Any) -> None:
         self.loaded = False
 
         self._mevent_handlers = {}
-        self.__running = False
+
+        self.__idle__ = None  # type: ignore
 
         super().__init__(**kwargs)
 
@@ -106,7 +109,7 @@ class TelegramBot(CaligoBase):
         await self.dispatch_event("started")
 
     async def idle(self: "Caligo") -> None:
-        if self.__running:
+        if self.__idle__:
             raise RuntimeError("This bot instance is already running")
 
         signals = {
@@ -118,17 +121,21 @@ class TelegramBot(CaligoBase):
         def signal_handler(signum, __):
 
             self.log.info("Stop signal received ('%s').", signals[signum])
-            self.__running = False
+            self.__idle__.cancel()
 
         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
             signal.signal(name, signal_handler)
 
-        self.__running = True
-        while self.__running:
-            await asyncio.sleep(1)
+        while True:
+            self.__idle__ = asyncio.create_task(asyncio.sleep(300), name="idle")
+
+            try:
+                await self.__idle__
+            except asyncio.CancelledError:
+                break
 
     async def run(self: "Caligo") -> None:
-        if self.__running:
+        if self.__idle__:
             raise RuntimeError("This bot instance is already running")
 
         try:

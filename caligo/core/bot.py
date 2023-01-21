@@ -27,14 +27,12 @@ class Caligo(
     lock: asyncio.Lock
     log: logging.Logger
     loop: asyncio.AbstractEventLoop
-    stop_manual: bool
     stopping: bool
 
     def __init__(self, config: Mapping[str, Any]) -> None:
         self.config = config
         self.log = logging.getLogger("Bot")
         self.loop = asyncio.get_event_loop()
-        self.stop_manual = False
         self.stopping = False
 
         super().__init__()
@@ -67,10 +65,7 @@ class Caligo(
         if self.loaded:
             await self.dispatch_event("stop")
             if self.client.is_connected:
-                if self.stop_manual:
-                    await self.client.stop(block=False)
-                else:
-                    await self.client.stop()
+                await self.client.stop()
         await self.http.close()
         await self.db.close()
 

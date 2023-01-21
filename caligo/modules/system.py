@@ -46,7 +46,7 @@ class System(module.Module):
             # Show message
             updated = "updated and " if rs_reason == "update" else ""
             duration = util.time.format_duration_us(util.time.usec() - rs_time)
-            self.log.info(f"Bot {updated}restarted in {duration}")
+            self.log.info("Bot %srestarted in %s", updated, duration)
 
             status_msg: Message = await self.bot.client.get_messages(
                 rs_chat_id, rs_message_id

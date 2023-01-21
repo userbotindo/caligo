@@ -181,7 +181,7 @@ Expected parameters: {args_desc}"""
                 "Events activated": f"{self.bot.events_activated}\n",
                 "Chats": num_chats,
             },
-            heading='<a href="https://github.com/adekmaulana/adekmaulana">Caligo</a> info',
+            heading='<a href="https://github.com/adekmaulana/caligo">Caligo</a> info',
             parse_mode="html",
         )
 

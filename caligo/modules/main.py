@@ -13,7 +13,7 @@ class Main(module.Module):
     name: ClassVar[str] = "Main"
 
     async def on_load(self) -> None:
-        self.db = self.bot.db[self.name.capitalize()]
+        self.db = self.bot.db[self.name.upper()]
 
     async def on_stop(self) -> None:
         return
@@ -106,3 +106,21 @@ Expected parameters: {args_desc}"""
 
         if response:
             await ctx.respond_multi(response)
+
+    @command.desc("Get or change this bot prefix")
+    @command.alias("setprefix", "getprefix")
+    @command.usage("[new prefix?]", optional=True)
+    async def cmd_prefix(self, ctx: command.Context) -> str:
+        new_prefix = ctx.input
+
+        if not new_prefix:
+            return f"The prefix is `{self.bot.prefix}`"
+
+        self.bot.prefix = new_prefix
+        await self.db.update_one(
+            {"_id": 0},
+            {"$set": {"prefix": new_prefix}},
+            upsert=True,
+        )
+
+        return f"Prefix set to `{self.bot.prefix}`"

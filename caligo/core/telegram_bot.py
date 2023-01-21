@@ -61,6 +61,10 @@ class TelegramBot(CaligoBase):
         self.client.storage = PersistentStorage(self.db)  # type: ignore
 
         self.prefix = self.config["bot"]["prefix"]
+        # Override default prefix if found any saved in database
+        data = await self.db["MAIN"].find_one({"_id": 0}, {"prefix": 1})
+        if data and data.get("prefix"):
+            self.prefix = data["prefix"]
 
     async def start(self: "Caligo") -> None:
         self.log.info("Starting")

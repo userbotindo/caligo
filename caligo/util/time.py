@@ -34,23 +34,23 @@ def format_duration_us(t_us: Union[int, float]) -> str:
 
     if t_d >= 1:
         rem_h = t_h % 24
-        return "%dd %dh" % (t_d, rem_h)
+        return "%dd %dh" % (t_d, rem_h)  # skipcq: PYL-C0209
 
     if t_h >= 1:
         rem_m = t_m % 60
-        return "%dh %dm" % (t_h, rem_m)
+        return "%dh %dm" % (t_h, rem_m)  # skipcq: PYL-C0209
 
     if t_m >= 1:
         rem_s = t_s % 60
-        return "%dm %ds" % (t_m, rem_s)
+        return "%dm %ds" % (t_m, rem_s)  # skipcq: PYL-C0209
 
     if t_s >= 1:
-        return "%d sec" % t_s
+        return "%d sec" % t_s  # skipcq: PYL-C0209
 
     if t_ms >= 1:
-        return "%d ms" % t_ms
+        return "%d ms" % t_ms  # skipcq: PYL-C0209
 
-    return "%d μs" % t_us
+    return "%d μs" % t_us  # skipcq: PYL-C0209
 
 
 def format_duration_td(value: timedelta, precision: int = 0) -> str:

@@ -9,10 +9,13 @@ from pyrogram.enums import ParseMode
 from pyrogram.raw.functions.updates.get_state import GetState
 
 from caligo import __version__, command, module, util
+from caligo.core import database
 
 
 class Main(module.Module):
     name: ClassVar[str] = "Main"
+
+    db: database.AsyncCollection
 
     async def on_load(self) -> None:
         self.db = self.bot.db[self.name.upper()]

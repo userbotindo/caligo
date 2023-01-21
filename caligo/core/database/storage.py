@@ -76,7 +76,7 @@ class PersistentStorage(Storage):
             await self._session.delete_one({"_id": 0})
             if self._remove_peers:
                 await self._peer.delete_many({})
-        except Exception:
+        except Exception:  # skipcq: PYL-W0703
             return
 
     async def update_peers(self, peers: List[Tuple[int, int, str, str, str]]) -> None:

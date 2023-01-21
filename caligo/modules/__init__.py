@@ -12,7 +12,7 @@ try:
     _reload_flag: bool
 
     # noinspection PyUnboundLocalVariable
-    if _reload_flag:
+    if _reload_flag:  # skipcq: PYL-E0601
         # Module has been reloaded, reload our submodules
         for module in submodules:
             importlib.reload(module)

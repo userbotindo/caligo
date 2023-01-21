@@ -22,7 +22,7 @@ class ModuleExtender(CaligoBase):
     def load_module(
         self: "Caligo", cls: Type[module.Module], *, comment: Optional[str] = None
     ) -> None:
-        self.log.info(f"Loading {cls.format_desc(comment)}")
+        self.log.info("Loading %s", cls.format_desc(comment))
 
         if cls.name in self.modules:
             old = type(self.modules[cls.name])
@@ -36,7 +36,7 @@ class ModuleExtender(CaligoBase):
 
     def unload_module(self: "Caligo", mod: module.Module) -> None:
         cls = type(mod)
-        self.log.info(f"Unloading {mod.format_desc(mod.comment)}")
+        self.log.info("Unloading %s", mod.format_desc(mod.comment))
 
         self.unregister_listeners(mod)
         self.unregister_commands(mod)

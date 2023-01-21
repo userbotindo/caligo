@@ -117,7 +117,7 @@ class TelegramBot(CaligoBase):
 
         def signal_handler(signum, __):
 
-            self.log.info(f"Stop signal received ('{signals[signum]}').")
+            self.log.info("Stop signal received ('%s').", signals[signum])
             self.__running = False
 
         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):

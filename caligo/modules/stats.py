@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, ClassVar, Optional
 
 from pyrogram.types import Message
@@ -32,7 +31,6 @@ class StatsModule(module.Module):
     name: ClassVar[str] = "Stats"
 
     db: database.AsyncCollection
-    lock: asyncio.Lock
 
     async def get(self, key: str) -> Optional[Any]:
         collection = await self.db.find_one({"_id": 0})

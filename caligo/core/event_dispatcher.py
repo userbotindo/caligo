@@ -102,7 +102,7 @@ class EventDispatcher(CaligoBase):
                         index = idx
                         break
 
-                    self.log.error(f"'{event}' can't be used with pattern")
+                    self.log.error("'%s' can't be used with pattern", event)
                 else:
                     continue
 

@@ -208,7 +208,7 @@ class TelegramBot(CaligoBase):
         text: str = "",
         *,
         input_arg: str = "",
-        mode: str = "edit",
+        mode: Optional[str] = None,
         redact: bool = True,
         response: Optional[pyrogram.types.Message] = None,
         **kwargs: Any,

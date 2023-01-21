@@ -140,7 +140,7 @@ class Context:
         self,
         text: str = "",
         *,
-        mode: str = "edit",
+        mode: Optional[str] = None,
         redact: bool = True,
         msg: Optional[Message] = None,
         reuse_response: bool = False,
@@ -174,7 +174,7 @@ class Context:
     async def respond_multi(
         self,
         *args: Any,
-        mode: str = "edit",
+        mode: Optional[str] = None,
         msg: Message = None,  # type: ignore
         reuse_response: bool = False,
         **kwargs: Any,

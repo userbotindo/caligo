@@ -2,7 +2,6 @@ import asyncio
 import signal
 from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 
-import pyrogram
 from pyrogram import filters as filt
 from pyrogram.client import Client
 from pyrogram.enums import ParseMode
@@ -10,7 +9,7 @@ from pyrogram.handlers.callback_query_handler import CallbackQueryHandler
 from pyrogram.handlers.deleted_messages_handler import DeletedMessagesHandler
 from pyrogram.handlers.inline_query_handler import InlineQueryHandler
 from pyrogram.handlers.message_handler import MessageHandler
-from pyrogram.types import CallbackQuery, InlineQuery, Message
+from pyrogram.types import CallbackQuery, InlineQuery, Message, User
 
 from caligo.util import tg, time
 
@@ -30,11 +29,11 @@ class TelegramBot(CaligoBase):
     bot_client: Client
     client: Client
     prefix: str
-    user: pyrogram.types.User
+    user: User
     uid: int
     start_time_us: int
 
-    bot_user: pyrogram.types.User
+    bot_user: User
     bot_uid: int
 
     def __init__(self: "Caligo", **kwargs: Any) -> None:
@@ -94,7 +93,7 @@ class TelegramBot(CaligoBase):
             await self.client.start()
 
             user = await self.client.get_me()
-            if not isinstance(user, pyrogram.types.User):
+            if not isinstance(user, User):
                 raise TypeError("Missing full self user information")
 
             self.user = user
@@ -208,15 +207,15 @@ class TelegramBot(CaligoBase):
 
     async def respond(
         self: "Caligo",
-        msg: pyrogram.types.Message,
+        msg: Message,
         text: str = "",
         *,
         input_arg: str = "",
         mode: Optional[str] = None,
         redact: bool = True,
-        response: Optional[pyrogram.types.Message] = None,
+        response: Optional[Message] = None,
         **kwargs: Any,
-    ) -> pyrogram.types.Message:
+    ) -> Message:
         if text:
 
             if redact:

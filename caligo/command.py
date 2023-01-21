@@ -15,6 +15,8 @@ from typing import (
 
 from pyrogram.types import Message
 
+from caligo import util
+
 if TYPE_CHECKING:
     from .core import Caligo
 
@@ -170,6 +172,61 @@ class Context:
             self.bot.loop.create_task(delete())
 
         return self.response
+
+    async def respond_split(
+        self,
+        text: str,
+        *,
+        max_pages: Optional[int] = None,  # type: ignore
+        redact: Optional[bool] = None,
+        **kwargs: Any,
+    ) -> Message:
+        if redact is None:
+            redact = self.bot.config["bot"]["redact_responses"]
+
+        if max_pages is None:
+            max_pages: int = self.bot.config["bot"]["overflow_page_limit"]
+
+        if redact:
+            # Redact before splitting in case the sensitive content is on a message boundary
+            text = self.bot.redact_message(text)
+
+        pages_sent = 0
+        last_msg: Message = None  # type: ignore
+        while text and pages_sent < max_pages:
+            # Make sure that there's an ellipsis placed at both the beginning and end,
+            # depending on whether there's more content to be shown
+            # The conditions are a bit complex, so just use a primitive LUT for now
+            if len(text) <= 4096:
+                # Low remaining content might require no ellipses
+                if pages_sent == 0:
+                    page = text[: util.tg.MESSAGE_CHAR_LIMIT]
+                    ellipsis_chars = 0
+                else:
+                    page = "..." + text[: util.tg.MESSAGE_CHAR_LIMIT - 3]
+                    ellipsis_chars = 3
+            elif pages_sent == max_pages - 1:
+                # Last page should use the standard truncation path if it's too large
+                if pages_sent == 0:
+                    page = text
+                    ellipsis_chars = 0
+                else:
+                    page = "..." + text
+                    ellipsis_chars = 3
+            else:
+                # Remaining content in other pages might need two ellipses
+                if pages_sent == 0:
+                    page = text[: util.tg.MESSAGE_CHAR_LIMIT - 3] + "..."
+                    ellipsis_chars = 3
+                else:
+                    page = "..." + text[: util.tg.MESSAGE_CHAR_LIMIT - 6] + "..."
+                    ellipsis_chars = 6
+
+            last_msg = await self.respond_multi(page, **kwargs)
+            text = text[util.tg.MESSAGE_CHAR_LIMIT - ellipsis_chars :]
+            pages_sent += 1
+
+        return last_msg
 
     async def respond_multi(
         self,

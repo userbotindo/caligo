@@ -1,12 +1,14 @@
+import platform
 from collections import defaultdict
 from hashlib import sha256
 from typing import ClassVar, MutableMapping
 
 from aiopath import AsyncPath
 from bson.binary import Binary
+from pyrogram.enums import ParseMode
 from pyrogram.raw.functions.updates.get_state import GetState
 
-from caligo import command, module, util
+from caligo import __version__, command, module, util
 
 
 class Main(module.Module):
@@ -124,3 +126,64 @@ Expected parameters: {args_desc}"""
         )
 
         return f"Prefix set to `{self.bot.prefix}`"
+
+    @command.desc("Get information about this bot instance")
+    @command.alias("botinfo", "binfo", "bi", "i")
+    async def cmd_info(self, ctx: command.Context) -> None:
+        # Get tagged version and optionally the Git commit
+        commit = await util.run_sync(util.version.get_commit)
+        dirty = ", dirty" if await util.run_sync(util.git.is_dirty) else ""
+        unofficial = (
+            ", unofficial" if not await util.run_sync(util.git.is_official) else ""
+        )
+        version = (
+            f"{__version__} (<code>{commit}</code>{dirty}{unofficial})"
+            if commit
+            else __version__
+        )
+
+        # Clean system version
+        sys_ver = platform.release()
+        try:
+            sys_ver = sys_ver[: sys_ver.index("-")]
+        except ValueError:
+            pass
+
+        # Get current uptime
+        now = util.time.usec()
+        uptime = util.time.format_duration_us(now - self.bot.start_time_us)
+
+        # Get total uptime from stats module (if loaded)
+        stats_module = self.bot.modules.get("Stats", None)
+        get_start_time = getattr(stats_module, "get_start_time", None)
+        total_uptime = None
+        if stats_module is not None and callable(get_start_time):
+            stats_start_time = await get_start_time()
+            total_uptime = util.time.format_duration_us(now - stats_start_time) + "\n"
+        else:
+            uptime += "\n"
+
+        # Get total number of chats, including PMs
+        num_chats = await self.bot.client.get_dialogs_count()
+
+        response = util.text.join_map(
+            {
+                "Version": version,
+                "Python": f"{platform.python_implementation()} {platform.python_version()}",
+                "System": f"{platform.system()} {sys_ver}",
+                "Uptime": uptime,
+                **({"Total uptime": total_uptime} if total_uptime else {}),
+                "Commands loaded": len(self.bot.commands),
+                "Modules loaded": len(self.bot.modules),
+                "Listeners loaded": sum(
+                    len(evt) for evt in self.bot.listeners.values()
+                ),
+                "Events activated": f"{self.bot.events_activated}\n",
+                "Chats": num_chats,
+            },
+            heading='<a href="https://github.com/adekmaulana/adekmaulana">Caligo</a> info',
+            parse_mode="html",
+        )
+
+        # HTML allows us to send a bolded link (nested entities)
+        await ctx.respond(response, parse_mode=ParseMode.HTML)

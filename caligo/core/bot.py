@@ -77,4 +77,3 @@ class Caligo(
         self.log.info("Running post-stop hooks")
         if self.loaded:
             await self.dispatch_event("stopped")
-        self.loop.stop()

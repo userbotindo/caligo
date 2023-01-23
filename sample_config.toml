@@ -40,7 +40,5 @@ download_path = "caligo/downloads/"
 colorlog = false
 
 # GitHub
-# Your forked repo link leave empty if you want official
 github_repo = "https://github.com/adekmaulana/caligo"
-# Your GitHub token with workflow enabled for deploying into Heroku
 github_token = "asd02m0d0m2d"

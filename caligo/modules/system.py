@@ -4,6 +4,7 @@ import sys
 from html import escape
 from typing import Any, ClassVar, Mapping, Optional
 
+import speedtest
 from aiopath import AsyncPath
 from pyrogram.enums import ParseMode
 from pyrogram.types import Message
@@ -99,6 +100,36 @@ class System(module.Module):
         self.restart_pending = True
         self.log.info("Preparing to restart...")
         self.bot.__idle__.cancel()
+
+    @command.desc("Test Internet speed")
+    @command.alias("stest")
+    async def cmd_speedtest(self, ctx: command.Context) -> str:
+        before = util.time.usec()
+
+        st = await util.run_sync(speedtest.Speedtest)
+        status = "Selecting server..."
+
+        await ctx.respond(status)
+        server = await util.run_sync(st.get_best_server)
+        status += f" {server['sponsor']} ({server['name']})\n"
+        status += f"Ping: {server['latency']:.2f} ms\n"
+
+        status += "Performing download test..."
+        await ctx.respond(status)
+        dl_bits = await util.run_sync(st.download)
+        dl_mbit = dl_bits / 1000 / 1000
+        status += f" {dl_mbit:.2f} Mbps\n"
+
+        status += "Performing upload test..."
+        await ctx.respond(status)
+        ul_bits = await util.run_sync(st.upload)
+        ul_mbit = ul_bits / 1000 / 1000
+        status += f" {ul_mbit:.2f} Mbps\n"
+
+        delta = util.time.usec() - before
+        status += f"\nTime elapsed: {util.time.format_duration_us(delta)}"
+
+        return status
 
     @command.desc("Get information about the host system")
     @command.alias("si")

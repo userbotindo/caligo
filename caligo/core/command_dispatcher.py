@@ -133,3 +133,5 @@ class CommandDispatcher(CaligoBase):
                 "⚠️ Error in command handler:\n"
                 f"```{util.error.format_exception(e)}```",
             )
+        finally:
+            msg.continue_propagation()

@@ -184,9 +184,11 @@ f"Time: {util.time.format_duration_us(after - before)}""",
         )
 
     @command.desc("Update this bot from Git and restart")
-    @command.usage("[deploy flag?]", optional=True)
+    @command.usage("[remote name?]", optional=True)
     @command.alias("up", "upd")
     async def cmd_update(self, ctx: command.Context) -> Optional[str]:
+        remote_name = ctx.input
+
         if not util.git.have_git:
             return "__The__ `git` __command is required for self-updating.__"
 
@@ -195,10 +197,17 @@ f"Time: {util.time.format_duration_us(after - before)}""",
         if not repo:
             return "__Unable to locate Git repository data.__"
 
-        # Get current branch's tracking remote
-        remote = await util.run_sync(util.git.get_current_remote)
-        if remote is None:
-            return f"__Current branch__ `{repo.active_branch.name}` __is not tracking a remote.__"
+        if remote_name:
+            # Attempt to get requested remote
+            try:
+                remote = await util.run_sync(repo.remote, remote_name)
+            except ValueError:
+                return f"__Remote__ `{remote_name}` __not found.__"
+        else:
+            # Get current branch's tracking remote
+            remote = await util.run_sync(util.git.get_current_remote)
+            if remote is None:
+                return f"__Current branch__ `{repo.active_branch.name}` __is not tracking a remote.__"
 
         # Save time and old commit for diffing
         update_time = util.time.usec()

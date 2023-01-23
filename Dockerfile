@@ -62,19 +62,14 @@ RUN apk add --no-cache \
         ca-certificates \
         ffmpeg
 
-# Create bot user
-RUN adduser -D caligo
-
-# Setup runtime
+# Setup runtime files
 RUN mkdir -p /caligo
 WORKDIR /caligo
 COPY . .
-RUN chown -hR caligo /caligo
 
 # Copy Python venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=python-build /opt/venv /opt/venv
 
 # Set runtime settings
-USER caligo
 CMD ["python3", "-m", "caligo"]

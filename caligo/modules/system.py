@@ -262,7 +262,7 @@ f"Time: {util.time.format_duration_us(after - before)}""",
 
                 await ctx.respond("Updating dependencies...")
                 stdout, _, ret = await util.system.run_command(
-                    pip, "install", repo.working_tree_dir
+                    pip, "install", "-r", "requirements.txt"
                 )
                 if ret != 0:
                     return f"""⚠️ Error updating dependencies:

@@ -1,5 +1,5 @@
 # Build Python package and dependencies
-FROM python:3.10-alpine AS python-build
+FROM python:3.11-alpine AS python-build
 RUN apk add --no-cache \
         git \
         libffi-dev \
@@ -27,14 +27,10 @@ WORKDIR /src
 # Install bot package and dependencies
 COPY . .
 RUN pip install --upgrade pip
-RUN pip install wheel
-RUN pip install aiohttp[speedups]
-RUN pip install uvloop
-RUN pip install .
-
+RUN pip install -r requirements.txt
 
 # Package everything
-FROM python:3.10-alpine AS final
+FROM python:3.11-alpine AS final
 # Update system first
 RUN apk update
 
@@ -69,40 +65,16 @@ RUN apk add --no-cache \
 # Create bot user
 RUN adduser -D caligo
 
+# Setup runtime
+RUN mkdir -p /caligo
+WORKDIR /caligo
+COPY . .
+RUN chown -hR caligo /caligo
+
 # Copy Python venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=python-build /opt/venv /opt/venv
 
-# Tell system that we run on container
-ENV CONTAINER="True"
-
-# Clone the repo so update works
-RUN git clone https://github.com/adekmaulana/caligo /home/caligo
-RUN chmod +x /home/caligo/bot
-RUN cp /home/caligo/bot /usr/local/bin
-
-# {
-# Download aria with sftp and gzip support
-# ARG ARIA2=aria2-1.36.0-r0.apk
-# RUN curl -LJO https://raw.githubusercontent.com/adekmaulana/docker/master/aria2/$ARIA2
-# RUN apk add --allow-untrusted --no-cache $ARIA2
-
-# Certs for aria2 https websocket
-# RUN mkdir -p /home/caligo/.cache/caligo/.certs
-
-# Initialize mkcert
-# RUN curl -LJO https://github.com/FiloSottile/mkcert/releases/download/v1.4.3/mkcert-v1.4.3-linux-amd64
-# RUN mv mkcert-v1.4.3-linux-amd64 /usr/local/bin/mkcert
-# RUN chmod +x /usr/local/bin/mkcert
-
-# RUN mkcert -install
-# RUN mkcert -key-file /home/caligo/.cache/caligo/.certs/key.pem -cert-file /home/caligo/.cache/caligo/.certs/cert.pem localhost 127.0.0.1
-# }
-
-# Change permission of home folder
-RUN chown -hR caligo /home/caligo
-
 # Set runtime settings
 USER caligo
-WORKDIR /home/caligo
-CMD ["bash", "bot"]
+CMD ["python3", "-m", "caligo"]

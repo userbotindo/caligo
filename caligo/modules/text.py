@@ -21,7 +21,6 @@ class Text(module.Module):
 
     @command.desc("Apply a sarcasm/mocking filter to the given text")
     @command.usage("[text to filter]", reply=True)
-    @command.alias("sarcasm")
     async def cmd_mock(self, ctx: command.Context) -> str:
         text = ctx.input
         if not text and ctx.msg.reply_to_message:
@@ -29,7 +28,7 @@ class Text(module.Module):
         elif not text and not ctx.msg.reply_to_message:
             return "__Give me a text or reply to a message.__"
 
-        chars = [text]
+        chars = [*text]
         for idx, ch in enumerate(chars):
             ch = ch.upper() if random.choice((True, False)) else ch.lower()
             chars[idx] = ch

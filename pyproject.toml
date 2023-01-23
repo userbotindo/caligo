@@ -46,6 +46,7 @@ pymongo = "^4.3.3"
 Pyrogram = "^2.0.96"
 TgCrypto = "^1.2.5"
 uvloop = {version = "^0.17.0", platform = "linux"}
+gitpython = "^3.1.30"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"

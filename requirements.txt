@@ -1,6 +1,7 @@
 aiohttp==3.8.3 ; python_version >= "3.11" and python_version < "4.0"
 aiopath==0.6.11 ; python_version >= "3.11" and python_version < "4.0"
 aiorun==2022.11.1 ; python_version >= "3.11" and python_version < "4.0"
+beauty-print==0.6.1 ; python_version >= "3.11" and python_version < "4.0"
 colorlog==6.7.0 ; python_version >= "3.11" and python_version < "4.0"
 gitpython==3.1.30 ; python_version >= "3.11" and python_version < "4.0"
 meval==2.5 ; python_version >= "3.11" and python_version < "4.0"

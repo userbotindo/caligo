@@ -241,6 +241,17 @@ tests = ["attrs[tests-no-zope]", "zope.interface"]
 tests-no-zope = ["cloudpickle", "cloudpickle", "hypothesis", "hypothesis", "mypy (>=0.971,<0.990)", "mypy (>=0.971,<0.990)", "pympler", "pympler", "pytest (>=4.3.0)", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-mypy-plugins", "pytest-xdist[psutil]", "pytest-xdist[psutil]"]
 
 [[package]]
+name = "beauty-print"
+version = "0.6.1"
+description = "Beautifully print Python data"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "beauty_print-0.6.1-py3-none-any.whl", hash = "sha256:d2e18700fb12821a093f2bbfc86c88e32c1442a022a7acd8fbe6ee4ea41a133d"},
+]
+
+[[package]]
 name = "black"
 version = "22.12.0"
 description = "The uncompromising code formatter."
@@ -1542,4 +1553,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.11"
-content-hash = "b895701705fba1c0f637ad12b32efb8401650a0219742d5bf04a31a033ef7952"
+content-hash = "5259375bbc7ab5b9c276a4e7add06dba10d998081dd18bd18697bc33090037d8"

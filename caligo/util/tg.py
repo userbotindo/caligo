@@ -1,11 +1,23 @@
 import io
 import uuid
-from typing import Any, Optional
+from typing import Any
 
+import bprint
 import pyrogram
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"
+
+SKIP_ATTR_NAMES = (
+    "CONSTRUCTOR_ID",
+    "SUBCLASS_OF_ID",
+    "access_hash",
+    "message",
+    "raw_text",
+    "phone",
+)
+SKIP_ATTR_VALUES = (False,)
+SKIP_ATTR_TYPES = ()
 
 
 def mention_user(user: pyrogram.types.User) -> str:
@@ -36,6 +48,23 @@ def filter_code_block(inp: str) -> str:
         inp = inp[1:][:-1]
 
     return inp
+
+
+def _bprint_skip_predicate(name: str, value: Any) -> bool:
+    return (
+        name.startswith("_")
+        or value is None
+        or callable(value)
+        or name in SKIP_ATTR_NAMES
+        or value in SKIP_ATTR_VALUES
+        or type(value) in SKIP_ATTR_TYPES
+    )
+
+
+def pretty_print_entity(entity: Any) -> str:
+    """Pretty-prints the given Telegram entity with recursive details."""
+
+    return bprint.bprint(entity, stream=str, skip_predicate=_bprint_skip_predicate)
 
 
 def truncate(text: str) -> str:

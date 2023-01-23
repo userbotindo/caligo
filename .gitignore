@@ -9,6 +9,8 @@ dist/
 
 # Runtime data
 .cache/
+.heroku/
+.profile.d/
 downloads/
 caligo/downloads/
 

@@ -14,7 +14,7 @@ from meval import meval
 from caligo import command, module, util
 
 
-class DebugModule(module.Module):
+class Debug(module.Module):
     name: ClassVar[str] = "Debug"
 
     @command.desc("Pong")

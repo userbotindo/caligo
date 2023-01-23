@@ -27,7 +27,7 @@ def _calc_pd(stat: int, uptime: int) -> str:
     return "{:.1f}".format(stat / up_day).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
 
 
-class StatsModule(module.Module):
+class Stats(module.Module):
     name: ClassVar[str] = "Stats"
 
     db: database.AsyncCollection

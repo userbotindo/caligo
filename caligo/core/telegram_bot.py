@@ -202,6 +202,7 @@ class TelegramBot(CaligoBase):
         api_id = str(self.config["telegram"]["api_id"])
         api_hash = self.config["telegram"]["api_hash"]
         db_uri = self.config["bot"]["db_uri"]
+        github_token = self.config["bot"]["github_token"]
 
         if api_id in text:
             text = text.replace(api_id, redacted)
@@ -209,6 +210,8 @@ class TelegramBot(CaligoBase):
             text = text.replace(api_hash, redacted)
         if db_uri in text:
             text = text.replace(db_uri, redacted)
+        if github_token in text:
+            text = text.replace(github_token, redacted)
 
         return text
 

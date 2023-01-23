@@ -36,6 +36,9 @@ redact_responses = true
 # Your download location
 download_path = "caligo/downloads/"
 
+# Colorlog setting
+colorlog = false
+
 # GitHub
 # Your forked repo link leave empty if you want official
 github_repo = "https://github.com/adekmaulana/caligo"

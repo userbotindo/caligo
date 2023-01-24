@@ -133,7 +133,7 @@ class System(module.Module):
 
     @command.desc("Get information about the host system")
     @command.alias("si")
-    async def cmd_sysinfo(self, ctx: command.Context) -> str | None:
+    async def cmd_sysinfo(self, ctx: command.Context) -> Optional[str]:
         await ctx.respond("Collecting system information...")
 
         try:
@@ -158,7 +158,7 @@ class System(module.Module):
     @command.desc("Run a snippet in a shell")
     @command.usage("[shell snippet]")
     @command.alias("sh")
-    async def cmd_shell(self, ctx: command.Context) -> str | None:
+    async def cmd_shell(self, ctx: command.Context) -> Optional[str]:
         snip = ctx.input
         if not snip:
             return "Give me command to run."

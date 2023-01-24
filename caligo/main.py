@@ -1,7 +1,10 @@
 import logging
 from pathlib import Path
 
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 from . import launch, log
 

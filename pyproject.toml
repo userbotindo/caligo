@@ -20,7 +20,9 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Communications",
     "Topic :: Communications :: Chat",
@@ -34,21 +36,25 @@ caligo = "caligo.main:main"
 "Community" = ""
 
 [tool.poetry.dependencies]
-python = "~=3.11"
+python = "~=3.9"
 
 aiohttp = "^3.8.3"
-aiopath = "^0.6.11"
+aiopath = [
+    {version = "^0.5.12", python = "<3.10"},
+    {version = "^0.6.11", python = ">=3.10"},
+]
 aiorun = "^2022.11.1"
+beauty-print = "^0.6.1"
 certifi = {version = "^2022.12.7", platform = "windows"}
 colorlog = "^6.7.0"
+gitpython = "^3.1.30"
 meval = "^2.5"
 pymongo = "^4.3.3"
 Pyrogram = "^2.0.96"
+speedtest-cli = "^2.1.3"
+tomli = {version = "^2.0.1", python = "<3.11"}
 TgCrypto = "^1.2.5"
 uvloop = {version = "^0.17.0", platform = "linux"}
-gitpython = "^3.1.30"
-speedtest-cli = "^2.1.3"
-beauty-print = "^0.6.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"

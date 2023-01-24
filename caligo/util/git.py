@@ -10,8 +10,7 @@ except ImportError:
     git = None
     have_git = False
 
-
-REPO = "adekmaulana/caligo"
+REPO = "userbotindo/caligo"
 
 
 class LazyRepo:

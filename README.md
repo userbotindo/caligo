@@ -6,11 +6,13 @@ Caligo needs **Python 3.11** or newer to run.
 
 ## Compatibility
 
-Caligo should work with all Linux-based operating systems. This program is tested partially on Windows and not officially tested on macOS, but there shouldn't be any problem if you install the correct dependencies.
+Caligo should work with all Linux-based operating systems.
+
+This program tested partially on MacOs M1 and not officially support for windows.
 
 ## Installation
 
-Caligo uses MongoDB Atlas for it database, you can get it free at <https://www.mongodb.com/> and save the uri for use on config or env variable.
+Caligo uses MongoDB Atlas for it database, you can get it free at <https://www.mongodb.com/> and save the uri for use on config and to generate your session.
 
 Obviously you need git, and it should be already installed on major operating systems linux based.
 
@@ -30,31 +32,47 @@ Upgrade to pip 19 to fix this issue: `pip3 install -U pip`
 
 ### Using Heroku
 
-- Create a heroku account at <http://signup.heroku.com/> (skip if you already have)
-- Then go to your [dashboard](https://dashboard.heroku.com/apps)
-- Create an empty application, remember your app name
-- Go to **Account Settings**
-- Find **API Key** and click **Reveal**, copy
-- Fork this repo and then go to **Settings** Tabs on your forked repo
-- Go to **Secrets** > **New Repository Secret**
-- Create 2 of repository secret with this name:
-  - **HEROKU_APP**: Your created app name that upper step told
-  - **HEROKU_API_KEY**: Your API Key heroku that upper step told
-- Then go to **Actions** Tab, Click **Container**
-- Run workflow
-- It should be finished around 5-6 minutes and then go to your heroku dashboard again, and choose the app you've created
-- Go to **Settings** > **Reveal Config Vars** and fill the coresponding _Name_ and _Value_ based on `config.env_sample`
-- After all Variables are met then you can run your dyno
+#### Config Gist
+- Go to [gist.github.com](https://gist.github.com/)
+- Create a new gist and make sure it's private/secret
+- Copy the content of `sample_config.toml` and paste it to your gist
+- Fill the coresponding _Name_ and _Value_
+- Make sure you name the gist as `config.toml`
+- Click **Create secret gist** and copy the link save for later use
+
+#### Deploying
+- Go to your [dashboard](https://dashboard.heroku.com/apps)
+- Create an empty application then go to the app setting
+- Scroll a bit until you find **Buildpacks** section
+- Click **Add Buildpack** and choose **Python** and then click **Save Changes**
+- Click **Add Buildpack** again and put this [repo](https://github.com/userbotindo/heroku-buildpack-caligo-helper) and then click **Save Changes**
+- Scroll top a bit until you find **Reveal Config Vars** > Click it
+    * Fill `CONFIG` with the link of your recently created gist
+    * Fill `GITHUB_REPO` with your forked repo link
+    * Fill `GITHUB_BRANCH` with your branch name
+- Go to **Deploy** tab and connect your github account
+- Choose your forked repo and then click **Deploy Branch**
+- It should be finished around 1-2 minute(s)
+- Go to **Resources** tab and turn on the worker
+
+## Generating Session
+
+### Heroku
+
+Click more on your app page and the click **Run console** and run this command `python3 generate_session.py`.
+Fill the `API_ID`, `API_HASH` and `MONGODB URI` when it asked and wait until it finished and your userbot is ready.
+
+### Local
+
+Just run the bot normally.
 
 ## Configuration
 
-Copy `config.env_sample` to `config.env` and edit the settings as desired. Each and every setting is documented by the comments above it.
+Copy `sample_config.toml` to `config.toml` and edit the settings as desired. Each and every setting is documented by the comments above it.
 
 Obtain the _API ID_ and _API HASH_ from [Telegram's website](https://my.telegram.org/apps). **TREAT THESE SECRETS LIKE A PASSWORD!**
 
 Obtain the DB_URI from [MongoDB](https://cloud.mongodb.com/). **TREAT THIS SECRETS LIKE A PASSWORD!**
-
-Obtain the SESSION_STRING by running `python3 session.py`. **TREAT THESE SECRETS LIKE A PASSWORD!**
 
 Configuration must be complete before starting the bot for the first time for it to work properly.
 

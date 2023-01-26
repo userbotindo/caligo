@@ -4,7 +4,6 @@ import os
 import re
 import sys
 import traceback
-from datetime import datetime
 from html import escape
 from typing import Any, ClassVar, Optional, Tuple
 
@@ -17,15 +16,6 @@ from caligo import command, module, util
 
 class Debug(module.Module):
     name: ClassVar[str] = "Debug"
-
-    @command.desc("Pong")
-    async def cmd_ping(self, ctx: command.Context):
-        start = datetime.now()
-        await ctx.respond("Calculating response time...")
-        end = datetime.now()
-        latency = (end - start).microseconds / 1000
-
-        return f"Request response time: **{latency} ms**"
 
     @command.desc("Get the code of a command")
     @command.usage("[command name]")

@@ -143,9 +143,17 @@ class Network(module.Module):
             return "__Transmission aborted.__"
         else:
             self.tasks.remove((ctx.msg.id, task))
-            path: str = task.result().split("/")[-1]  # type: ignore
 
-        return f"Downloaded to: `{self.bot.client.workdir}/downloads/{path}`."
+            result = task.result()
+            if not result:
+                return "__Failed to download media.__"
+
+            if isinstance(result, str):
+                path = f"{self.bot.client.workdir}/downloads/{result.split('/')[-1]}"
+            else:
+                path = f"{self.bot.client.workdir}/downloads/{result.name}"
+
+        return f"Downloaded to: `{path}`."
 
     @command.desc("Upload file into telegram server")
     @command.alias("ul")

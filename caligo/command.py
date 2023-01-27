@@ -1,5 +1,6 @@
 import asyncio
 import re
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -13,7 +14,7 @@ from typing import (
     Union,
 )
 
-from pyrogram.types import Message
+from pyrogram.types import Chat, Message
 
 from caligo import util
 
@@ -93,10 +94,14 @@ class Command:
 
 class Context:
     bot: "Caligo"
+    chat: Chat
     msg: Message
+    reply_msg: Optional[Message]
     segments: Sequence[str]
     cmd_len: int
     invoker: str
+
+    last_update_time: Optional[datetime]
 
     response: Message
     response_mode: Optional[str]
@@ -114,10 +119,14 @@ class Context:
         matches: List[Match[str]],
     ) -> None:
         self.bot = bot
+        self.chat = msg.chat
         self.msg = msg
+        self.reply_msg = msg.reply_to_message
         self.segments = segments
         self.cmd_len = cmd_len
         self.invoker = segments[0]
+
+        self.last_update_time = None
 
         self.response = None  # type: ignore
         self.response_mode = None

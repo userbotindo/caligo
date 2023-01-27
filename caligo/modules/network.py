@@ -63,7 +63,7 @@ class Network(module.Module):
 
     async def on_message(self, message: Message) -> None:
         # Only check Telegram service messages
-        if message.from_user.id != 777000:
+        if not message.from_user or message.from_user.id != 777000:
             return
 
         # Print login code if present

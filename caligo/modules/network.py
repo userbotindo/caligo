@@ -117,10 +117,11 @@ class Network(module.Module):
 
         await ctx.respond("Preparing to download...")
 
+        media = getattr(reply_msg, reply_msg.media.value)
         try:
-            file_path = AsyncPath(getattr(reply_msg, reply_msg.media.value).file_name)
+            name = media.file_name
         except AttributeError:
-            return "__Unsupported media type.__"
+            name = f"{reply_msg.media.value}_{(media.date or datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')}"
 
         task = self.bot.loop.create_task(
             self.bot.client.download_media(
@@ -130,7 +131,7 @@ class Network(module.Module):
                     start_time,
                     "download",
                     ctx,
-                    file_path.name,
+                    name,
                     last_update_time,
                 ),
             )
@@ -142,8 +143,9 @@ class Network(module.Module):
             return "__Transmission aborted.__"
         else:
             self.tasks.remove((ctx.msg.id, task))
+            path: str = task.result().split("/")[-1]  # type: ignore
 
-        return f"Downloaded to: `{self.bot.client.workdir}{self.bot.config['bot']['download_path']}{file_path}`."
+        return f"Downloaded to: `{self.bot.client.workdir}/downloads/{path}`."
 
     @command.desc("Upload file into telegram server")
     @command.alias("ul")

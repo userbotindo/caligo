@@ -11,8 +11,11 @@ dist/
 .cache/
 .heroku/
 .profile.d/
+caligo/.chache/
+chache/
 downloads/
 caligo/downloads/
+caligo/chache/
 
 # file
 .DS_Store

@@ -143,7 +143,7 @@ class Network(module.Module):
         else:
             self.tasks.remove((ctx.msg.id, task))
 
-        return f"Downloaded to: `{self.bot.config['bot']['download_path']}{file_path}`."
+        return f"Downloaded to: `{self.bot.client.workdir}{self.bot.config['bot']['download_path']}{file_path}`."
 
     @command.desc("Upload file into telegram server")
     @command.alias("ul")

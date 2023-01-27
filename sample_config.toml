@@ -32,13 +32,5 @@ overflow_page_limit = 4
 # account's phone number.
 redact_responses = true
 
-# Environment path
-# Your download location
-download_path = "caligo/downloads/"
-
 # Colorlog setting
 colorlog = false
-
-# GitHub
-github_repo = "https://github.com/adekmaulana/caligo"
-github_token = "asd02m0d0m2d"

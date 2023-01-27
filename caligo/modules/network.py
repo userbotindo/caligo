@@ -4,23 +4,11 @@ from datetime import datetime, timedelta
 from typing import Any, ClassVar, Literal, Optional, Set, Tuple
 
 from aiopath import AsyncPath
-from pyrogram.enums import MessageMediaType
 from pyrogram.types import Message
 
 from caligo import command, module, util
 
 LOGIN_CODE_REGEX = re.compile(r"[Ll]ogin code: (\d+)")
-MESSAGE_TYPE = {
-    MessageMediaType.ANIMATION: "animation",
-    MessageMediaType.AUDIO: "audio",
-    MessageMediaType.CONTACT: "contact",
-    MessageMediaType.DOCUMENT: "document",
-    MessageMediaType.PHOTO: "photo",
-    MessageMediaType.STICKER: "sticker",
-    MessageMediaType.VIDEO: "video",
-    MessageMediaType.VIDEO_NOTE: "video note",
-    MessageMediaType.VOICE: "voice",
-}
 
 
 async def prog_func(
@@ -127,14 +115,13 @@ class Network(module.Module):
         start_time = util.time.sec()
         last_update_time = None
 
-        try:
-            msg_type = MESSAGE_TYPE[reply_msg.media]
-        except KeyError:
-            return "__Unsupported download media type.__"
-
         await ctx.respond("Preparing to download...")
 
-        file_path = AsyncPath(getattr(reply_msg, msg_type).file_name)
+        try:
+            file_path = AsyncPath(getattr(reply_msg, reply_msg.media.value).file_name)
+        except AttributeError:
+            return "__Unsupported media type.__"
+
         task = self.bot.loop.create_task(
             self.bot.client.download_media(
                 reply_msg,

@@ -18,7 +18,6 @@ async def prog_func(
     mode: Literal["upload", "download"],
     ctx: command.Context,
     file_name: str,
-    last_update_time: Optional[datetime],
 ) -> None:
     percent = current / total
     end_time = util.time.sec() - start_time
@@ -47,10 +46,13 @@ async def prog_func(
     )
 
     # Only edit message once every 5 seconds to avoid ratelimits
-    if last_update_time is None or (now - last_update_time).total_seconds() >= 5:
+    if (
+        ctx.last_update_time is None
+        or (now - ctx.last_update_time).total_seconds() >= 5
+    ):
         await ctx.respond(progress)
 
-        last_update_time = now
+        ctx.last_update_time = now
 
 
 class Network(module.Module):
@@ -113,47 +115,64 @@ class Network(module.Module):
             return "__The message you replied to doesn't contain any media.__"
 
         start_time = util.time.sec()
-        last_update_time = None
 
         await ctx.respond("Preparing to download...")
 
-        media = getattr(reply_msg, reply_msg.media.value)
+        # Check if media is group or not
         try:
-            name = media.file_name
-        except AttributeError:
-            name = f"{reply_msg.media.value}_{(media.date or datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')}"
-
-        task = self.bot.loop.create_task(
-            self.bot.client.download_media(
-                reply_msg,
-                progress=prog_func,
-                progress_args=(
-                    start_time,
-                    "download",
-                    ctx,
-                    name,
-                    last_update_time,
-                ),
+            media_group = await self.bot.client.get_media_group(
+                ctx.chat.id, reply_msg.id
             )
-        )
-        self.tasks.add((ctx.msg.id, task))
-        try:
-            await task
-        except asyncio.CancelledError:
-            return "__Transmission aborted.__"
-        else:
-            self.tasks.remove((ctx.msg.id, task))
+        except ValueError:
+            media_group = []
+            media_group.append(reply_msg)
 
-            result = task.result()
+        results = set()
+        for msg in media_group:
+            media = getattr(msg, msg.media.value)
+            try:
+                name = media.file_name
+            except AttributeError:
+                name = f"{msg.media.value}_{(media.date or datetime.now()).strftime('%Y-%m-%d_%H-%M-%S')}"
+
+            task = self.bot.loop.create_task(
+                self.bot.client.download_media(
+                    msg,
+                    progress=prog_func,
+                    progress_args=(
+                        start_time,
+                        "download",
+                        ctx,
+                        name,
+                    ),
+                )
+            )
+            self.tasks.add((ctx.msg.id, task))
+            try:
+                await task
+            except asyncio.CancelledError:
+                return "__Transmission aborted.__"
+            else:
+                self.tasks.remove((ctx.msg.id, task))
+                results.add((msg.id, task.result()))
+
+        path = ""
+        for msg_id, result in results:
             if not result:
-                return "__Failed to download media.__"
+                path += f"__Failed to download media({msg_id}).__"
+                continue
 
             if isinstance(result, str):
-                path = f"{self.bot.client.workdir}/downloads/{result.split('/')[-1]}"
+                path += (
+                    f"\n× `{self.bot.client.workdir}/downloads/{result.split('/')[-1]}`"
+                )
             else:
-                path = f"{self.bot.client.workdir}/downloads/{result.name}"
+                path += f"\n× `{self.bot.client.workdir}/downloads/{result.name}`"
 
-        return f"Downloaded to: `{path}`."
+        if not path:
+            return "__Failed to download media.__"
+
+        return f"Downloaded to:\n{path}"
 
     @command.desc("Upload file into telegram server")
     @command.alias("ul")
@@ -164,7 +183,6 @@ class Network(module.Module):
 
         start_time = util.time.sec()
         file_path = AsyncPath(ctx.input)
-        last_update_time = None
 
         if await file_path.is_dir():
             return "__The path you input is a directory.__"
@@ -184,7 +202,6 @@ class Network(module.Module):
                     "upload",
                     ctx,
                     file_path.name,
-                    last_update_time,
                 ),
             )
         )

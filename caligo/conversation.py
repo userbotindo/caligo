@@ -70,6 +70,9 @@ class Conversation:
 
         return response
 
+    async def mark_read(self, max_id: int = 0) -> bool:
+        return await self.bot.client.read_chat_history(self.chat.id, max_id)
+
     async def _get_message(self, **kwargs: Any) -> Message:
         if self._counter >= self._max_incoming:
             raise ValueError("Received max messages")

@@ -6,7 +6,8 @@ from pyrogram.client import Client
 from pyrogram.filters import Filter, create
 from pyrogram.types import Message
 
-from ..conversation import Conversation, ConversationExistError
+from caligo.conversation import Conversation, ConversationExistError
+
 from .base import CaligoBase
 
 if TYPE_CHECKING:

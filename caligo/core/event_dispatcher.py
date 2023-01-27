@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any, MutableMapping, MutableSequence, Optional
 from pyrogram.filters import Filter
 from pyrogram.types import CallbackQuery, InlineQuery, Message
 
-from .. import module, util
-from ..listener import Listener, ListenerFunc
+from caligo import module, util
+from caligo.listener import Listener, ListenerFunc
+
 from .base import CaligoBase
 
 if TYPE_CHECKING:

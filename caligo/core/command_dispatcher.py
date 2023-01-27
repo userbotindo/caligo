@@ -1,11 +1,12 @@
-from typing import TYPE_CHECKING, Any, MutableMapping, Tuple
+from typing import TYPE_CHECKING, Any, MutableMapping
 
 from pyrogram.client import Client
 from pyrogram.errors import MessageNotModified
 from pyrogram.filters import Filter, create
 from pyrogram.types import Message
 
-from .. import command, module, util
+from caligo import command, module, util
+
 from .base import CaligoBase
 
 if TYPE_CHECKING:

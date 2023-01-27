@@ -3,7 +3,8 @@ import inspect
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, Optional, Type
 
-from .. import module, modules, util
+from caligo import module, modules, util
+
 from .base import CaligoBase
 
 if TYPE_CHECKING:

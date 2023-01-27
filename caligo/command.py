@@ -155,7 +155,7 @@ class Context:
         redact: bool = True,
         msg: Optional[Message] = None,
         reuse_response: bool = False,
-        delete_after: Union[int, float] = 0,
+        delete_after: Optional[Union[int, float]] = None,
         **kwargs: Any,
     ) -> Message:
 
@@ -172,15 +172,11 @@ class Context:
         )
         self.response_mode = mode
 
-        if delete_after != 0:
+        if delete_after:
+            await self.delete(delete_after)
+            self.response = None  # type: ignore
 
-            async def delete() -> int:
-                await asyncio.sleep(delete_after)
-                return await self.response.delete()
-
-            self.bot.loop.create_task(delete())
-
-        return self.response
+        return self.response  # type: ignore
 
     async def respond_split(
         self,

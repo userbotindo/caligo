@@ -315,7 +315,13 @@ class Sticker(module.Module):
             set_title = f"{str(self.bot.user.id)}'s Kang Set VOL.{pack_VOL}"
 
         if resize:
-            media = await resize_media(media, video)
+            try:
+                media = await resize_media(media, video)
+            except FileNotFoundError:
+                return (
+                    "❌ [FFmpeg](https://github.com/FFmpeg/FFmpeg) "
+                    "must be installed on the host system."
+                )
         if animation:
             set_name += "_animation"
             set_title += " (Animation)"

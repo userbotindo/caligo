@@ -2,12 +2,11 @@ import asyncio
 import io
 import json
 from datetime import datetime
-from typing import BinaryIO, ClassVar, Optional, Tuple, Union
+from typing import BinaryIO, ClassVar, Tuple, Union
 
 import pyrogram
 from aiopath import AsyncPath
 from PIL import Image
-from pyrogram.enums import ParseMode
 from pyrogram.errors import StickersetInvalid
 from pyrogram.raw.functions.messages.get_sticker_set import GetStickerSet
 from pyrogram.raw.types.input_sticker_set_short_name import InputStickerSetShortName
@@ -320,7 +319,10 @@ class Sticker(module.Module):
             except FileNotFoundError:
                 return (
                     "❌ [FFmpeg](https://github.com/FFmpeg/FFmpeg) "
-                    "must be installed on the host system."
+                    "must be installed on the host system.\n\n"
+                    "If you're running this bot on Heroku, "
+                    "you can install FFmpeg by adding this buildpack:\n"
+                    "[FFmpeg](https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest)"
                 )
         if animation:
             set_name += "_animation"

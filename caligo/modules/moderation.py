@@ -86,7 +86,9 @@ class Moderation(module.Module):
         msg = "message" if purged <= 1 else "messages"
 
         await ctx.respond(
-            f"__Purged {purged} {msg} in {run_time} {time}...__", mode="repost"
+            f"__Purged {purged} {msg} in {run_time} {time}...__",
+            mode="repost",
+            delete_after=3.5,
         )
 
     @command.desc("Delete the replied message.")

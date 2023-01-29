@@ -60,7 +60,15 @@ RUN apk add --no-cache \
         libxml2 \
         libssh2 \
         ca-certificates \
-        ffmpeg
+        ffmpeg \
+        libvpx \
+        x264-libs \
+        x265 \
+        libvorbis \
+        opus \
+        libass \
+        xvidcore \
+        lame
 
 # Setup runtime files
 RUN mkdir -p /caligo

@@ -4,7 +4,6 @@ import json
 from datetime import datetime
 from typing import BinaryIO, ClassVar, Tuple, Union
 
-import pyrogram
 from aiopath import AsyncPath
 from PIL import Image
 from pyrogram.errors import StickersetInvalid
@@ -17,7 +16,7 @@ from caligo.core import database
 
 MAX_VIDEO_SIZE = 10485760
 MAX_SIZE = 512
-CACHE_PATH = "caligo/.cache/"
+CACHE_PATH = "caligo/.cache/stickers"
 
 # Sticker bot info and return error strings
 STICKER_BOT_USERNAME = "Stickers"
@@ -48,7 +47,7 @@ async def resize_media(media: AsyncPath, video: bool) -> AsyncPath:
         elif width > height:
             height, width = -1, 512
 
-        resized_video = f"{CACHE_PATH}{media.stem}.webm"
+        resized_video = f"{CACHE_PATH}/{media.stem}.webm"
         await util.system.run_command(
             "ffmpeg",
             "-i",
@@ -66,21 +65,23 @@ async def resize_media(media: AsyncPath, video: bool) -> AsyncPath:
             "-c:v",
             "libvpx-vp9",
             "-vf",
-            "scale={width}:{height},fps=30",
+            f"scale={width}:{height},fps=30",
             resized_video,
             "-y",
         )
         await media.unlink()
         return AsyncPath(resized_video)
 
-    image = Image.open(str(media))
+    image: Image.Image = await util.run_sync(Image.open(str(media)))  # type: ignore
     scale = MAX_SIZE / max(image.width, image.height)
-    image = image.resize(
-        (int(image.width * scale), int(image.height * scale)), Image.LANCZOS
+    image = await util.run_sync(
+        image.resize(
+            (int(image.width * scale), int(image.height * scale)), Image.LANCZOS  # type: ignore
+        )
     )
 
-    resized_photo = f"{CACHE_PATH}sticker.png"
-    image.save(resized_photo, "PNG")
+    resized_photo = f"{CACHE_PATH}/sticker.png"
+    await util.run_sync(image.save(resized_photo, "PNG"))  # type: ignore
 
     await media.unlink()
     return AsyncPath(resized_photo)
@@ -99,11 +100,14 @@ class Sticker(module.Module):
         # to use later maybe
         self.db = self.bot.db.get_collection(self.name.upper())
 
+        if not await AsyncPath(CACHE_PATH).exists():
+            await AsyncPath(CACHE_PATH).mkdir(parents=True)
+
     async def add_sticker(
         self,
-        sticker_data: Union[pyrogram.types.Sticker, BinaryIO],
+        sticker_data: Union[str, BinaryIO],
         set_name: str,
-        emoji: str = "❓",
+        emoji: str,
         *,
         target: str = STICKER_BOT_USERNAME,
     ) -> Tuple[bool, str]:
@@ -119,7 +123,7 @@ class Sticker(module.Module):
         success = False
         before = datetime.now()
 
-        async with self.bot.conversation(target) as conv:
+        async with self.bot.conversation(target, timeout=25) as conv:
 
             async def reply_and_ack():
                 # Wait for a response
@@ -168,10 +172,10 @@ class Sticker(module.Module):
 
     async def create_pack(
         self,
-        sticker_data: Union[pyrogram.types.Sticker, BinaryIO],
+        sticker_data: Union[str, BinaryIO],
         set_name: str,
         set_title: str,
-        emoji: str = "❓",
+        emoji: str,
         *,
         sticker_type: str = "static",
         target: str = STICKER_BOT_USERNAME,
@@ -260,7 +264,7 @@ class Sticker(module.Module):
         pack_VOL = 1
         animation = False
         video = False
-        emoji = ""
+        emoji = None
         resize = False
 
         if reply_msg.sticker:
@@ -324,6 +328,10 @@ class Sticker(module.Module):
                     "you can install FFmpeg by adding this buildpack:\n"
                     "[FFmpeg](https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest)"
                 )
+            else:
+                if not await media.exists():
+                    return "__Failed to resize media.__"
+
         if animation:
             set_name += "_animation"
             set_title += " (Animation)"
@@ -368,6 +376,9 @@ class Sticker(module.Module):
                     continue
 
                 break
+
+        if not emoji:
+            emoji = "❓"
 
         sticker_bytes = await media.read_bytes()
         sticker_buf = io.BytesIO(sticker_bytes)

@@ -72,16 +72,16 @@ async def resize_media(media: AsyncPath, video: bool) -> AsyncPath:
         await media.unlink()
         return AsyncPath(resized_video)
 
-    image: Image.Image = await util.run_sync(Image.open(str(media)))  # type: ignore
+    image: Image.Image = await util.run_sync(Image.open, str(media))
     scale = MAX_SIZE / max(image.width, image.height)
     image = await util.run_sync(
-        image.resize(
-            (int(image.width * scale), int(image.height * scale)), Image.LANCZOS  # type: ignore
-        )
+        image.resize,
+        (int(image.width * scale), int(image.height * scale)),
+        Image.LANCZOS,
     )
 
     resized_photo = f"{CACHE_PATH}/sticker.png"
-    await util.run_sync(image.save(resized_photo, "PNG"))  # type: ignore
+    await util.run_sync(image.save, resized_photo, "PNG")
 
     await media.unlink()
     return AsyncPath(resized_photo)

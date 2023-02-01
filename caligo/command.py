@@ -147,6 +147,23 @@ class Context:
         self.args = self.segments[1:]
         return self.args
 
+    async def _delete(
+        self, delay: Optional[float] = None, message: Optional[Message] = None
+    ) -> None:
+        content = message or self.response
+        if not content:
+            return
+
+        if delay:
+
+            async def delete(delay: float) -> None:
+                await asyncio.sleep(delay)
+                await content.delete(True)
+
+            self.bot.loop.create_task(delete(delay))
+        else:
+            await content.delete(True)
+
     async def respond(
         self,
         text: str = "",
@@ -173,7 +190,7 @@ class Context:
         self.response_mode = mode
 
         if delete_after:
-            await self.delete(delete_after)
+            await self._delete(delete_after)
             self.response = None  # type: ignore
 
         return self.response  # type: ignore

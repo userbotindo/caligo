@@ -35,6 +35,7 @@ class System(module.Module):
             rs_time: Optional[int] = restart.get("time")
             rs_chat_id: Optional[int] = restart.get("status_chat_id")
             rs_message_id: Optional[int] = restart.get("status_message_id")
+            rs_thread_id: int = restart.get("status_thread_id")  # type: ignore
             rs_reason: Optional[str] = restart.get("reason")
 
             # Delete DB keys first in case message editing fails
@@ -58,7 +59,9 @@ class System(module.Module):
                 )
             except AttributeError:
                 await self.bot.client.send_message(
-                    rs_chat_id, f"Bot {updated}restarted in {duration}."
+                    rs_chat_id,
+                    f"Bot {updated}restarted in {duration}.",
+                    message_thread_id=rs_thread_id,
                 )
 
     async def on_stopped(self) -> None:
@@ -90,6 +93,7 @@ class System(module.Module):
                 "$set": {
                     "restart.status_chat_id": resp_msg.chat.id,
                     "restart.status_message_id": resp_msg.id,
+                    "restart.status_thread_id": resp_msg.message_thread_id,
                     "restart.time": restart_time or util.time.usec(),
                     "restart.reason": reason,
                 }

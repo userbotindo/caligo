@@ -1125,6 +1125,20 @@ spelling = ["pyenchant (>=3.2,<4.0)"]
 testutils = ["gitpython (>3)"]
 
 [[package]]
+name = "pymediainfo"
+version = "6.0.1"
+description = "A Python wrapper for the mediainfo library."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "pymediainfo-6.0.1-py3-none-macosx_10_15_x86_64.whl", hash = "sha256:81165e895e1e362fa11c128ce2bc976cb8a74224f96f309a88ee047106041b0a"},
+    {file = "pymediainfo-6.0.1-py3-none-win32.whl", hash = "sha256:bb3a48ac9706626fd2fa7881f4271728459a1c9a082917deb0c7dd343d8a1be5"},
+    {file = "pymediainfo-6.0.1-py3-none-win_amd64.whl", hash = "sha256:c38e79d4d2062732ae555b564c3cac18a6de4f36e033066c617f386cf5e77564"},
+    {file = "pymediainfo-6.0.1.tar.gz", hash = "sha256:96e04bac0dfcb726bed70c314b1219121c4b9344c66a98f426ce27d7f9abffb0"},
+]
+
+[[package]]
 name = "pymongo"
 version = "4.3.3"
 description = "Python driver for MongoDB <http://www.mongodb.org>"
@@ -1220,19 +1234,20 @@ snappy = ["python-snappy"]
 zstd = ["zstandard"]
 
 [[package]]
-name = "pyrogram"
-version = "2.0.97"
+name = "pyrofork"
+version = "2.1.3"
 description = "Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 files = [
-    {file = "Pyrogram-2.0.97-py3-none-any.whl", hash = "sha256:9c5dbd323da2b7cba769bdc4a650044d017eba42b52c035d83902a67d5676ce7"},
-    {file = "Pyrogram-2.0.97.tar.gz", hash = "sha256:e1a0d4a1968425c737b552a9f3c1b2ee18187813bf3285175d87b9ec5e8bc110"},
+    {file = "PyroFork-2.1.3-py3-none-any.whl", hash = "sha256:96ec0461271261ba524da5f355c4bfe179215268e21d3761fb34175f05c098c5"},
+    {file = "PyroFork-2.1.3.tar.gz", hash = "sha256:32ee8e28d201a321c0d4de51052c711251da20f6595018d4b743f69db95cc339"},
 ]
 
 [package.dependencies]
 pyaes = "1.6.1"
+pymediainfo = "6.0.1"
 pysocks = "1.7.1"
 
 [[package]]
@@ -1727,4 +1742,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.9"
-content-hash = "ab6ae48f4cb80481f585db5babbcf36b6d22ecf95f99acc5fe0f62e0f0b38682"
+content-hash = "3bddfb5287add29af40cd4a7bc03f01fef1b39cc7f874e9c5cba2ff61c1a2918"

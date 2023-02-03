@@ -195,6 +195,7 @@ class Network(module.Module):
             self.bot.client.send_document(
                 ctx.msg.chat.id,
                 str(file_path),
+                message_thread_id=ctx.msg.message_thread_id,
                 force_document=True,
                 progress=prog_func,
                 progress_args=(

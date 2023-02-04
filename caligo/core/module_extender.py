@@ -3,7 +3,7 @@ import inspect
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, Optional, Type
 
-from caligo import module, modules, util
+from caligo import custom_modules, module, modules, util
 
 from .base import CaligoBase
 
@@ -62,6 +62,7 @@ class ModuleExtender(CaligoBase):
     def load_all_modules(self: "Caligo") -> None:
         self.log.info("Loading modules")
         self._load_all_from_metamod(modules.submodules)
+        self._load_all_from_metamod(custom_modules.submodules, comment="custom")
         self.log.info("All modules loaded.")
 
     def unload_all_modules(self: "Caligo") -> None:

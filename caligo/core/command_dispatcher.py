@@ -1,3 +1,4 @@
+import inspect
 from typing import TYPE_CHECKING, Any, MutableMapping
 
 from pyrogram.client import Client
@@ -73,39 +74,45 @@ class CommandDispatcher(CaligoBase):
             self.unregister_command(cmd)
 
     def command_predicate(self: "Caligo") -> Filter:
-        async def func(_, __, msg: Message) -> bool:
-            if msg.text is not None and msg.text.startswith(self.prefix):
-                parts = msg.text.split()
-                parts[0] = parts[0][len(self.prefix) :]
-                msg.command = parts
+        async def func(_: Filter, client: Client, message: Message) -> bool:
+            if message.via_bot:
+                return False
+
+            if message.text is not None and message.text.startswith(self.prefix):
+                parts = message.text.split()
+                parts[0] = parts[0][len(self.prefix) :]  # Remove prefix
+
+                # Filter if command is not in commands
+                try:
+                    cmd = self.commands[parts[0]]
+                except KeyError:
+                    return False
+
+                # Check additional built-in filters
+                if cmd.filter:
+                    if inspect.iscoroutinefunction(cmd.filter.__call__):
+                        if not await cmd.filter(client, message):
+                            return False
+                    else:
+                        if not await util.run_sync(cmd.filter, client, message):
+                            return False
+
+                message.command = parts
                 return True
 
             return False
 
-        return create(func)
+        return create(func, "CustomCommandFilter")
 
-    async def on_command(self: "Caligo", _: Client, msg: Message) -> None:
-        cmd = None
-
-        # Don't process via inline
-        if msg.via_bot:
-            return
-
+    async def on_command(self: "Caligo", _: Client, message: Message) -> None:
+        cmd = self.commands[message.command[0]]
         try:
-            try:
-                cmd = self.commands[msg.command[0]]
-            except KeyError:
-                return
-
-            cmd_len = len(self.prefix) + len(msg.command[0]) + 1
-            if cmd.pattern is not None and msg.reply_to_message:
-                matches = list(cmd.pattern.finditer(msg.reply_to_message.text))
-            elif cmd.pattern and msg.text:
-                matches = list(cmd.pattern.finditer(msg.text[cmd_len:]))
-            else:
-                matches = []
-
-            ctx = command.Context(self, msg, msg.command, cmd_len, matches)
+            # Construct invocation context
+            ctx = command.Context(
+                self,
+                message,
+                len(self.prefix) + len(message.command[0]) + 1,
+            )
 
             try:
                 ret = await cmd.func(ctx)
@@ -119,20 +126,18 @@ class CommandDispatcher(CaligoBase):
                 cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=e)
                 await ctx.respond(
                     "**In**:\n"
-                    f"{ctx.input if ctx.input is not None else msg.text}\n\n"
+                    f"{ctx.input if ctx.input is not None else message.text}\n\n"
                     "**Out**:\n⚠️ Error executing command:\n"
                     f"```{util.error.format_exception(e)}```"
                 )
 
-            await self.dispatch_event("command", cmd, msg)
+            await self.dispatch_event("command", cmd, message)
         except Exception as e:  # skipcq: PYL-W0703
-            if cmd is not None:
-                cmd.module.log.error("Error in command handler", exc_info=e)
-
+            cmd.module.log.error("Error in command handler", exc_info=e)
             await self.respond(
-                msg,
+                message,
                 "⚠️ Error in command handler:\n"
                 f"```{util.error.format_exception(e)}```",
             )
         finally:
-            msg.continue_propagation()
+            message.continue_propagation()

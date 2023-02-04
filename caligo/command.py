@@ -1,5 +1,4 @@
 import asyncio
-import re
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -9,11 +8,11 @@ from typing import (
     List,
     Match,
     Optional,
-    Pattern,
     Sequence,
     Union,
 )
 
+from pyrogram.filters import Filter
 from pyrogram.types import Chat, Message
 
 from caligo import util
@@ -59,14 +58,14 @@ def alias(*aliases: str) -> Decorator:
     return alias_decorator
 
 
-def pattern(_pattern: str) -> Decorator:
-    """Sets regex pattern on a command function."""
+def filter(_filter: Filter) -> Decorator:
+    """Sets filter on a command function."""
 
-    def pattern_decorator(func: CommandFunc) -> CommandFunc:
-        setattr(func, "_cmd_pattern", re.compile(_pattern))
+    def filter_decorator(func: CommandFunc) -> CommandFunc:
+        setattr(func, "_cmd_filter", _filter)
         return func
 
-    return pattern_decorator
+    return filter_decorator
 
 
 class Command:
@@ -76,7 +75,7 @@ class Command:
     usage_optional: bool
     usage_reply: bool
     aliases: Sequence[str]
-    pattern: Optional[Pattern[str]]
+    filter: Optional[Filter]
     module: Any
     func: CommandFunc
 
@@ -87,7 +86,7 @@ class Command:
         self.usage_optional = getattr(func, "_cmd_usage_optional", False)
         self.usage_reply = getattr(func, "_cmd_usage_reply", False)
         self.aliases = getattr(func, "_cmd_aliases", [])
-        self.pattern = getattr(func, "_cmd_pattern", None)
+        self.filter = getattr(func, "_cmd_filter", None)
         self.module = mod
         self.func = func
 
@@ -96,6 +95,7 @@ class Context:
     bot: "Caligo"
     chat: Chat
     msg: Message
+    message: Message
     reply_msg: Optional[Message]
     segments: Sequence[str]
     cmd_len: int
@@ -108,23 +108,21 @@ class Context:
 
     input: str
     args: Sequence[str]
-    matches: List[Match[str]]
 
     def __init__(
         self,
         bot: "Caligo",
-        msg: Message,
-        segments: Sequence[str],
+        message: Message,
         cmd_len: int,
-        matches: List[Match[str]],
     ) -> None:
         self.bot = bot
-        self.chat = msg.chat
-        self.msg = msg
-        self.reply_msg = msg.reply_to_message
-        self.segments = segments
+        self.chat = message.chat
+        self.msg = message
+        self.message = message
+        self.reply_msg = message.reply_to_message
+        self.segments = message.command
         self.cmd_len = cmd_len
-        self.invoker = segments[0]
+        self.invoker = self.segments[0]
 
         self.last_update_time = None
 
@@ -132,7 +130,6 @@ class Context:
         self.response_mode = None
 
         self.input = self.msg.text[self.cmd_len :]
-        self.matches = matches
 
     def __getattr__(self, name: str) -> Any:
         if name == "args":

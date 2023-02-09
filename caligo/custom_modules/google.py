@@ -314,7 +314,7 @@ class GoogleAPI(module.Module):
     @command.desc("Get list of projects")
     async def cmd_gls_project(self, ctx: command.Context) -> str:
         projects = await self._get_projects()
-        return "**Current Projects**:\n\n    • " + "\n    • ".join(
+        return "**Existing projects**:\n    • " + "\n    • ".join(
             [f"`{project['projectId']}`" for project in projects]
         )
 
@@ -364,7 +364,7 @@ class GoogleAPI(module.Module):
             projects.append(f"`{project}`")
 
         end_time = util.time.usec()
-        projects.insert(0, "Created '{amount}' project{plural}:\n")
+        projects.insert(0, "**Created '{amount}' project{plural}**:")
         return (
             "\n    • ".join(projects)
             + f"\n\nTime elapsed: {util.time.format_duration_us(end_time - start_time)}"

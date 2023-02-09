@@ -73,7 +73,7 @@ def check(func: command.CommandFunc):
                 for service in {"iam", "drive"}:
                     try:
                         response = await _run_async(self.enable_service)(
-                            self.bot.config["googleapis"]["project_id"], service
+                            self.project_id, service
                         )
                     except HttpError:
                         await ctx.respond(err_str.format(service=service))
@@ -95,6 +95,7 @@ class GoogleAPI(module.Module):
     name: ClassVar[str] = "Google API"
 
     db: database.AsyncCollection
+    project_id: str
 
     creds: Union[credentials.Credentials, external_account_authorized_user.Credentials]
     drive: Any
@@ -122,6 +123,15 @@ class GoogleAPI(module.Module):
                 response = await self._get_project(project)
                 continue
 
+    @_run_async
+    def _create_service_account(self, project_id: str) -> int:
+        uid = self._generate_id()
+        self.iam.projects().serviceAccounts().create(
+            name=f"projects/{project_id}",
+            body={"accountId": uid, "serviceAccount": {"displayName": uid}},
+        ).execute()
+        return 1
+
     async def _create_service_accounts(self, project_id: str) -> None:
         sas = len(await self._get_service_accounts(project_id))
         while sas != MAX_ACCOUNTS:
@@ -133,15 +143,7 @@ class GoogleAPI(module.Module):
                     continue
 
                 self.log.debug("Error creating service account '%d':", sas, exc_info=e)
-
-    @_run_async
-    def _create_service_account(self, project_id: str) -> int:
-        uid = self._generate_id()
-        self.iam.projects().serviceAccounts().create(
-            name=f"projects/{project_id}",
-            body={"accountId": uid, "serviceAccount": {"displayName": uid}},
-        ).execute()
-        return 1
+                await asyncio.sleep(1)
 
     @_run_async
     def _delete_service_account(self, name: str) -> None:
@@ -190,7 +192,7 @@ class GoogleAPI(module.Module):
             except HttpError as e:
                 if e.resp.status == 403:
                     self.enable_service(
-                        self.bot.config["googleapis"]["project_id"],
+                        self.project_id,
                         "cloudresourcemanager",
                     )
                     continue
@@ -202,6 +204,7 @@ class GoogleAPI(module.Module):
     async def on_load(self):
         self.db = self.bot.db.get_collection(self.name.upper())
         self.creds = None  # type: ignore
+        self.project_id = self.bot.config["googleapis"]["project_id"]
 
         data = await self.db.find_one({"_id": 0})
         if not data:
@@ -308,8 +311,17 @@ class GoogleAPI(module.Module):
     @check
     @command.usage("[project_id?]", optional=True)
     @command.desc(
-        "Create service accounts on a projects (if not specified, it will create on all projects)"
+        "List service account on project (if not specified, it will list on all projects)"
     )
     async def cmd_glist_sas(self, ctx: command.Context) -> None:
         project = ctx.input or self.bot.config["googleapis"]["project_id"]
         self.log.info(await self._get_service_accounts(project))
+
+    @check
+    @command.usage("[project_id?]", optional=True)
+    @command.desc(
+        "Create service accounts on a projects (if not specified, it will create on all projects)"
+    )
+    async def cmd_gmk_sa(self, ctx: command.Context) -> None:
+        project = ctx.input or self.project_id
+        self.log.info(await self._create_service_accounts(project))

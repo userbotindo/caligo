@@ -79,7 +79,7 @@ def check(func: command.CommandFunc):
                         await ctx.respond(err_str.format(service=service))
                         continue
 
-                    if not response["done"]:
+                    if not response.get("done", False):
                         await ctx.respond(
                             err_str.format(service=service)
                             + "\n\n__Some operation took longer to complete.__"
@@ -114,7 +114,7 @@ class GoogleAPI(module.Module):
         while count != amount:
             project, response = await self._create_project()
             while True:
-                if response["done"]:
+                if response.get("done", False):
                     yield project
                     count += 1
                     break
@@ -330,10 +330,11 @@ class GoogleAPI(module.Module):
     @command.usage(f"[amount (max: {MAX_PROJECTS})]")
     @command.desc("Create new amount of project(s) [1-12]")
     async def cmd_gmk_project(self, ctx: command.Context) -> Optional[str]:
+        if not ctx.input:
+            return "Please specify the amount of project(s) to create."
+
         try:
             amount = int(ctx.input)
-        except TypeError:
-            return "Please specify the amount of project(s) to create."
         except ValueError:
             return "Please specify a valid number amount of project(s) to create."
 
@@ -345,7 +346,7 @@ class GoogleAPI(module.Module):
 
         current_amount = len(await self._get_projects())
         if current_amount + amount > MAX_PROJECTS:
-            return f"You can't create '{amount}' project(s) because it will exceed the maximum amount of projects ({MAX_PROJECTS})."
+            return f"You can't create '{amount}' project(s) because it will exceed the maximum amount of projects ({MAX_PROJECTS}).\nYou currently have '{current_amount}' project(s)."
 
         projects = []
         await ctx.respond(f"Creating '{amount}' project(s)...")

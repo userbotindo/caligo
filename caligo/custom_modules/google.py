@@ -163,9 +163,9 @@ class GoogleAPI(module.Module):
                     break
 
     @staticmethod
-    def _generate_id(prefix="clg-") -> str:
+    def _generate_id(prefix="caligo-") -> str:
         chars = "-abcdefghijklmnopqrstuvwxyz1234567890"
-        return prefix + "".join(choice(chars) for _ in range(25)) + choice(chars[1:])
+        return prefix + "".join(choice(chars) for _ in range(15)) + choice(chars[1:])
 
     @_run_async
     def _get_service_accounts(self, project_id: str) -> List[Mapping[str, Any]]:
@@ -185,7 +185,7 @@ class GoogleAPI(module.Module):
         return self.cloud.operations().get(name=project_id).execute()
 
     @_run_async
-    def _get_projects(self) -> Mapping[str, str]:
+    def _get_projects(self) -> List[Mapping[str, str]]:
         while True:
             try:
                 response: Mapping[str, Any] = self.cloud.projects().list().execute()
@@ -309,6 +309,14 @@ class GoogleAPI(module.Module):
         )
 
     @check
+    @command.desc("Get list of projects")
+    async def cmd_gls_project(self, ctx: command.Context) -> str:
+        projects = await self._get_projects()
+        return "List of projects:\n" + util.text.join_list(
+            [project["projectId"] for project in projects]
+        )
+
+    @check
     @command.usage("[project_id?]", optional=True)
     @command.desc(
         "List service account on project (if not specified, it will list on all projects)"
@@ -331,28 +339,31 @@ class GoogleAPI(module.Module):
     @command.desc("Create new amount of project(s) [1-12]")
     async def cmd_gmk_project(self, ctx: command.Context) -> Optional[str]:
         if not ctx.input:
-            return "Please specify the amount of project(s) to create."
+            return "Please specify the amount of project to create."
 
         try:
             amount = int(ctx.input)
         except ValueError:
-            return "Please specify a valid number amount of project(s) to create."
+            return "Please specify a valid number."
 
-        if amount > MAX_PROJECTS:
-            return f"Please specify a number less than or equal to {MAX_PROJECTS}."
+        if amount > MAX_PROJECTS or amount < 1:
+            return f"Please specify a number greater than **0** and less than **{MAX_PROJECTS}**."
 
-        if amount < 1:
-            return "Please specify a number greater than 0."
+        start_time = util.time.usec()
+        plural = "s" if amount > 1 else ""
 
         current_amount = len(await self._get_projects())
         if current_amount + amount > MAX_PROJECTS:
-            return f"You can't create '{amount}' project(s) because it will exceed the maximum amount of projects ({MAX_PROJECTS}).\nYou currently have '{current_amount}' project(s)."
+            return f"You can't create '{amount}' project{plural} because it will exceed the maximum amount of projects ({MAX_PROJECTS}).\n\n__You currently have '{current_amount}' project{plural}__."
 
         projects = []
-        await ctx.respond(f"Creating '{amount}' project(s)...")
+        await ctx.respond(f"Creating '{amount}' project{plural}...")
         async for project in self._create_projects(amount):
             projects.append(project)
 
-        return f"Created '{len(projects)}' project(s):\n\n" + util.text.join_list(
-            projects
+        end_time = util.time.usec()
+        return (
+            f"Created '{amount}' project{plural}:\n"
+            + util.text.join_list(projects)
+            + f"\n\nTime elapsed: {util.time.format_duration_us(end_time - start_time)}"
         )

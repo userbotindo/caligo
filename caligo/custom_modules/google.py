@@ -313,7 +313,7 @@ class GoogleAPI(module.Module):
     @command.desc(
         "List service account on project (if not specified, it will list on all projects)"
     )
-    async def cmd_glist_sas(self, ctx: command.Context) -> None:
+    async def cmd_gls_sas(self, ctx: command.Context) -> None:
         project = ctx.input or self.bot.config["googleapis"]["project_id"]
         self.log.info(await self._get_service_accounts(project))
 
@@ -322,6 +322,36 @@ class GoogleAPI(module.Module):
     @command.desc(
         "Create service accounts on a projects (if not specified, it will create on all projects)"
     )
-    async def cmd_gmk_sa(self, ctx: command.Context) -> None:
+    async def cmd_gmk_sas(self, ctx: command.Context) -> None:
         project = ctx.input or self.project_id
         self.log.info(await self._create_service_accounts(project))
+
+    @check
+    @command.usage(f"[amount (max: {MAX_PROJECTS})]")
+    @command.desc("Create new amount of project(s) [1-12]")
+    async def cmd_gmk_project(self, ctx: command.Context) -> Optional[str]:
+        try:
+            amount = int(ctx.input)
+        except TypeError:
+            return "Please specify the amount of project(s) to create."
+        except ValueError:
+            return "Please specify a valid number amount of project(s) to create."
+
+        if amount > MAX_PROJECTS:
+            return f"Please specify a number less than or equal to {MAX_PROJECTS}."
+
+        if amount < 1:
+            return "Please specify a number greater than 0."
+
+        current_amount = len(await self._get_projects())
+        if current_amount + amount > MAX_PROJECTS:
+            return f"You can't create '{amount}' project(s) because it will exceed the maximum amount of projects ({MAX_PROJECTS})."
+
+        projects = []
+        await ctx.respond(f"Creating '{amount}' project(s)...")
+        async for project in self._create_projects(amount):
+            projects.append(project)
+
+        return f"Created '{len(projects)}' project(s):\n\n" + util.text.join_list(
+            projects
+        )

@@ -314,8 +314,9 @@ class GoogleAPI(module.Module):
     @command.desc("Get list of projects")
     async def cmd_gls_project(self, ctx: command.Context) -> str:
         projects = await self._get_projects()
-        projects.insert(0, "**Current Projects**:\n")
-        return "\n    • ".join([f"`{project['projectId']}`" for project in projects])
+        return "**Current Projects**:\n\n    • " + "\n    • ".join(
+            [f"`{project['projectId']}`" for project in projects]
+        )
 
     @check
     @command.usage("[project_id?]", optional=True)

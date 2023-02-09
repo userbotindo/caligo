@@ -312,9 +312,8 @@ class GoogleAPI(module.Module):
     @command.desc("Get list of projects")
     async def cmd_gls_project(self, ctx: command.Context) -> str:
         projects = await self._get_projects()
-        return "Projects:\n" + "\n    • ".join(
-            [f"`{project['projectId']}`" for project in projects]
-        )
+        projects.insert(0, "**Current Projects**:\n")
+        return "\n    • ".join([f"`{project['projectId']}`" for project in projects])
 
     @check
     @command.usage("[project_id?]", optional=True)
@@ -328,7 +327,7 @@ class GoogleAPI(module.Module):
     @check
     @command.usage("[project_id?]", optional=True)
     @command.desc(
-        "Create service accounts on a projects (if not specified, it will create on all projects)"
+        "Create service accounts on a project (if not specified, it will create on all projects)"
     )
     async def cmd_gmk_sas(self, ctx: command.Context) -> None:
         project = ctx.input or self.project_id
@@ -362,8 +361,8 @@ class GoogleAPI(module.Module):
             projects.append(f"`{project}`")
 
         end_time = util.time.usec()
+        projects.insert(0, "Created '{amount}' project{plural}:\n")
         return (
-            f"Created '{amount}' project{plural}:\n"
-            + "\n    • ".join(projects)
+            "\n    • ".join(projects)
             + f"\n\nTime elapsed: {util.time.format_duration_us(end_time - start_time)}"
         )

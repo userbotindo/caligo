@@ -16,6 +16,7 @@ chache/
 downloads/
 caligo/downloads/
 caligo/chache/
+vendor/
 
 # file
 .DS_Store

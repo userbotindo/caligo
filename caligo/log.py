@@ -38,3 +38,4 @@ def setup_log(colorlog_enable: bool = False) -> None:
     logging.getLogger("pymongo").setLevel(logging.WARNING)
     logging.getLogger("pyrogram").setLevel(logging.ERROR)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("googleapiclient").setLevel(logging.ERROR)

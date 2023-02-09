@@ -120,7 +120,7 @@ class GoogleAPI(module.Module):
                     break
 
                 await asyncio.sleep(3.5)
-                response = await self._get_project(project)
+                response = await self._get_project(response["name"])
                 continue
 
     @_run_async

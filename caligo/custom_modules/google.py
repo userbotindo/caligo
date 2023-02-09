@@ -188,7 +188,9 @@ class GoogleAPI(module.Module):
     def _get_projects(self) -> List[Mapping[str, str]]:
         while True:
             try:
-                response: Mapping[str, Any] = self.cloud.projects().list().execute()
+                response: Mapping[str, Any] = (
+                    self.cloud.projects().list(filter="lifecycleState:ACTIVE").execute()
+                )
             except HttpError as e:
                 if e.resp.status == 403:
                     self.enable_service(

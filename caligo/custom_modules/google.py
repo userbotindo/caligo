@@ -29,8 +29,8 @@ from pyrogram.types import Message
 from caligo import command, module, util
 from caligo.core import database
 
-MAX_PROJECTS = 12
 MAX_ACCOUNTS = 100
+MAX_PROJECTS = 12
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/cloud-platform",
@@ -44,6 +44,21 @@ def _run_async(func: Callable[..., Any]) -> Callable[..., Coroutine[Any, Any, An
         return await util.run_sync(func, *args, **kwargs)
 
     return wrapper
+
+
+async def progress_gen(
+    message: str, ctx: command.Context
+) -> AsyncGenerator[None, None]:
+    i = 0
+    while True:
+        for x in range(0, 4):
+            dots = "." * x
+            i += 1
+
+            await ctx.respond(message + dots)
+            await asyncio.sleep(3)
+
+        yield
 
 
 def check(func: command.CommandFunc):
@@ -109,19 +124,26 @@ class GoogleAPI(module.Module):
         response = self.cloud.projects().create(body={"projectId": project}).execute()
         return project, response
 
-    async def _create_projects(self, amount: int) -> AsyncGenerator[str, None]:
+    async def _create_projects(self, amount: int) -> List[str]:
+        projects = []
         count = 0
         while count != amount:
             project, response = await self._create_project()
             while True:
+                err = response.get("error", None)
+                if err and err["code"] == 8:
+                    return []
+
                 if response.get("done", False):
-                    yield project
                     count += 1
+                    projects.append(f"`{project}`")
                     break
 
                 await asyncio.sleep(3.5)
                 response = await self._get_project(response["name"])
                 continue
+
+        return projects
 
     @_run_async
     def _create_service_account(self, project_id: str) -> int:
@@ -301,10 +323,6 @@ class GoogleAPI(module.Module):
     @command.desc("Clear/Reset your Google credentials")
     @command.alias("greset")
     async def cmd_gclear(self, ctx: command.Context) -> Optional[str]:
-        if not self.creds:
-            await ctx.respond("Credentials already empty.", delete_after=3)
-            return
-
         await self.db.delete_one({"_id": 0})
         await asyncio.gather(
             self.on_load(), ctx.respond("Credentials cleared.", delete_after=3)
@@ -321,11 +339,11 @@ class GoogleAPI(module.Module):
     @check
     @command.usage("[project_id?]", optional=True)
     @command.desc(
-        "List service account on project (if not specified, it will list on all projects)"
+        "List service account on project (if not specified, it will list on default project)"
     )
-    async def cmd_gls_sas(self, ctx: command.Context) -> None:
-        project = ctx.input or self.bot.config["googleapis"]["project_id"]
-        self.log.info(await self._get_service_accounts(project))
+    async def cmd_gls_sas(self, ctx: command.Context) -> str:
+        project = ctx.input or self.project_id
+        return util.tg.pretty_print_entity(await self._get_service_accounts(project))
 
     @check
     @command.usage("[project_id?]", optional=True)
@@ -333,13 +351,30 @@ class GoogleAPI(module.Module):
         "Create service accounts on a project (if not specified, it will create on all projects)"
     )
     async def cmd_gmk_sas(self, ctx: command.Context) -> None:
-        project = ctx.input or self.project_id
-        self.log.info(await self._create_service_accounts(project))
+        projects = [ctx.input] if ctx.input else await self._get_projects()
+        start_time = util.time.usec()
+        for project in projects:
+            uid = project if isinstance(project, str) else project["projectId"]
+
+            task = self.bot.loop.create_task(self._create_service_accounts(uid))
+            progress = progress_gen(f"Creating", ctx)
+            while not task.done():
+                await progress.__anext__()
+
+            await progress.aclose()
+
+        end_time = util.time.usec()
+
+        await ctx.respond(
+            "Done."
+            + f"\n\nTime elapsed: {util.time.format_duration_us(end_time - start_time)}",
+            delete_after=3,
+        )
 
     @check
     @command.usage(f"[amount (max: {MAX_PROJECTS})]")
     @command.desc("Create new amount of project(s) [1-12]")
-    async def cmd_gmk_project(self, ctx: command.Context) -> Optional[str]:
+    async def cmd_gmk_project(self, ctx: command.Context) -> str:
         if not ctx.input:
             return "Please specify the amount of project to create."
 
@@ -356,16 +391,21 @@ class GoogleAPI(module.Module):
 
         current_amount = len(await self._get_projects())
         if current_amount + amount > MAX_PROJECTS:
-            return f"You can't create '{amount}' project{plural} because it will exceed the maximum amount of projects ({MAX_PROJECTS}).\n\n__You currently have '{current_amount}' project{plural}__."
+            return (
+                "⚠️ **Error creating projects**\n\n"
+                f"__You can't create '{amount}' project{plural} because it will exceed the maximum amount of projects ({MAX_PROJECTS})."
+                f"\nYou currently have '{current_amount}' project{plural}__."
+            )
 
-        projects = []
         await ctx.respond(f"Creating '{amount}' project{plural}...")
-        async for project in self._create_projects(amount):
-            projects.append(f"`{project}`")
+
+        projects = await self._create_projects(amount)
+        if not projects:
+            return "⚠️ **Error creating projects**\n\n__You've reached your project limit. You can create more projects after you [request a project limit increase](https://support.google.com/code/contact/project_quota_increase). Alternatively, you can schedule some projects to be deleted after 30 days on the [Manage Resources Page](https://console.cloud.google.com/cloud-resource-manager)__."
 
         end_time = util.time.usec()
-        projects.insert(0, "**Created '{amount}' project{plural}**:")
         return (
-            "\n    • ".join(projects)
+            f"Created '{amount}' project{plural}:\n    • "
+            + "\n    • ".join(projects)
             + f"\n\nTime elapsed: {util.time.format_duration_us(end_time - start_time)}"
         )

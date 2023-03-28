@@ -61,7 +61,7 @@ google-api-python-client = "^2.76.0"
 google-auth-oauthlib = "^0.8.0"
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.10.0"
+black = "^23.1.0"
 isort = "^5.10.1"
 pre-commit = "^2.20.0"
 pylint = "^2.15.5"

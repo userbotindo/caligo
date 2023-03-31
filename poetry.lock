@@ -1466,14 +1466,14 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pyrofork"
-version = "2.1.3"
+version = "2.1.4"
 description = "Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 files = [
-    {file = "PyroFork-2.1.3-py3-none-any.whl", hash = "sha256:96ec0461271261ba524da5f355c4bfe179215268e21d3761fb34175f05c098c5"},
-    {file = "PyroFork-2.1.3.tar.gz", hash = "sha256:32ee8e28d201a321c0d4de51052c711251da20f6595018d4b743f69db95cc339"},
+    {file = "PyroFork-2.1.4-py3-none-any.whl", hash = "sha256:77919dca36ec7544ac21d87fd00c69708363c487c6b054dc7303aa4fca8801c5"},
+    {file = "PyroFork-2.1.4.tar.gz", hash = "sha256:c5ea480158ae600e725d2fa4a85c9a06d9e930de95d4eb1e8f238769b7b827e7"},
 ]
 
 [package.dependencies]
@@ -2070,4 +2070,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.9"
-content-hash = "30ccb6c3436b38f37d3327a786044528b9dff1e81e88077af8a8dfb09fe86234"
+content-hash = "8b15280658a64d549ab57eaa181ba5bc2bd1785cb753ea47eba002720b1c37a9"

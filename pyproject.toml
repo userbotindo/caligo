@@ -59,7 +59,7 @@ TgCrypto = "^1.2.5"
 uvloop = {version = "^0.17.0", platform = "linux"}
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.10.0"
+black = "^23.3.0"
 isort = "^5.10.1"
 pre-commit = "^2.20.0"
 pylint = "^2.15.5"

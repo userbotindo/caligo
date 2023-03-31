@@ -119,13 +119,20 @@ class TelegramBot(CaligoBase):
             if v.startswith("SIG") and not v.startswith("SIG_")
         }
 
-        def signal_handler(signum, __):
+        def clear_handler() -> None:
+            for signame in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
+                self.loop.remove_signal_handler(signame)
 
+        def signal_handler(signum: int):
+
+            print(flush=True)
             self.log.info("Stop signal received ('%s').", signals[signum])
+            clear_handler()
+
             self.__idle__.cancel()
 
         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
-            signal.signal(name, signal_handler)
+            self.loop.add_signal_handler(name, signal_handler)
 
         while True:
             self.__idle__ = asyncio.create_task(asyncio.sleep(300), name="idle")

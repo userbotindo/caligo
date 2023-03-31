@@ -6,7 +6,6 @@ from typing import ClassVar, MutableMapping
 from aiopath import AsyncPath
 from bson.binary import Binary
 from pyrogram.enums import ParseMode
-from pyrogram.raw.functions.updates.get_state import GetState
 
 from caligo import __version__, command, module, util
 from caligo.core import database
@@ -21,23 +20,19 @@ class Main(module.Module):
         self.db = self.bot.db[self.name.upper()]
 
     async def on_stop(self) -> None:
-        return
-
-        # skipcq: PYL-W0101
-        file = AsyncPath("caligo/caligo.session")
+        file = AsyncPath("caligo/caligo_helper.session")
         if not await file.exists():
             return
 
-        data = await self.bot.client.invoke(GetState())
-        await self.db.update_one(
-            {"_id": sha256(self.bot.config["api_id"].encode()).hexdigest()},
+        await self.bot.db.get_collection("SESSION_HELPER").update_one(
+            {
+                "_id": sha256(
+                    str(self.bot.config["telegram"]["api_id"]).encode()
+                ).hexdigest()
+            },
             {
                 "$set": {
                     "session": Binary(await file.read_bytes()),
-                    "date": data.date,
-                    "pts": data.pts,
-                    "qts": data.qts,
-                    "seq": data.seq,
                 }
             },
             upsert=True,

@@ -3,6 +3,10 @@
 # Get this value from https://my.telegram.org/apps
 api_id = 123 # Client API ID used for authentication
 api_hash = "12345678" # Client API hash used for authentication
+# ---- OPTIONAL ---- #
+[telegram.helper]
+# Bot token used for helper
+# token = "123456789:ABC"  # Remove the '#'' and add your token to initialize
 
 [bot]
 # Mongodb url from https://cloud.mongodb.com/

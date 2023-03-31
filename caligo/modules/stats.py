@@ -78,10 +78,6 @@ class Stats(module.Module):
             sticker_stat = stat + "_stickers"
             await self.bot.log_stat(sticker_stat)
 
-    async def on_message_edit(self, msg: Message) -> None:
-        stat = "sent" if msg.outgoing else "received"
-        await self.bot.log_stat(stat + "_edits")
-
     async def on_command(
         self,
         cmd: command.Command,  # skipcq: PYL-W0613
@@ -113,18 +109,16 @@ class Stats(module.Module):
 
         sent: int = await self.get("sent") or 0
         sent_stickers: int = await self.get("sent_stickers") or 0
-        sent_edits: int = await self.get("sent_edits") or 0
         recv: int = await self.get("received") or 0
         recv_stickers: int = await self.get("received_stickers") or 0
-        recv_edits: int = await self.get("received_edits") or 0
         processed: int = await self.get("processed") or 0
         stickers: int = await self.get("stickers_created") or 0
 
         return util.text.join_map(
             {
                 "Total time elapsed": util.time.format_duration_us(uptime),
-                "Messages received": f"{recv} ({_calc_ph(recv, uptime)}/h) • {_calc_pct(recv_stickers, recv)}% are stickers • {_calc_pct(recv_edits, recv)}% were edited",
-                "Messages sent": f"{sent} ({_calc_ph(sent, uptime)}/h) • {_calc_pct(sent_stickers, sent)}% are stickers • {_calc_pct(sent_edits, sent)}% were edited",
+                "Messages received": f"{recv} ({_calc_ph(recv, uptime)}/h) • {_calc_pct(recv_stickers, recv)}% are stickers",
+                "Messages sent": f"{sent} ({_calc_ph(sent, uptime)}/h) • {_calc_pct(sent_stickers, sent)}% are stickers",
                 "Total messages sent": f"{_calc_pct(sent, sent + recv)}% of all accounted messages",
                 "Commands processed": f"{processed} ({_calc_ph(processed, uptime)}/h) • {_calc_pct(processed, sent)}% of sent messages",
                 "Stickers created": f"{stickers} ({_calc_pd(stickers, uptime)}/day)",

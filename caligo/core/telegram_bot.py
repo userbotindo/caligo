@@ -1,7 +1,10 @@
 import asyncio
 import signal
+from functools import partial
+from hashlib import sha256
 from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
 
+from aiopath import AsyncPath
 from pyrogram import filters as filt
 from pyrogram.client import Client
 from pyrogram.enums import ParseMode
@@ -69,6 +72,26 @@ class TelegramBot(CaligoBase):
         if data and data.get("prefix"):
             self.prefix = data["prefix"]
 
+        # Initialize bot client helper if has token
+        bot_token = self.config["telegram"]["helper"].get("token")
+        if bot_token:
+            # Load session helper from database
+            sess = await self.db.get_collection("SESSION_HELPER").find_one(
+                {"_id": sha256(str(api_id).encode()).hexdigest()}
+            )
+            file = AsyncPath("caligo/caligo_helper.session")
+            if sess and not await file.exists():
+                self.log.info("Loading session helper from database")
+                await file.write_bytes(sess["session"])
+
+            self.client_helper = Client(
+                name="caligo_helper",
+                api_id=api_id,
+                api_hash=api_hash,
+                bot_token=bot_token,
+                workdir="caligo",
+            )
+
     async def start(self: "Caligo") -> None:
         self.log.info("Starting")
         await self.init_client()
@@ -95,6 +118,8 @@ class TelegramBot(CaligoBase):
 
         async with asyncio.Lock():
             await self.client.start()
+            if self.helper_initialized:
+                await self.client_helper.start()
 
             user = await self.client.get_me()
             if not isinstance(user, User):
@@ -132,7 +157,7 @@ class TelegramBot(CaligoBase):
             self.__idle__.cancel()
 
         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
-            self.loop.add_signal_handler(name, signal_handler)
+            self.loop.add_signal_handler(name, partial(signal_handler, name))
 
         while True:
             self.__idle__ = asyncio.create_task(asyncio.sleep(300), name="idle")
@@ -165,6 +190,30 @@ class TelegramBot(CaligoBase):
             await self.idle()
         finally:
             await self.stop()
+
+    def update_helper_event(
+        self: "Caligo",
+        name: str,
+        event_type: Type[Handler],
+        filters: Optional[filt.Filter] = None,
+        group: int = 0,
+    ) -> None:
+        if name in self.listeners:
+            if name not in self._mevent_handlers:
+
+                async def update_event(_: Client, event: Update) -> None:
+                    await self.dispatch_event(name, event)
+
+                if filters is not None:
+                    event_info = (event_type(update_event, filters), group)
+                else:
+                    event_info = (event_type(update_event), group)
+
+                self.client_helper.add_handler(*event_info)
+                self._mevent_handlers[name] = event_info
+        elif name in self._mevent_handlers:
+            self.client_helper.remove_handler(*self._mevent_handlers[name])
+            del self._mevent_handlers[name]
 
     def update_module_event(
         self: "Caligo",
@@ -200,17 +249,23 @@ class TelegramBot(CaligoBase):
             & ~filt.migrate_to_chat_id,
             group=0,
         )
-        self.update_module_event("message_delete", DeletedMessagesHandler, group=1)
         self.update_module_event(
             "chat_action",
             MessageHandler,
             filt.new_chat_members | filt.left_chat_member,
             group=1,
         )
+        if self.helper_initialized:
+            self.update_helper_event("callback_query", CallbackQueryHandler)
+            self.update_helper_event("inline_query", InlineQueryHandler)
 
     @property
     def events_activated(self: "Caligo") -> int:
         return len(self._mevent_handlers)
+
+    @property
+    def helper_initialized(self: "Caligo") -> bool:
+        return hasattr(self, "client_helper") and isinstance(self.client_helper, Client)
 
     def redact_message(self: "Caligo", text: str) -> str:
         redacted = "[REDACTED]"
@@ -218,6 +273,7 @@ class TelegramBot(CaligoBase):
         api_id = str(self.config["telegram"]["api_id"])
         api_hash = self.config["telegram"]["api_hash"]
         db_uri = self.config["bot"]["db_uri"]
+        bot_token = self.config["telegram"]["helper"].get("token")
 
         if api_id in text:
             text = text.replace(api_id, redacted)
@@ -225,6 +281,8 @@ class TelegramBot(CaligoBase):
             text = text.replace(api_hash, redacted)
         if db_uri in text:
             text = text.replace(db_uri, redacted)
+        if bot_token is not None and bot_token in text:
+            text = text.replace(bot_token, redacted)
 
         return text
 

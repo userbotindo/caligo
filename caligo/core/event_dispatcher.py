@@ -29,9 +29,26 @@ class EventDispatcher(CaligoBase):
         func: ListenerFunc,
         *,
         priority: int = 100,
-        regex: Optional[Filter] = None,
+        filters: Optional[Filter] = None,
     ) -> None:
-        listener = Listener(event, func, mod, priority, regex)
+        if (
+            event in {"load", "start", "started", "stop", "stopped"}
+            and filters is not None
+        ):
+            self.log.warning("Built-in Listener can't be use with filters. Removing...")
+            filters = None
+
+        if getattr(func, "_cmd_filters", None):
+            self.log.warning(
+                "@command.filters decorator only for CommandFunc. Filters will be ignored..."
+            )
+
+        if filters:
+            self.log.debug(
+                "Registering filter '%s' into '%s'", type(filters).__name__, event
+            )
+
+        listener = Listener(event, func, mod, priority, filters)
 
         if event in self.listeners:
             bisect.insort(self.listeners[event], listener)
@@ -56,7 +73,7 @@ class EventDispatcher(CaligoBase):
                     event,
                     func,
                     priority=getattr(func, "_listener_priority", 100),
-                    regex=getattr(func, "_listener_regex", None),
+                    filters=getattr(func, "_listener_filters", None),
                 )
                 done = True
             finally:
@@ -87,20 +104,15 @@ class EventDispatcher(CaligoBase):
         if not listeners:
             return
 
-        matches = None
-        index = None
+        args = tuple(args)
         for lst in listeners:
-            if lst.regex is not None:
-                for idx, arg in enumerate(args):
+            if lst.filters is not None:
+                for arg in args:
                     if isinstance(arg, (CallbackQuery, InlineQuery, Message)):
-                        match = await lst.regex(self.client, arg)
+                        match = await lst.filters(self.client, arg)
                         if not match:
                             continue
 
-                        # Matches obj will dissapered after loop end
-                        # So save the index and matches object
-                        matches = arg.matches
-                        index = idx
                         break
 
                     self.log.error("'%s' can't be used with pattern", event)
@@ -113,8 +125,6 @@ class EventDispatcher(CaligoBase):
         if not tasks:
             return
 
-        if matches and index:
-            args[index].matches = matches
         self.log.debug("Dispatching event '%s' with data %s", event, args)
         if wait:
             await asyncio.wait(tasks)

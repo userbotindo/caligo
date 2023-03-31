@@ -5,8 +5,7 @@ from typing import (
     Any,
     Callable,
     Coroutine,
-    List,
-    Match,
+    Iterable,
     Optional,
     Sequence,
     Union,
@@ -58,11 +57,11 @@ def alias(*aliases: str) -> Decorator:
     return alias_decorator
 
 
-def filter(_filter: Filter) -> Decorator:
-    """Sets filter on a command function."""
+def filters(_filters: Optional[Filter] = None) -> Decorator:
+    """Sets filters on a command function."""
 
     def filter_decorator(func: CommandFunc) -> CommandFunc:
-        setattr(func, "_cmd_filter", _filter)
+        setattr(func, "_cmd_filters", _filters)
         return func
 
     return filter_decorator
@@ -74,21 +73,35 @@ class Command:
     usage: Optional[str]
     usage_optional: bool
     usage_reply: bool
-    aliases: Sequence[str]
-    filter: Optional[Filter]
+    aliases: Iterable[str]
+    filters: Optional[Filter]
     module: Any
     func: CommandFunc
 
-    def __init__(self, name: str, mod: Any, func: CommandFunc) -> None:
+    def __init__(
+        self,
+        name: str,
+        mod: Any,
+        func: CommandFunc,
+        filters: Optional[Filter] = None,
+        desc: Optional[str] = None,
+        usage: Optional[str] = None,
+        usage_optional: bool = False,
+        usage_reply: bool = False,
+        aliases: Iterable[str] = [],
+    ) -> None:
         self.name = name
-        self.desc = getattr(func, "_cmd_description", None)
-        self.usage = getattr(func, "_cmd_usage", None)
-        self.usage_optional = getattr(func, "_cmd_usage_optional", False)
-        self.usage_reply = getattr(func, "_cmd_usage_reply", False)
-        self.aliases = getattr(func, "_cmd_aliases", [])
-        self.filter = getattr(func, "_cmd_filter", None)
         self.module = mod
         self.func = func
+        self.filters = filters
+        self.desc = desc
+        self.usage = usage
+        self.usage_optional = usage_optional
+        self.usage_reply = usage_reply
+        self.aliases = aliases
+
+    def __repr__(self) -> str:
+        return f"<command module '{self.name}' from '{self.module.name}'>"
 
 
 class Context:

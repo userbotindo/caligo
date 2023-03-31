@@ -1,5 +1,5 @@
 import inspect
-from typing import TYPE_CHECKING, Any, MutableMapping
+from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, Optional
 
 from pyrogram.client import Client
 from pyrogram.errors import MessageNotModified
@@ -23,9 +23,30 @@ class CommandDispatcher(CaligoBase):
         super().__init__(**kwargs)
 
     def register_command(
-        self: "Caligo", mod: module.Module, name: str, func: command.CommandFunc
+        self: "Caligo",
+        mod: module.Module,
+        name: str,
+        func: command.CommandFunc,
+        filters: Optional[Filter] = None,
+        desc: Optional[str] = None,
+        usage: Optional[str] = None,
+        usage_optional: bool = False,
+        usage_reply: bool = False,
+        aliases: Iterable[str] = [],
     ) -> None:
-        cmd = command.Command(name, mod, func)
+        if getattr(func, "_listener_filters", None):
+            self.log.warning(
+                "@listener.filters decorator only for ListenerFunc. Filters will be ignored..."
+            )
+
+        if filters:
+            self.log.debug(
+                "Registering filter '%s' into '%s'", type(filters).__name__, name
+            )
+
+        cmd = command.Command(
+            name, mod, func, filters, desc, usage, usage_optional, usage_reply, aliases
+        )
 
         if name in self.commands:
             orig = self.commands[name]
@@ -54,7 +75,17 @@ class CommandDispatcher(CaligoBase):
             done = False
 
             try:
-                self.register_command(mod, name, func)
+                self.register_command(
+                    mod,
+                    name,
+                    func,
+                    filters=getattr(func, "_cmd_filters", None),
+                    desc=getattr(func, "_cmd_description", None),
+                    usage=getattr(func, "_cmd_usage", None),
+                    usage_optional=getattr(func, "_cmd_usage_optional", False),
+                    usage_reply=getattr(func, "_cmd_usage_reply", False),
+                    aliases=getattr(func, "_cmd_aliases", []),
+                )
                 done = True
             finally:
                 if not done:
@@ -89,12 +120,12 @@ class CommandDispatcher(CaligoBase):
                     return False
 
                 # Check additional built-in filters
-                if cmd.filter:
-                    if inspect.iscoroutinefunction(cmd.filter.__call__):
-                        if not await cmd.filter(client, message):
+                if cmd.filters:
+                    if inspect.iscoroutinefunction(cmd.filters.__call__):
+                        if not await cmd.filters(client, message):
                             return False
                     else:
-                        if not await util.run_sync(cmd.filter, client, message):
+                        if not await util.run_sync(cmd.filters, client, message):
                             return False
 
                 message.command = parts

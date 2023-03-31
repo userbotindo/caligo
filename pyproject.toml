@@ -61,7 +61,7 @@ uvloop = {version = "^0.17.0", platform = "linux"}
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
 isort = "^5.10.1"
-pre-commit = "^2.20.0"
+pre-commit = "^3.2.1"
 pylint = "^2.15.5"
 flake8 = "^5.0.4"
 pytest = "^7.2.0"

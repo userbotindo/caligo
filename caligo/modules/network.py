@@ -103,7 +103,7 @@ class Network(module.Module):
 
         await ctx.msg.delete()
 
-    @command.desc("Upload file into telegram server")
+    @command.desc("Download file from telegram server")
     @command.alias("dl")
     @command.usage("[message media to download]", reply=True)
     async def cmd_download(self, ctx: command.Context) -> str:

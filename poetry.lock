@@ -190,6 +190,18 @@ files = [
 frozenlist = ">=1.1.0"
 
 [[package]]
+name = "aiosqlite"
+version = "0.18.0"
+description = "asyncio bridge to the standard sqlite3 module"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "aiosqlite-0.18.0-py3-none-any.whl", hash = "sha256:c3511b841e3a2c5614900ba1d179f366826857586f78abd75e7cbeb88e75a557"},
+    {file = "aiosqlite-0.18.0.tar.gz", hash = "sha256:faa843ef5fb08bafe9a9b3859012d3d9d6f77ce3637899de20606b7fc39aa213"},
+]
+
+[[package]]
 name = "anyio"
 version = "3.6.2"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
@@ -797,6 +809,30 @@ files = [
 ]
 
 [[package]]
+name = "motor"
+version = "3.1.2"
+description = "Non-blocking MongoDB driver for Tornado or asyncio"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "motor-3.1.2-py3-none-any.whl", hash = "sha256:4bfc65230853ad61af447088527c1197f91c20ee957cfaea3144226907335716"},
+    {file = "motor-3.1.2.tar.gz", hash = "sha256:80c08477c09e70db4f85c99d484f2bafa095772f1d29b3ccb253270f9041da9a"},
+]
+
+[package.dependencies]
+pymongo = ">=4.1,<5"
+
+[package.extras]
+aws = ["pymongo[aws] (>=4.1,<5)"]
+encryption = ["pymongo[encryption] (>=4.1,<5)"]
+gssapi = ["pymongo[gssapi] (>=4.1,<5)"]
+ocsp = ["pymongo[ocsp] (>=4.1,<5)"]
+snappy = ["pymongo[snappy] (>=4.1,<5)"]
+srv = ["pymongo[srv] (>=4.1,<5)"]
+zstd = ["pymongo[zstd] (>=4.1,<5)"]
+
+[[package]]
 name = "multidict"
 version = "6.0.4"
 description = "multidict implementation"
@@ -1238,19 +1274,22 @@ zstd = ["zstandard"]
 
 [[package]]
 name = "pyrofork"
-version = "2.1.5"
+version = "2.1.7"
 description = "Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
 category = "main"
 optional = false
 python-versions = "~=3.7"
 files = [
-    {file = "PyroFork-2.1.5-py3-none-any.whl", hash = "sha256:7b485633b8273df0e24e2cc9126c3da12a7fcf396119bf742dc70413b27aecb0"},
-    {file = "PyroFork-2.1.5.tar.gz", hash = "sha256:b9fe0de72777410074670ab77341bab49bdf9884999cd1d0c89c399bb1cb2014"},
+    {file = "PyroFork-2.1.7-py3-none-any.whl", hash = "sha256:0074d9f3878165a13ff6fe1648efcfbc4c1e9f0c07bf20b2041c8dc73bfea6e2"},
+    {file = "PyroFork-2.1.7.tar.gz", hash = "sha256:6fa247d825834e52ef20de8622580e44b8a35bb752ebdd7fa938a3ed3cab9875"},
 ]
 
 [package.dependencies]
+aiosqlite = ">=0.17.0,<0.19.0"
+motor = "3.1.2"
 pyaes = "1.6.1"
 pymediainfo = "6.0.1"
+pymongo = "4.3.3"
 pysocks = "1.7.1"
 
 [[package]]
@@ -1745,4 +1784,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.9"
-content-hash = "3671be40074a8c5ba103968bf203b0a7bafdcbcff079996f91065154c7ef8a50"
+content-hash = "ccdc68dfb59ac91510cd6f324e21aedef8f29bbfed786cf734623e806a65abf1"

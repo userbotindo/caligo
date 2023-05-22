@@ -190,6 +190,18 @@ files = [
 frozenlist = ">=1.1.0"
 
 [[package]]
+name = "aiosqlite"
+version = "0.18.0"
+description = "asyncio bridge to the standard sqlite3 module"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "aiosqlite-0.18.0-py3-none-any.whl", hash = "sha256:c3511b841e3a2c5614900ba1d179f366826857586f78abd75e7cbeb88e75a557"},
+    {file = "aiosqlite-0.18.0.tar.gz", hash = "sha256:faa843ef5fb08bafe9a9b3859012d3d9d6f77ce3637899de20606b7fc39aa213"},
+]
+
+[[package]]
 name = "anyio"
 version = "3.6.2"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
@@ -229,6 +241,21 @@ wrapt = [
     {version = ">=1.11,<2", markers = "python_version < \"3.11\""},
     {version = ">=1.14,<2", markers = "python_version >= \"3.11\""},
 ]
+
+[[package]]
+name = "async-pymongo"
+version = "0.1.2"
+description = "Asynchronous wrapper for pymongo"
+category = "main"
+optional = false
+python-versions = ">=3.9,<4.0"
+files = [
+    {file = "async_pymongo-0.1.2-py3-none-any.whl", hash = "sha256:a85b81f5f2fb32df7de2b595ee5081e8d977679009dc740a0d8c2f5bd6b4317e"},
+    {file = "async_pymongo-0.1.2.tar.gz", hash = "sha256:51f96a973620f6e8735f038691235b4a338ecc044ec4d99eff61f2742b8ec63e"},
+]
+
+[package.dependencies]
+pymongo = ">=4.3.3,<5.0.0"
 
 [[package]]
 name = "async-timeout"
@@ -1238,19 +1265,22 @@ zstd = ["zstandard"]
 
 [[package]]
 name = "pyrofork"
-version = "2.1.5"
+version = "2.2.0"
 description = "Elegant, modern and asynchronous Telegram MTProto API framework in Python for users and bots"
 category = "main"
 optional = false
-python-versions = "~=3.7"
+python-versions = "~=3.9"
 files = [
-    {file = "PyroFork-2.1.5-py3-none-any.whl", hash = "sha256:7b485633b8273df0e24e2cc9126c3da12a7fcf396119bf742dc70413b27aecb0"},
-    {file = "PyroFork-2.1.5.tar.gz", hash = "sha256:b9fe0de72777410074670ab77341bab49bdf9884999cd1d0c89c399bb1cb2014"},
+    {file = "PyroFork-2.2.0-py3-none-any.whl", hash = "sha256:74a96981a57cee24ffb1475eb98b4a95691b4796abb708b201c5f2208bd6057c"},
+    {file = "PyroFork-2.2.0.tar.gz", hash = "sha256:816d15bcd46e423d86b918c5e4a9089e287f8fb3ec423126b040cbade4eacb83"},
 ]
 
 [package.dependencies]
+aiosqlite = ">=0.17.0,<0.19.0"
+async-pymongo = "0.1.2"
 pyaes = "1.6.1"
 pymediainfo = "6.0.1"
+pymongo = "4.3.3"
 pysocks = "1.7.1"
 
 [[package]]
@@ -1745,4 +1775,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.9"
-content-hash = "3671be40074a8c5ba103968bf203b0a7bafdcbcff079996f91065154c7ef8a50"
+content-hash = "605c276a542361ba8e71d1db2cfeed672fdf20bddcecc11af39c9a4ed16d28cb"

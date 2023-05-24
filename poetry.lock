@@ -495,13 +495,13 @@ wmi = ["wmi (>=1.5.1,<2.0.0)"]
 
 [[package]]
 name = "emoji"
-version = "2.2.0"
+version = "2.4.0"
 description = "Emoji for Python"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 files = [
-    {file = "emoji-2.2.0.tar.gz", hash = "sha256:a2986c21e4aba6b9870df40ef487a17be863cb7778dcf1c01e25917b7cd210bb"},
+    {file = "emoji-2.4.0.tar.gz", hash = "sha256:72b918412f7059f57b0f0b0c27f3458802c4c97a2f039f4732610c2582b6c9e4"},
 ]
 
 [package.extras]
@@ -1745,4 +1745,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "~=3.9"
-content-hash = "3671be40074a8c5ba103968bf203b0a7bafdcbcff079996f91065154c7ef8a50"
+content-hash = "971d52789278b10a8940f043e8897b092ae56263782e7674d4acd1a5655357e4"

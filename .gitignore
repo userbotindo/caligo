@@ -29,3 +29,6 @@ vendor/
 .idea/
 .vscode/
 *.sw*
+
+# Ignore venv folder
+venv/

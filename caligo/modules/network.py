@@ -122,14 +122,15 @@ class Network(module.Module):
         else:
             chat_id = ctx.chat.id
             msg_id = reply_msg.id
-
+        
+        message = reply_msg if reply_msg else await self.bot.client.get_messages(chat_id, msg_id)
         try:
             media_group = await self.bot.client.get_media_group(
                 chat_id, msg_id
             )
         except ValueError:
             media_group = []
-            media_group.append(reply_msg)
+            media_group.append(message)
 
         results = set()
         for msg in media_group:

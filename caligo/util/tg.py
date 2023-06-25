@@ -103,7 +103,9 @@ def parse_telegram_link(link):
         
         # Check if '/c/' is present in the link
         if 't.me/c/' in link:
-            chat_id = '-100' + chat_id
+            chat_id = "-100" + chat_id
+            # convert chat id into int for negative value
+            chat_id = int(chat_id)
         
         return chat_id, msg_id
     else:

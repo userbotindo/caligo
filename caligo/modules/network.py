@@ -107,11 +107,11 @@ class Network(module.Module):
     @command.alias("dl")
     @command.usage("[message media to download]", reply=True)
     async def cmd_download(self, ctx: command.Context) -> str:
-        if not ctx.msg.reply_to_message:
+        if not ctx.input or not ctx.msg.reply_to_message:
             return "__Reply to message with media to download.__"
 
         reply_msg = ctx.msg.reply_to_message
-        if not reply_msg.media:
+        if reply_msg and not reply_msg.media:
             return "__The message you replied to doesn't contain any media.__"
 
         start_time = util.time.sec()
@@ -119,9 +119,15 @@ class Network(module.Module):
         await ctx.respond("Preparing to download...")
 
         # Check if media is group or not
+        if ctx.input:
+            chat_id, msg_id = util.tg.parse_telegram_link(ctx.input)
+        else:
+            chat_id = ctx.chat.id
+            msg_id = reply_msg.id
+
         try:
             media_group = await self.bot.client.get_media_group(
-                ctx.chat.id, reply_msg.id
+                chat_id, msg_id
             )
         except ValueError:
             media_group = []

@@ -1,4 +1,5 @@
 import io
+import re
 import uuid
 from typing import Any
 
@@ -88,3 +89,22 @@ async def send_as_document(
             document=o,
             caption="❯ ```" + caption + "```",
         )
+
+def parse_telegram_link(link):
+    # Pattern for extracting chat_id and msg_id
+    pattern = r'https?://t.me/(?:c/)?([a-zA-Z0-9_]+)/(\d+)'
+    
+    # Extract chat_id and msg_id using regex
+    match = re.match(pattern, link)
+    
+    if match:
+        chat_id = match.group(1)
+        msg_id = int(match.group(2))
+        
+        # Check if '/c/' is present in the link
+        if 't.me/c/' in link:
+            chat_id = '-100' + chat_id
+        
+        return chat_id, msg_id
+    else:
+        return None, None

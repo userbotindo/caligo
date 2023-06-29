@@ -118,7 +118,7 @@ class Network(module.Module):
 
         # Check if media is group or not
         if ctx.input:
-            chat_id, msg_id = util.tg.parse_telegram_link(ctx.input)
+            chat_id, msg_id = await util.tg.parse_telegram_link(ctx.input)
         else:
             chat_id = ctx.chat.id
             msg_id = reply_msg.id

@@ -7,17 +7,16 @@ from typing import Any, ClassVar, List, MutableMapping
 
 from aiopath import AsyncPath
 from bson.binary import Binary
-
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.errors import BotInlineDisabled, FloodWait
 from pyrogram.types import (
     CallbackQuery,
-    InlineQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InlineQuery,
     InlineQueryResultArticle,
-    InputTextMessageContent
+    InputTextMessageContent,
 )
 
 from caligo import __version__, command, listener, module, util
@@ -26,12 +25,9 @@ from caligo.core import database
 
 class Main(module.Module):
     name: ClassVar[str] = "Main"
-    cache: dict[int, int]
-
     db: database.AsyncCollection
 
     async def on_load(self) -> None:
-        self.cache = {}
         self.db = self.bot.db[self.name.upper()]
 
     async def on_stop(self) -> None:
@@ -57,31 +53,27 @@ class Main(module.Module):
         modules = list(self.bot.modules.keys())
         button: List[InlineKeyboardButton] = []
         for mod in modules:
-            button.append(InlineKeyboardButton(
-                mod, callback_data=f"menu({mod})".encode()))
+            button.append(
+                InlineKeyboardButton(mod, callback_data=f"menu({mod})".encode())
+            )
         buttons = [
-            button[i * 3:(i + 1) * 3]
-            for i in range((len(button) + 3 - 1) // 3)
+            button[i * 3 : (i + 1) * 3] for i in range((len(button) + 3 - 1) // 3)
         ]
         buttons.append(
-            [
-                InlineKeyboardButton(
-                    "✗ Close",
-                    callback_data="menu(Close)".encode()
-                )
-            ]
+            [InlineKeyboardButton("✗ Close", callback_data="menu(Close)".encode())]
         )
 
         return buttons
-    
+
     async def on_inline_query(self, query: InlineQuery) -> None:
-        repo = "userbotindo/Caligo.git" # Todo: Change this to configurable settings.
+        repo = "userbotindo/Caligo.git"  # Todo: Change this to configurable settings.
         answer = [
             InlineQueryResultArticle(
                 id=str(uuid.uuid4()),
                 title="About Caligo",
                 input_message_content=InputTextMessageContent(
-                    "__Caligo is SelfBot based on Pyrogram library.__"),
+                    "__Caligo is SelfBot based on Pyrogram library.__"
+                ),
                 url=f"https://github.com/{repo}",
                 description="A Selfbot Telegram.",
                 thumb_url=None,
@@ -89,14 +81,15 @@ class Main(module.Module):
                     [
                         [
                             InlineKeyboardButton(
-                                "⚡️ Repo",
-                                url=f"https://github.com/{repo}"),
+                                "⚡️ Repo", url=f"https://github.com/{repo}"
+                            ),
                             InlineKeyboardButton(
                                 "📖️ How To",
-                                url=f"https://github.com/{repo}#Installation"),
+                                url=f"https://github.com/{repo}#Installation",
+                            ),
                         ]
                     ]
-                )
+                ),
             )
         ]
         if query.from_user and (query.from_user.id == self.bot.uid):
@@ -106,22 +99,24 @@ class Main(module.Module):
                     id=str(uuid.uuid4()),
                     title="Menu",
                     input_message_content=InputTextMessageContent(
-                        "**Caligo Menu Helper**"),
+                        "**Caligo Menu Helper**"
+                    ),
                     url=f"https://github.com/{repo}",
                     description="Menu Helper.",
                     thumb_url=None,
-                    reply_markup=InlineKeyboardMarkup(button)
+                    reply_markup=InlineKeyboardMarkup(button),
                 )
             )
 
-        await query.answer(results=answer, cache_time=3)
+        await query.answer(results=answer)
         return
 
     @listener.filters(filters.regex(r"menu\((\w+)\)$"))
     async def on_callback_query(self, query: CallbackQuery) -> None:
         if query.from_user and query.from_user.id != self.bot.uid:
-            await query.answer("Sorry, you don't have permission to access.",
-                               show_alert=True)
+            await query.answer(
+                "Sorry, you don't have permission to access.", show_alert=True
+            )
             return
 
         mod = query.matches[0].group(1)
@@ -129,30 +124,24 @@ class Main(module.Module):
             button = await util.run_sync(self.build_button)
             try:
                 await query.edit_message_text(
-                "**Caligo Menu Helper**",
-                reply_markup=InlineKeyboardMarkup(button))
+                    "**Caligo Menu Helper**", reply_markup=InlineKeyboardMarkup(button)
+                )
             except FloodWait as e:
                 await asyncio.sleep(e.x)
             return
         if mod == "Close":
             button = await util.run_sync(self.build_button)
-            for msg_id, chat_id in list(self.cache.items()):
-                try:
-                    await self.bot.client.delete_messages(chat_id, msg_id)
-                except Exception:  # skipcq: PYL-W0703
-                    break
-                else:
-                    break
-                finally:
-                    del self.cache[msg_id]
-            else:
+            try:
+                await query.msg.delete()
+            except Exception:
                 await query.answer("😿️ Couldn't close message")
                 await query.edit_message_text(
                     "**Caligo Menu Helper**",
-                    reply_markup=InlineKeyboardMarkup(button[:-1]))
+                    reply_markup=InlineKeyboardMarkup(button[:-1]),
+                )
 
             return
-        
+
         modules: MutableMapping[str, MutableMapping[str, str]] = defaultdict(dict)
         for _, cmd in self.bot.commands.items():
             if cmd.module.name != mod:
@@ -171,29 +160,30 @@ class Main(module.Module):
             response = util.text.join_map(commands, heading=mod_name)
 
         if response is not None:
-            button = [[InlineKeyboardButton(
-                    "⇠ Back", callback_data="menu(Back)".encode()
-            )]]
+            button = [
+                [InlineKeyboardButton("⇠ Back", callback_data="menu(Back)".encode())]
+            ]
             await query.edit_message_text(
-                response, reply_markup=InlineKeyboardMarkup(button))
+                response, reply_markup=InlineKeyboardMarkup(button)
+            )
 
             return
 
         await query.answer(f"😿️ {mod} doesn't have any commands.")
         return
-    
+
     @command.desc("List the commands")
     @command.usage("[filter: command or module name?]", optional=True)
     async def cmd_help(self, ctx: command.Context):
         """List the commands"""
-
         filt = ctx.input
 
-        if self.bot.client_helper and not filt:
+        if self.bot.helper_initialized and not filt:
             response: Any
             try:
                 response = await self.bot.client.get_inline_bot_results(
-                    self.bot.client_helper.me.username)
+                    self.bot.client_helper.me.username
+                )
             except BotInlineDisabled:
                 return "__Bot Inline Disabled__"
             else:
@@ -201,17 +191,20 @@ class Main(module.Module):
 
             if ctx.msg.is_topic_message:
                 res: Any = await self.bot.client.send_inline_bot_result(
-                    ctx.msg.chat.id, response.query_id, response.results[1].id, message_thread_id=ctx.msg.message_thread_id)
+                    ctx.msg.chat.id,
+                    response.query_id,
+                    response.results[1].id,
+                    message_thread_id=ctx.msg.message_thread_id,
+                )
             else:
                 try:
-                   res: Any = await self.bot.client.send_inline_bot_result(
-                    ctx.msg.chat.id, response.query_id, response.results[1].id)
+                    res: Any = await self.bot.client.send_inline_bot_result(
+                        ctx.msg.chat.id, response.query_id, response.results[1].id
+                    )
                 except FloodWait as e:
                     await asyncio.sleep(e.x)
-            self.cache[res.updates[0].id] = ctx.msg.chat.id
-
             return
-        
+
         # Handle command filters
         if filt and filt not in self.bot.modules:
             if filt in self.bot.commands:

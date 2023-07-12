@@ -3,7 +3,7 @@ import platform
 import uuid
 from collections import defaultdict
 from hashlib import sha256
-from typing import Any, ClassVar, List, MutableMapping
+from typing import Any, ClassVar, Dict, List, MutableMapping
 
 from aiopath import AsyncPath
 from bson.binary import Binary
@@ -25,10 +25,13 @@ from caligo.core import database
 
 class Main(module.Module):
     name: ClassVar[str] = "Main"
+
+    cache: Dict[int, int]
     db: database.AsyncCollection
 
     async def on_load(self) -> None:
         self.db = self.bot.db[self.name.upper()]
+        self.cache = {}
 
     async def on_stop(self) -> None:
         file = AsyncPath("caligo/caligo_helper.session")
@@ -108,7 +111,7 @@ class Main(module.Module):
                 )
             )
 
-        await query.answer(results=answer)
+        await query.answer(results=answer, cache_time=3)
         return
 
     @listener.filters(filters.regex(r"menu\((\w+)\)$"))
@@ -131,9 +134,16 @@ class Main(module.Module):
             return
         if mod == "Close":
             button = await util.run_sync(self.build_button)
-            try:
-                await query.msg.delete()
-            except Exception:
+            for msg_id, chat_id in list(self.cache.items()):
+                try:
+                    await self.bot.client.delete_messages(chat_id, msg_id)
+                except Exception:  # skipcq: PYL-W0703
+                    break
+                else:
+                    break
+                finally:
+                    del self.cache[msg_id]
+            else:
                 await query.answer("😿️ Couldn't close message")
                 await query.edit_message_text(
                     "**Caligo Menu Helper**",
@@ -201,6 +211,8 @@ class Main(module.Module):
                     res: Any = await self.bot.client.send_inline_bot_result(
                         ctx.msg.chat.id, response.query_id, response.results[1].id
                     )
+                    self.cache[res.updates[0].id] = ctx.msg.chat.id
+
                 except FloodWait as e:
                     await asyncio.sleep(e.x)
             return

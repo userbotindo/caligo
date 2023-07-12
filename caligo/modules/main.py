@@ -28,10 +28,12 @@ class Main(module.Module):
 
     cache: Dict[int, int]
     db: database.AsyncCollection
+    repo: str
 
     async def on_load(self) -> None:
         self.db = self.bot.db[self.name.upper()]
         self.cache = {}
+        self.repo = self.bot.config["updater"]["git_url"]
 
     async def on_stop(self) -> None:
         file = AsyncPath("caligo/caligo_helper.session")
@@ -69,7 +71,6 @@ class Main(module.Module):
         return buttons
 
     async def on_inline_query(self, query: InlineQuery) -> None:
-        repo = "userbotindo/Caligo.git"  # Todo: Change this to configurable settings.
         answer = [
             InlineQueryResultArticle(
                 id=str(uuid.uuid4()),
@@ -77,18 +78,18 @@ class Main(module.Module):
                 input_message_content=InputTextMessageContent(
                     "__Caligo is SelfBot based on Pyrogram library.__"
                 ),
-                url=f"https://github.com/{repo}",
+                url=f"{self.repo}",
                 description="A Selfbot Telegram.",
                 thumb_url=None,
                 reply_markup=InlineKeyboardMarkup(
                     [
                         [
                             InlineKeyboardButton(
-                                "⚡️ Repo", url=f"https://github.com/{repo}"
+                                "⚡️ Repo", url=f"{self.repo}"
                             ),
                             InlineKeyboardButton(
                                 "📖️ How To",
-                                url=f"https://github.com/{repo}#Installation",
+                                url=f"{self.repo}#Installation",
                             ),
                         ]
                     ]
@@ -104,7 +105,7 @@ class Main(module.Module):
                     input_message_content=InputTextMessageContent(
                         "**Caligo Menu Helper**"
                     ),
-                    url=f"https://github.com/{repo}",
+                    url=f"{self.repo}",
                     description="Menu Helper.",
                     thumb_url=None,
                     reply_markup=InlineKeyboardMarkup(button),

@@ -47,7 +47,7 @@ aiorun = "^2023.7.2"
 beauty-print = "^0.6.1"
 certifi = {version = "^2022.12.7", platform = "windows"}
 colorlog = "^6.7.0"
-emoji = "^2.2.0"
+emoji = "^2.7.0"
 gitpython = "^3.1.32"
 meval = "^2.5"
 pillow = "^10.0.0"

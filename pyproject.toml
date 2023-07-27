@@ -45,7 +45,7 @@ aiopath = [
 ]
 aiorun = "^2023.7.2"
 beauty-print = "^0.6.1"
-certifi = {version = "^2022.12.7", platform = "windows"}
+certifi = {version = "^2023.7.22", platform = "windows"}
 colorlog = "^6.7.0"
 emoji = "^2.7.0"
 gitpython = "^3.1.32"

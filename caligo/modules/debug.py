@@ -184,7 +184,13 @@ class Debug(module.Module):
         if out.endswith("\n"):
             out = out[:-1]
 
-        if len(out) > 4096:
+        respond_text = f"""{prefix}<b>Input</b>:
+<pre language="python">{escape(code)}</pre>
+<b>Output</b>:
+<pre language="python">{escape(out)}</pre>
+
+Time: {el_str}"""
+        if len(respond_text) > 4096:
             with io.BytesIO(str.encode(out)) as out_file:
                 out_file.name = "eval.text"
                 await ctx.msg.reply_document(
@@ -194,11 +200,6 @@ class Debug(module.Module):
             return None
 
         await ctx.respond(
-            f"""{prefix}<b>Input:</b>
-<pre language="python">{escape(code)}</pre>
-<b>Output:</b>
-<pre language="python">{escape(out)}</pre>
-
-Time: {el_str}""",
+            respond_text,
             parse_mode=pyrogram.enums.parse_mode.ParseMode.HTML,
         )

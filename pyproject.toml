@@ -48,7 +48,7 @@ beauty-print = "^0.6.1"
 certifi = {version = "^2023.7.22", platform = "windows"}
 colorlog = "^6.7.0"
 emoji = "^2.7.0"
-gitpython = "^3.1.32"
+gitpython = "^3.1.38"
 meval = "^2.5"
 pillow = "^10.0.0"
 pymongo = "^4.3.3"

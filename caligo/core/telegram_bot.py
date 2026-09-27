@@ -145,6 +145,10 @@ class TelegramBot(CaligoBase):
             await self.client.start()
             if self.helper_initialized:
                 await self.client_helper.start()
+                bot_user = await self.client_helper.get_me()
+                if isinstance(bot_user, User):
+                    self.bot_user = bot_user
+                    self.bot_uid = bot_user.id
 
             user = await self.client.get_me()
             if not isinstance(user, User):

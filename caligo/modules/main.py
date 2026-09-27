@@ -305,11 +305,19 @@ class Main(module.Module):
 
         if self.bot.helper_initialized and not filt:
             try:
+                bot_user = (
+                    getattr(self.bot, "bot_user", None)
+                    or self.bot.client_helper.me
+                    or await self.bot.client_helper.get_me()
+                )
+                if not bot_user or not bot_user.username:
+                    raise ValueError("Helper bot has no username")
+
                 response = await self.bot.client.get_inline_bot_results(
-                    bot=self.bot.client_helper.me.username
+                    bot=bot_user.username
                 )
             except errors.BotInlineDisabled:
-                return "<i>Bot Inline Disabled</i>"
+                return "<i>Bot Inline Disabled. Enable it via @BotFather with /setinline</i>"
             except Exception as e:
                 self.log.warning(
                     "Inline help lookup failed, falling back to text: %s", e

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import ClassVar, Optional
 
 from pyrogram.enums import ChatMembersFilter, ChatType
+from pyrogram.errors import FloodWait
 from pyrogram.types import ChatMember
 
 from caligo import command, module
@@ -33,14 +34,17 @@ class Moderation(module.Module):
 
         chat = ctx.msg.chat.id
         member: ChatMember
-        async for member in self.bot.client.get_chat_members(
-            chat, filter=user_filter
-        ):  # type: ignore
-            mention_text += f"[\u200b](tg://user?id={member.user.id})"
+        try:
+            async for member in self.bot.client.get_chat_members(
+                chat, filter=user_filter
+            ):  # type: ignore
+                mention_text += f"[\u200b](tg://user?id={member.user.id})"
 
-            mention_slots -= 1
-            if mention_slots == 0:
-                break
+                mention_slots -= 1
+                if mention_slots == 0:
+                    break
+        except FloodWait as e:
+            await asyncio.sleep(e.value + 1)
 
         await ctx.respond(mention_text, mode="repost")
 
@@ -67,18 +71,33 @@ class Moderation(module.Module):
         for message_id in range(start, end):
             messages_id.append(message_id)
             if len(messages_id) == 100:
-                purged += await ctx.bot.client.delete_messages(
-                    chat_id=ctx.msg.chat.id,
-                    message_ids=messages_id,
-                )
+                try:
+                    purged += await ctx.bot.client.delete_messages(
+                        chat_id=ctx.msg.chat.id,
+                        message_ids=messages_id,
+                    )
+                except FloodWait as e:
+                    await asyncio.sleep(e.value + 1)
+                    purged += await ctx.bot.client.delete_messages(
+                        chat_id=ctx.msg.chat.id,
+                        message_ids=messages_id,
+                    )
                 messages_id = []
 
         if messages_id:
-            purged += await ctx.bot.client.delete_messages(
-                chat_id=ctx.msg.chat.id,
-                message_ids=messages_id,
-                revoke=True,
-            )
+            try:
+                purged += await ctx.bot.client.delete_messages(
+                    chat_id=ctx.msg.chat.id,
+                    message_ids=messages_id,
+                    revoke=True,
+                )
+            except FloodWait as e:
+                await asyncio.sleep(e.value + 1)
+                purged += await ctx.bot.client.delete_messages(
+                    chat_id=ctx.msg.chat.id,
+                    message_ids=messages_id,
+                    revoke=True,
+                )
 
         time_end = datetime.now()
         run_time = (time_end - time_start).seconds

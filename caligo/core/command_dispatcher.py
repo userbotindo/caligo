@@ -2,7 +2,7 @@ import inspect
 from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, Optional
 
 from pyrogram.client import Client
-from pyrogram.errors import MessageNotModified
+from pyrogram.errors import FloodWait, MessageNotModified
 from pyrogram.filters import Filter, create
 from pyrogram.types import Message
 
@@ -153,6 +153,20 @@ class CommandDispatcher(CaligoBase):
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
                 )
+            except FloodWait as e:
+                cmd.module.log.warning(
+                    f"Command '{cmd.name}' hit FloodWait of {e.value} seconds; waiting..."
+                )
+                await asyncio.sleep(e.value + 1)
+                try:
+                    ret = await cmd.func(ctx)
+                    if ret is not None:
+                        await ctx.respond(ret)
+                except Exception as retry_err:  # skipcq: PYL-W0703
+                    cmd.module.log.error(
+                        f"Error in command '{cmd.name}' after FloodWait retry",
+                        exc_info=retry_err,
+                    )
             except Exception as e:  # skipcq: PYL-W0703
                 cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=e)
                 await ctx.respond(

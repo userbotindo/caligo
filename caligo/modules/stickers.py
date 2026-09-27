@@ -3,11 +3,18 @@ import io
 import json
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import BinaryIO, ClassVar, Optional, Tuple, Union
 
-import aiohttp
+import pyrogram
 from anyio import Path as AsyncPath
 from PIL import Image
+from pyrogram import raw, utils
+from pyrogram.errors import StickersetInvalid
+from pyrogram.file_id import FileType
+from pyrogram.raw.functions.messages.get_sticker_set import GetStickerSet
+from pyrogram.raw.types.input_sticker_set_short_name import InputStickerSetShortName
+from pyrogram.raw.types.sticker_set import StickerSet
 
 from caligo import command, module, util
 from caligo.core import database
@@ -86,6 +93,83 @@ class LengthMismatchError(Exception):
     pass
 
 
+class InputSticker:
+    """A sticker to be added to a sticker set."""
+
+    def __init__(
+        self,
+        sticker: Union[str, AsyncPath, BinaryIO],
+        format: str = "static",
+        emoji_list: Optional[list[str]] = None,
+    ) -> None:
+        self.sticker = sticker
+        self.format = format
+        self.emoji_list = emoji_list or ["❓"]
+
+    async def write(
+        self,
+        client: pyrogram.Client,
+        chat_id: Union[int, str, None] = None,
+    ) -> raw.types.InputStickerSetItem:
+        if chat_id is None:
+            peer = raw.types.InputPeerSelf()
+        else:
+            peer = await client.resolve_peer(chat_id)
+
+        file_name = "sticker.png"
+        mime_type = "image/png"
+
+        if self.format == "animated":
+            file_name = "sticker.tgs"
+            mime_type = "application/x-tgsticker"
+        elif self.format == "video":
+            file_name = "sticker.webm"
+            mime_type = "video/webm"
+
+        alt = "".join(self.emoji_list)
+
+        # Check if local file or in-memory BytesIO
+        if isinstance(self.sticker, (io.BytesIO, bytes)) or (
+            isinstance(self.sticker, (str, Path, AsyncPath))
+            and await AsyncPath(str(self.sticker)).is_file()
+        ):
+            uploaded_media = await client.invoke(
+                raw.functions.messages.UploadMedia(
+                    peer=peer,
+                    media=raw.types.InputMediaUploadedDocument(
+                        mime_type=mime_type,
+                        file=await client.save_file(str(self.sticker)),
+                        attributes=[
+                            raw.types.DocumentAttributeFilename(
+                                file_name=file_name,
+                            ),
+                            raw.types.DocumentAttributeSticker(
+                                alt=alt,
+                                stickerset=raw.types.InputStickerSetEmpty(),
+                            ),
+                        ],
+                    ),
+                ),
+            )
+
+            return raw.types.InputStickerSetItem(
+                document=raw.types.InputDocument(
+                    id=uploaded_media.document.id,
+                    access_hash=uploaded_media.document.access_hash,
+                    file_reference=uploaded_media.document.file_reference,
+                ),
+                emoji=alt,
+            )
+
+        # If it's a file_id string of an existing sticker
+        return raw.types.InputStickerSetItem(
+            document=utils.get_input_media_from_file_id(
+                str(self.sticker), FileType.STICKER
+            ).id,
+            emoji=alt,
+        )
+
+
 class Sticker(module.Module):
     name: ClassVar[str] = "Sticker"
 
@@ -98,127 +182,63 @@ class Sticker(module.Module):
         if not await AsyncPath(CACHE_PATH).exists():
             await AsyncPath(CACHE_PATH).mkdir(parents=True)
 
-    @property
-    def helper_token(self) -> Optional[str]:
-        if not getattr(self.bot, "helper_initialized", False):
-            return None
-        return self.bot.config.get("telegram", {}).get("helper", {}).get("token")
-
-    async def upload_sticker_file_botapi(
+    async def create_new_sticker_set(
         self,
-        media: AsyncPath,
-        sticker_format: str = "static",
-    ) -> str:
-        token = self.helper_token
-        if not token:
-            raise ValueError("Helper bot is not initialized")
-
-        url = f"https://api.telegram.org/bot{token}/uploadStickerFile"
-        data = aiohttp.FormData()
-        data.add_field("user_id", str(self.bot.uid))
-        data.add_field("sticker_format", sticker_format)
-
-        content_type = (
-            "video/webm"
-            if sticker_format == "video"
-            else "application/x-tgsticker"
-            if sticker_format == "animated"
-            else "image/png"
-        )
-        file_bytes = await media.read_bytes()
-        data.add_field(
-            "sticker",
-            file_bytes,
-            filename=media.name,
-            content_type=content_type,
-        )
-
-        async with self.bot.http.post(url, data=data) as resp:
-            res = await resp.json()
-            if not res.get("ok"):
-                raise ValueError(res.get("description", "Failed to upload sticker file"))
-            return res["result"]["file_id"]
-
-    async def get_sticker_set_botapi(self, name: str) -> Optional[dict]:
-        token = self.helper_token
-        if not token:
-            return None
-        url = f"https://api.telegram.org/bot{token}/getStickerSet"
-        async with self.bot.http.get(url, params={"name": name}) as resp:
-            data = await resp.json()
-            if data.get("ok"):
-                return data.get("result")
-            return None
-
-    async def create_pack_botapi(
-        self,
-        set_name: str,
-        set_title: str,
-        file_id: str,
-        emoji: str,
-        sticker_format: str = "static",
+        name: str,
+        title: str,
+        stickers: list[InputSticker],
+        user_id: Union[int, str] = "me",
     ) -> Tuple[bool, str]:
-        token = self.helper_token
-        if not token:
-            return False, "Helper bot is not initialized"
+        try:
+            items = [
+                await s.write(client=self.bot.client, chat_id=user_id)
+                for s in stickers
+            ]
+            await self.bot.client.invoke(
+                raw.functions.stickers.CreateStickerSet(
+                    user_id=await self.bot.client.resolve_peer(user_id),
+                    title=title,
+                    short_name=name,
+                    stickers=items,
+                )
+            )
+            return True, f"https://t.me/addstickers/{name}"
+        except Exception as e:
+            self.log.warning(f"Direct MTProto CreateStickerSet failed: {e}")
+            return False, str(e)
 
-        url = f"https://api.telegram.org/bot{token}/createNewStickerSet"
-        payload = {
-            "user_id": str(self.bot.uid),
-            "name": set_name,
-            "title": set_title,
-            "stickers": json.dumps(
-                [
-                    {
-                        "sticker": file_id,
-                        "format": sticker_format,
-                        "emoji_list": [emoji],
-                    }
-                ]
-            ),
-        }
-        async with self.bot.http.post(url, data=payload) as resp:
-            res = await resp.json()
-            if res.get("ok"):
-                return True, f"https://t.me/addstickers/{set_name}"
-            return False, res.get("description", "Failed to create sticker pack")
-
-    async def add_sticker_botapi(
+    async def add_sticker_to_set(
         self,
-        set_name: str,
-        file_id: str,
-        emoji: str,
-        sticker_format: str = "static",
+        name: str,
+        sticker: InputSticker,
+        sticker_set: Optional[StickerSet] = None,
+        user_id: Union[int, str] = "me",
     ) -> Tuple[bool, str]:
-        token = self.helper_token
-        if not token:
-            return False, "Helper bot is not initialized"
+        try:
+            item = await sticker.write(client=self.bot.client, chat_id=user_id)
+            if sticker_set and hasattr(sticker_set, "set"):
+                stickerset = raw.types.InputStickerSetID(
+                    id=sticker_set.set.id,
+                    access_hash=sticker_set.set.access_hash,
+                )
+            else:
+                stickerset = raw.types.InputStickerSetShortName(short_name=name)
 
-        url = f"https://api.telegram.org/bot{token}/addStickerToSet"
-        payload = {
-            "user_id": str(self.bot.uid),
-            "name": set_name,
-            "sticker": json.dumps(
-                {
-                    "sticker": file_id,
-                    "format": sticker_format,
-                    "emoji_list": [emoji],
-                }
-            ),
-        }
-        async with self.bot.http.post(url, data=payload) as resp:
-            res = await resp.json()
-            if res.get("ok"):
-                return True, f"https://t.me/addstickers/{set_name}"
-            return False, res.get("description", "Failed to add sticker to pack")
+            await self.bot.client.invoke(
+                raw.functions.stickers.AddStickerToSet(
+                    stickerset=stickerset,
+                    sticker=item,
+                )
+            )
+            return True, f"https://t.me/addstickers/{name}"
+        except Exception as e:
+            self.log.warning(f"Direct MTProto AddStickerToSet failed: {e}")
+            return False, str(e)
 
     @command.desc("Copy a sticker into another pack")
     @command.alias("stickercopy", "kang")
     @command.usage("[sticker pack VOL number? if not set] [emoji?]", optional=True)
     async def cmd_copysticker(self, ctx: command.Context) -> str:
-        if not self.helper_token or not getattr(self.bot, "bot_user", None):
-            return "__Helper bot is not initialized. Kang requires a helper bot token.__"
-
         reply_msg = ctx.msg.reply_to_message
         if not reply_msg:
             return "__Reply to a sticker to copy it.__"
@@ -274,7 +294,6 @@ class Sticker(module.Module):
             emoji = "❓"
 
         sticker_format = "animated" if animation else "video" if video else "static"
-        bot_username = self.bot.bot_user.username
 
         owner_prefix = self.bot.user.username or f"u{self.bot.uid}"
         if not owner_prefix[0].isalpha():
@@ -293,83 +312,98 @@ class Sticker(module.Module):
             elif video:
                 title += " (Video)"
 
-            suffix = f"_by_{bot_username}"
-            base = f"{owner_prefix}_kang_v{vol}"
+            base = f"k_{owner_prefix}_pack{vol}"
             if animation:
                 base += "_anim"
             elif video:
                 base += "_vid"
-            base = re.sub(r"_+", "_", base)[: 64 - len(suffix)]
-            name = f"{base}{suffix}"
+            name = re.sub(r"_+", "_", base)[:64]
             return name, title
 
         set_name, set_title = build_set_info(pack_VOL)
-        pack_exists = False
+        sticker_set = None
 
         lim = 120 if not (animation or video) else 50
         while True:
-            sticker_set = await self.get_sticker_set_botapi(set_name)
-            if sticker_set:
-                pack_exists = True
-                count = len(sticker_set.get("stickers", []))
-                if count >= lim:
+            try:
+                sticker_set = await self.bot.client.invoke(
+                    GetStickerSet(
+                        stickerset=InputStickerSetShortName(short_name=set_name),
+                        hash=0,
+                    )
+                )
+            except StickersetInvalid:
+                sticker_set = None
+                break
+            else:
+                if sticker_set.set.count >= lim:
                     pack_VOL += 1
                     set_name, set_title = build_set_info(pack_VOL)
                     await ctx.respond(
                         f"Pack VOL {pack_VOL} is full, switching to next VOL..."
                     )
                     continue
-            else:
-                pack_exists = False
-            break
+                break
 
-        media_path = await reply_msg.download()
-        if not media_path:
-            return "__Failed to download media.__"
+        media_to_delete = None
+        if reply_msg.sticker and not resize and reply_msg.sticker.file_id:
+            input_sticker = InputSticker(
+                sticker=reply_msg.sticker.file_id,
+                format=sticker_format,
+                emoji_list=[emoji],
+            )
+        else:
+            media_path = await reply_msg.download()
+            if not media_path:
+                return "__Failed to download media.__"
 
-        media = AsyncPath(media_path)
-        if resize:
-            try:
-                media = await resize_media(media, video)
-            except FileNotFoundError:
-                return (
-                    "❌ [FFmpeg](https://github.com/FFmpeg/FFmpeg) "
-                    "must be installed on the host system.\n\n"
-                    "If you're running this bot on Heroku, "
-                    "you can install FFmpeg by adding this buildpack:\n"
-                    "[FFmpeg](https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest)"
-                )
-            else:
-                if not await media.exists():
-                    return "__Failed to resize media.__"
+            media = AsyncPath(media_path)
+            media_to_delete = media
+            if resize:
+                try:
+                    media = await resize_media(media, video)
+                    media_to_delete = media
+                except FileNotFoundError:
+                    return (
+                        "❌ [FFmpeg](https://github.com/FFmpeg/FFmpeg) "
+                        "must be installed on the host system.\n\n"
+                        "If you're running this bot on Heroku, "
+                        "you can install FFmpeg by adding this buildpack:\n"
+                        "[FFmpeg](https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest)"
+                    )
+                else:
+                    if not await media.exists():
+                        return "__Failed to resize media.__"
+
+            input_sticker = InputSticker(
+                sticker=str(media),
+                format=sticker_format,
+                emoji_list=[emoji],
+            )
 
         try:
-            file_id = await self.upload_sticker_file_botapi(
-                media, sticker_format=sticker_format
-            )
-            if not pack_exists:
+            if not sticker_set:
                 await ctx.respond("Creating sticker pack...")
-                status, result = await self.create_pack_botapi(
-                    set_name,
-                    set_title,
-                    file_id,
-                    emoji=emoji,
-                    sticker_format=sticker_format,
+                status, result = await self.create_new_sticker_set(
+                    name=set_name,
+                    title=set_title,
+                    stickers=[input_sticker],
+                    user_id="me",
                 )
             else:
                 await ctx.respond("Copying sticker...")
-                status, result = await self.add_sticker_botapi(
-                    set_name,
-                    file_id,
-                    emoji=emoji,
-                    sticker_format=sticker_format,
+                status, result = await self.add_sticker_to_set(
+                    name=set_name,
+                    sticker=input_sticker,
+                    sticker_set=sticker_set,
+                    user_id="me",
                 )
         except Exception as e:
             status = False
-            result = f"Sticker upload failed: {e}"
+            result = f"Sticker operation failed: {e}"
         finally:
-            if await media.exists():
-                await media.unlink()
+            if media_to_delete and await media_to_delete.exists():
+                await media_to_delete.unlink()
 
         if status:
             await self.bot.log_stat("stickers_created")

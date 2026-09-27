@@ -162,6 +162,15 @@ class Main(module.Module):
         if query.query and query.query.strip().lower() not in {"", "help"}:
             return
 
+        owner_id = getattr(self.bot, "uid", None) or (
+            self.bot.user.id if getattr(self.bot, "user", None) else None
+        )
+        owner_button = (
+            types.InlineKeyboardButton("⚡️ Owner", user_id=owner_id)
+            if owner_id
+            else types.InlineKeyboardButton("⚡️ Owner", callback_data="noop")
+        )
+
         results = [
             types.InlineQueryResultArticle(
                 id=str(uuid.uuid4()),
@@ -174,9 +183,7 @@ class Main(module.Module):
                 reply_markup=types.InlineKeyboardMarkup(
                     [
                         [
-                            types.InlineKeyboardButton(
-                                "⚡️ Owner", user_id=self.bot.uid
-                            ),
+                            owner_button,
                             types.InlineKeyboardButton(
                                 "📖️ Discussion", url="t.me/deltaDiscuss"
                             ),
@@ -191,7 +198,7 @@ class Main(module.Module):
             )
         ]
 
-        if query.from_user and query.from_user.id == self.bot.uid:
+        if query.from_user and owner_id and query.from_user.id == owner_id:
             if not hasattr(self, "_prebuilt_buttons") or not self._prebuilt_buttons:
                 self._build_command_map()
 
@@ -214,7 +221,10 @@ class Main(module.Module):
     @listener.priority(90)
     @listener.filters(filters.regex(r"^menu(?:_page)?\((.+)\)$"))
     async def on_callback_query(self, query: types.CallbackQuery) -> None:
-        if query.from_user and query.from_user.id != self.bot.uid:
+        owner_id = getattr(self.bot, "uid", None) or (
+            self.bot.user.id if getattr(self.bot, "user", None) else None
+        )
+        if query.from_user and owner_id and query.from_user.id != owner_id:
             await query.answer("Not For You!", show_alert=True)
             return
 

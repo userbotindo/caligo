@@ -143,19 +143,19 @@ class TelegramBot(CaligoBase):
 
         async with asyncio.Lock():
             await self.client.start()
-            if self.helper_initialized:
-                await self.client_helper.start()
-                bot_user = await self.client_helper.get_me()
-                if isinstance(bot_user, User):
-                    self.bot_user = bot_user
-                    self.bot_uid = bot_user.id
-
             user = await self.client.get_me()
             if not isinstance(user, User):
                 raise TypeError("Missing full self user information")
 
             self.user = user
             self.uid = user.id
+
+            if self.helper_initialized:
+                await self.client_helper.start()
+                bot_user = await self.client_helper.get_me()
+                if isinstance(bot_user, User):
+                    self.bot_user = bot_user
+                    self.bot_uid = bot_user.id
 
         self.start_time_us = time.usec()
         await self.dispatch_event("start", self.start_time_us)

@@ -3,8 +3,9 @@ from collections import defaultdict
 from hashlib import sha256
 from typing import ClassVar, MutableMapping
 
-from aiopath import AsyncPath
+from anyio import Path as AsyncPath
 from bson.binary import Binary
+import pyrogram
 from pyrogram.enums import ParseMode
 
 from caligo import __version__, command, module, util
@@ -167,6 +168,7 @@ Expected parameters: {args_desc}"""
         response = util.text.join_map(
             {
                 "Version": version,
+                "Kurigram": pyrogram.__version__,
                 "Python": f"{platform.python_implementation()} {platform.python_version()}",
                 "System": f"{platform.system()} {sys_ver}",
                 "Uptime": uptime,

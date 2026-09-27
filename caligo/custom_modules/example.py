@@ -3,10 +3,7 @@ import io
 import sys
 from typing import BinaryIO, ClassVar
 
-if sys.version_info >= (3, 10):
-    from aiopath import AsyncPurePath as PosixPath
-else:
-    from aiopath import PureAsyncPosixPath as PosixPath
+from pathlib import PurePosixPath as PosixPath
 
 from pyrogram.types import Message
 
@@ -71,9 +68,9 @@ class ExampleModule(module.Module):
         cat_stream = io.BytesIO(cat_data)
 
         # Set the name of the cat picture before sending.
-        # This is necessary for Pyrogram to detect the file type and send it as a photo/GIF rather than just a plain
+        # This is necessary for Kurigram to detect the file type and send it as a photo/GIF rather than just a plain
         # unnamed file that doesn't render as media in clients.
-        # We abuse aiopath to extract the filename section here for convenience, since URLs are *mostly* POSIX paths
+        # We use pathlib.PurePosixPath to extract the filename section here for convenience, since URLs are *mostly* POSIX paths
         # with the exception of the protocol part, which we don't care about here.
         cat_stream.name = PosixPath(cat_url).name
 

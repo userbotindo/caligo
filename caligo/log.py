@@ -37,4 +37,5 @@ def setup_log(colorlog_enable: bool = False) -> None:
     # Logging necessary for selected libs
     logging.getLogger("pymongo").setLevel(logging.WARNING)
     logging.getLogger("pyrogram").setLevel(logging.ERROR)
+    logging.getLogger("kurigram").setLevel(logging.ERROR)
     logging.getLogger("urllib3").setLevel(logging.WARNING)

@@ -13,7 +13,7 @@ repository = "https://github.com/adekmaulana/caligo"
 documentation = "https://github.com/adekmaulana/caligo/blob/master/README.md"
 
 # Search info
-keywords = ["chat", "telegram", "selfbot", "telegram-bot", "pyrogram"]
+keywords = ["chat", "telegram", "selfbot", "telegram-bot", "pyrogram", "kurigram"]
 classifiers = [
     "Environment :: Console",
     "Framework :: AsyncIO",
@@ -36,17 +36,17 @@ caligo = "caligo.main:main"
 python = ">=3.12,<4.0"
 
 aiohttp = "^3.8.5"
-aiopath = "^0.7.7"
 aiorun = "^2023.7.2"
+anyio = ">=4.0.0"
 beauty-print = "^0.6.1"
 certifi = {version = "^2023.7.22", platform = "windows"}
 colorlog = "^6.7.0"
 emoji = "^2.7.0"
 gitpython = "^3.1.32"
+kurigram = "^2.2.26"
 meval = "^2.5"
 pillow = "^11.3.0"
 pymongo = "^4.13.2"
-pyrofork = "^2.2.2"
 speedtest-cli = "^2.1.3"
 tomli = {version = "^2.0.1", python = "<3.12"}
 TgCrypto = "^1.2.5"

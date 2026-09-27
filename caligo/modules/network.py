@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, ClassVar, Literal, Optional, Set, Tuple
 
-from aiopath import AsyncPath
+from anyio import Path as AsyncPath
 from pyrogram.types import Message
 
 from caligo import command, module, util

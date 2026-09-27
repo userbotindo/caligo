@@ -10,6 +10,7 @@ from typing import Any, ClassVar, Optional, Tuple
 import pyrogram
 from meval import meval
 from pyrogram.enums import ParseMode
+from pyrogram.types import LinkPreviewOptions
 
 from caligo import command, module, util
 
@@ -88,7 +89,9 @@ class Debug(module.Module):
             .replace("'", "")
             .replace("list", "**List**")
         )
-        await ctx.respond(text, disable_web_page_preview=True)
+        await ctx.respond(
+            text, link_preview_options=LinkPreviewOptions(is_disabled=True)
+        )
 
     @command.desc("Evaluate code")
     @command.usage("[code snippet]")
@@ -139,6 +142,7 @@ class Debug(module.Module):
                 "sys": sys,
                 "traceback": traceback,
                 # Third-party modules
+                "kurigram": pyrogram,
                 "pyrogram": pyrogram,
                 # Bot
                 "command": command,

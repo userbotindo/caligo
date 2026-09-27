@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import BinaryIO, ClassVar, Tuple, Union
 
-from aiopath import AsyncPath
+from anyio import Path as AsyncPath
 from PIL import Image
 from pyrogram.errors import StickersetInvalid
 from pyrogram.raw.functions.messages.get_sticker_set import GetStickerSet

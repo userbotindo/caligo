@@ -62,16 +62,23 @@ class Caligo(
         self.stopping = True
 
         self.log.info("Stopping")
-        if self.loaded:
-            await self.dispatch_event("stop")
-            if self.client.is_connected:
-                await self.client.stop()
+        try:
+            if self.loaded:
+                await self.dispatch_event("stop")
+                if self.client.is_connected:
+                    try:
+                        await self.client.stop()
+                    except ConnectionError:
+                        pass
 
-            if self.helper_initialized and self.client_helper.is_connected:
-                await self.client_helper.stop()
-
-        await self.db.close()
-        await self.http.close()
+                if self.helper_initialized and self.client_helper.is_connected:
+                    try:
+                        await self.client_helper.stop()
+                    except ConnectionError:
+                        pass
+        finally:
+            await self.db.close()
+            await self.http.close()
 
         self.log.info("Running post-stop hooks")
         if self.loaded:

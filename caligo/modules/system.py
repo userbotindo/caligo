@@ -5,7 +5,7 @@ from html import escape
 from typing import Any, ClassVar, Mapping, Optional
 
 import speedtest
-from aiopath import AsyncPath
+from anyio import Path as AsyncPath
 from pyrogram.enums import ParseMode
 from pyrogram.types import Message
 

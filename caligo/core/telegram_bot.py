@@ -1,4 +1,5 @@
 import asyncio
+import platform
 import signal
 from functools import partial
 from hashlib import sha256
@@ -16,6 +17,7 @@ from pyrogram.handlers.message_handler import MessageHandler
 from pyrogram.types import CallbackQuery, InlineQuery, LinkPreviewOptions, Message, User
 
 from caligo.util import tg, time
+from caligo.version import __version__
 
 from .base import CaligoBase
 from .database.storage import PersistentStorage
@@ -54,6 +56,17 @@ class TelegramBot(CaligoBase):
     async def init_client(self: "Caligo") -> None:
         api_id = self.config["telegram"]["api_id"]
         api_hash = self.config["telegram"]["api_hash"]
+        sleep_threshold = self.config["telegram"].get("sleep_threshold", 60)
+        device_model = self.config["telegram"].get("device_model", "Caligo Userbot")
+        system_version = (
+            self.config["telegram"].get("system_version")
+            or f"{platform.system()} {platform.machine()}"
+        )
+        app_version = self.config["telegram"].get(
+            "app_version", f"Caligo v{__version__}"
+        )
+        lang_code = self.config["telegram"].get("lang_code", "en")
+        system_lang_code = self.config["telegram"].get("system_lang_code", "en")
 
         # Initialize Telegram client with gathered parameters
         self.client = Client(
@@ -63,6 +76,12 @@ class TelegramBot(CaligoBase):
             workdir="caligo",
             in_memory=False,
             parse_mode=ParseMode.MARKDOWN,
+            sleep_threshold=sleep_threshold,
+            device_model=device_model,
+            system_version=system_version,
+            app_version=app_version,
+            lang_code=lang_code,
+            system_lang_code=system_lang_code,
         )
         self.client.storage = PersistentStorage(self.db)  # type: ignore
 
@@ -90,6 +109,12 @@ class TelegramBot(CaligoBase):
                 api_hash=api_hash,
                 bot_token=bot_token,
                 workdir="caligo",
+                sleep_threshold=sleep_threshold,
+                device_model=f"{device_model} Helper",
+                system_version=system_version,
+                app_version=app_version,
+                lang_code=lang_code,
+                system_lang_code=system_lang_code,
             )
 
     async def start(self: "Caligo") -> None:

@@ -1,6 +1,9 @@
 import asyncio
 import os
+import platform
 from typing import Any, Dict, Optional
+
+from caligo.version import __version__
 
 try:
     import dns.resolver
@@ -103,6 +106,26 @@ async def create_session() -> None:
         # Set persistent storage for the Kurigram client using the database
         storage = database.PersistentStorage(db)
 
+        device_model = (
+            get_config_value(config, "telegram", "device_model")
+            or "Caligo Userbot"
+        )
+        system_version = (
+            get_config_value(config, "telegram", "system_version")
+            or f"{platform.system()} {platform.machine()}"
+        )
+        app_version = (
+            get_config_value(config, "telegram", "app_version")
+            or f"Caligo v{__version__}"
+        )
+        lang_code = get_config_value(config, "telegram", "lang_code") or "en"
+        system_lang_code = (
+            get_config_value(config, "telegram", "system_lang_code") or "en"
+        )
+        sleep_threshold = (
+            get_config_value(config, "telegram", "sleep_threshold") or 60
+        )
+
         # Create a Kurigram client with the given parameters and custom storage
         client = Client(
             api_id=api_id,
@@ -110,6 +133,12 @@ async def create_session() -> None:
             name="caligo",
             workdir="caligo",
             storage_engine=storage,
+            device_model=device_model,
+            system_version=system_version,
+            app_version=app_version,
+            lang_code=lang_code,
+            system_lang_code=system_lang_code,
+            sleep_threshold=sleep_threshold,
         )
         client.storage = storage
 

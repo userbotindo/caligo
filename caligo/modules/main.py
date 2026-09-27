@@ -8,6 +8,7 @@ from typing import ClassVar, List, MutableMapping
 
 from anyio import Path as AsyncPath
 from bson.binary import Binary
+import pymongo
 from pymongo.asynchronous.collection import AsyncCollection
 import pyrogram
 from pyrogram import errors, filters, types
@@ -60,9 +61,11 @@ class Main(module.Module):
 
         return (
             "<b>Caligo Menu Helper</b>\n\n"
-            f"• <b>Version:</b> <code>v{__version__}</code>\n"
-            f"• <b>System:</b> <code>{platform.system()} {sys_ver}</code>\n"
-            f"• <b>Python:</b> <code>{platform.python_version()}</code>"
+            f"• <b>Caligo:</b> <code>v{__version__}</code>\n"
+            f"• <b>Pyrogram:</b> <code>v{pyrogram.__version__}</code>\n"
+            f"• <b>PyMongo:</b> <code>v{pymongo.__version__}</code>\n"
+            f"• <b>Python:</b> <code>{platform.python_version()}</code>\n"
+            f"• <b>System:</b> <code>{platform.system()} {sys_ver}</code>"
         )
 
     def build_button(self, page: int = 0) -> List[List[types.InlineKeyboardButton]]:

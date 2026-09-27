@@ -203,6 +203,11 @@ class TelegramBot(CaligoBase):
 
                 async def update_event(_: Client, event: Update) -> None:
                     await self.dispatch_event(name, event)
+                    if isinstance(event, CallbackQuery):
+                        try:
+                            await event.answer()
+                        except Exception:
+                            pass
 
                 if filters is not None:
                     event_info = (event_type(update_event, filters), group)

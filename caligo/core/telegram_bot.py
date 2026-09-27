@@ -375,9 +375,15 @@ class TelegramBot(CaligoBase):
             # Repost since we haven't done so yet
             if kwargs.get("document"):
                 kwargs.pop("link_preview_options", None)
-                response = await msg.reply_document(**kwargs)
+                if msg.reply_to_message:
+                    response = await msg.reply_to_message.reply_document(**kwargs)
+                else:
+                    response = await self.client.send_document(msg.chat.id, **kwargs)
             else:
-                response = await msg.reply(text, reply_to_message_id=msg.id, **kwargs)
+                if msg.reply_to_message:
+                    response = await msg.reply_to_message.reply(text, **kwargs)
+                else:
+                    response = await self.client.send_message(msg.chat.id, text, **kwargs)
             await msg.delete()
             return response
 

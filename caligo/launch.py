@@ -4,12 +4,9 @@ import os
 import sys
 from typing import Any, MutableMapping
 
-import aiorun
-
 from .core import Caligo
 
 log = logging.getLogger("Launch")
-aiorun.logger.disabled = True
 
 
 def setup_dns() -> None:
@@ -69,5 +66,24 @@ def main(config: MutableMapping[str, Any]) -> None:
 
     log.info("Initializing bot")
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-    aiorun.run(Caligo.create_and_run(config, loop=loop), loop=loop)
+    try:
+        loop.run_until_complete(Caligo.create_and_run(config, loop=loop))
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        try:
+            tasks = [t for t in asyncio.all_tasks(loop) if not t.done()]
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                loop.run_until_complete(
+                    asyncio.gather(*tasks, return_exceptions=True)
+                )
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()

@@ -51,12 +51,9 @@ class Caligo(
         if loop:
             asyncio.set_event_loop(loop)
 
-        try:
-            bot = cls(config)
-            await bot.run()
-            return bot
-        finally:
-            asyncio.get_event_loop().stop()
+        bot = cls(config)
+        await bot.run()
+        return bot
 
     async def stop(self) -> None:
         self.stopping = True

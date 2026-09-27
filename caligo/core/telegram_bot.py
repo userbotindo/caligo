@@ -175,7 +175,10 @@ class TelegramBot(CaligoBase):
 
         def clear_handler() -> None:
             for signame in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
-                self.loop.remove_signal_handler(signame)
+                try:
+                    self.loop.remove_signal_handler(signame)
+                except (NotImplementedError, RuntimeError):
+                    pass
 
         def signal_handler(signum: int):
 
@@ -183,10 +186,14 @@ class TelegramBot(CaligoBase):
             self.log.info("Stop signal received ('%s').", signals[signum])
             clear_handler()
 
-            self.__idle__.cancel()
+            if self.__idle__ and not self.__idle__.done():
+                self.__idle__.cancel()
 
         for name in (signal.SIGINT, signal.SIGTERM, signal.SIGABRT):
-            self.loop.add_signal_handler(name, partial(signal_handler, name))
+            try:
+                self.loop.add_signal_handler(name, partial(signal_handler, name))
+            except (NotImplementedError, RuntimeError):
+                pass
 
         while True:
             self.__idle__ = asyncio.create_task(asyncio.sleep(300), name="idle")
@@ -196,6 +203,8 @@ class TelegramBot(CaligoBase):
             except asyncio.CancelledError:
                 break
 
+        self.__idle__ = None
+
     async def run(self: "Caligo") -> None:
         if self.__idle__:
             raise RuntimeError("This bot instance is already running")
@@ -204,7 +213,7 @@ class TelegramBot(CaligoBase):
             # Start client
             try:
                 await self.start()
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, asyncio.CancelledError):
                 self.log.warning("Received interrupt while connecting")
                 return
             except (AuthKeyDuplicated, AuthKeyInvalid, AuthKeyUnregistered) as e:

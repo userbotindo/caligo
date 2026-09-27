@@ -42,8 +42,9 @@ class Debug(module.Module):
         if ctx.msg.chat.id:
             lines.append(f"Chat ID: `{ctx.msg.chat.id}`")
 
-        if ctx.msg.is_topic_message:
-            lines.append(f"Chat topic ID: `{ctx.msg.message_thread_id}`")
+        thread_id = getattr(ctx.msg, "message_thread_id", None)
+        if getattr(ctx.msg, "topic_message", False) or thread_id is not None:
+            lines.append(f"Chat topic ID: `{thread_id}`")
 
         lines.append(f"My user ID: `{self.bot.uid}`")
 
@@ -54,6 +55,16 @@ class Debug(module.Module):
 
             if sender:
                 lines.append(f"Message author ID: `{sender.id}`")
+
+            if reply_msg.sender_chat:
+                lines.append(f"Message sender chat ID: `{reply_msg.sender_chat.id}`")
+
+            reply_thread_id = getattr(reply_msg, "message_thread_id", None)
+            if (
+                getattr(reply_msg, "topic_message", False)
+                or reply_thread_id is not None
+            ):
+                lines.append(f"Replied topic ID: `{reply_thread_id}`")
 
             if reply_msg.forward_from:
                 lines.append(

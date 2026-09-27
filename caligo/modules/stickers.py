@@ -6,7 +6,9 @@ from typing import BinaryIO, ClassVar, Tuple, Union
 
 from anyio import Path as AsyncPath
 from PIL import Image
+from pyrogram import raw
 from pyrogram.errors import StickersetInvalid
+from pyrogram.file_id import FileId
 from pyrogram.raw.functions.messages.get_sticker_set import GetStickerSet
 from pyrogram.raw.types.input_sticker_set_short_name import InputStickerSetShortName
 from pyrogram.raw.types.sticker_set import StickerSet
@@ -102,6 +104,113 @@ class Sticker(module.Module):
 
         if not await AsyncPath(CACHE_PATH).exists():
             await AsyncPath(CACHE_PATH).mkdir(parents=True)
+
+    async def upload_sticker_media(
+        self,
+        media: AsyncPath,
+        *,
+        animation: bool = False,
+        video: bool = False,
+        emoji: str = "❓",
+    ) -> raw.types.InputDocument:
+        attributes = [
+            raw.types.DocumentAttributeFilename(file_name=media.name),
+            raw.types.DocumentAttributeSticker(
+                alt=emoji,
+                stickerset=raw.types.InputStickerSetEmpty(),
+            ),
+        ]
+
+        if animation:
+            mime_type = "application/x-tgsticker"
+        elif video:
+            mime_type = "video/webm"
+            attributes.append(
+                raw.types.DocumentAttributeVideo(
+                    duration=3.0,
+                    w=512,
+                    h=512,
+                    nosound=True,
+                )
+            )
+        else:
+            mime_type = "image/png"
+            attributes.append(
+                raw.types.DocumentAttributeImageSize(
+                    w=512,
+                    h=512,
+                )
+            )
+
+        file = await self.bot.client.save_file(str(media))
+        uploaded = await self.bot.client.invoke(
+            raw.functions.messages.UploadMedia(
+                peer=raw.types.InputPeerSelf(),
+                media=raw.types.InputMediaUploadedDocument(
+                    file=file,
+                    mime_type=mime_type,
+                    attributes=attributes,
+                ),
+            )
+        )
+        if not hasattr(uploaded, "document") or not isinstance(
+            uploaded.document, raw.types.Document
+        ):
+            raise TypeError("Expected raw.types.Document from UploadMedia")
+
+        doc = uploaded.document
+        return raw.types.InputDocument(
+            id=doc.id,
+            access_hash=doc.access_hash,
+            file_reference=doc.file_reference,
+        )
+
+    async def create_pack_mtproto(
+        self,
+        input_doc: raw.types.InputDocument,
+        set_name: str,
+        set_title: str,
+        emoji: str,
+    ) -> Tuple[bool, str]:
+        try:
+            await self.bot.client.invoke(
+                raw.functions.stickers.CreateStickerSet(
+                    user_id=raw.types.InputUserSelf(),
+                    title=set_title,
+                    short_name=set_name,
+                    stickers=[
+                        raw.types.InputStickerSetItem(
+                            document=input_doc,
+                            emoji=emoji,
+                        )
+                    ],
+                )
+            )
+            return True, f"https://t.me/addstickers/{set_name}"
+        except Exception as e:
+            self.log.warning(f"Direct MTProto CreateStickerSet failed: {e}")
+            return False, str(e)
+
+    async def add_sticker_mtproto(
+        self,
+        input_doc: raw.types.InputDocument,
+        set_name: str,
+        emoji: str,
+    ) -> Tuple[bool, str]:
+        try:
+            await self.bot.client.invoke(
+                raw.functions.stickers.AddStickerToSet(
+                    stickerset=raw.types.InputStickerSetShortName(short_name=set_name),
+                    sticker=raw.types.InputStickerSetItem(
+                        document=input_doc,
+                        emoji=emoji,
+                    ),
+                )
+            )
+            return True, f"https://t.me/addstickers/{set_name}"
+        except Exception as e:
+            self.log.warning(f"Direct MTProto AddStickerToSet failed: {e}")
+            return False, str(e)
 
     async def add_sticker(
         self,
@@ -305,32 +414,20 @@ class Sticker(module.Module):
             else:
                 pack_VOL = int(arg)
 
-        media = await reply_msg.download()
-        if not media:
-            return "__Failed to download media.__"
+        if not emoji:
+            emoji = "❓"
 
-        media = AsyncPath(media)
-        if user.username:
-            set_name = f"{self.bot.user.username}_kangPack_VOL{pack_VOL}"
-            set_title = f"@{self.bot.user.username}'s Kang Set VOL.{pack_VOL}"
+        prefix = self.bot.user.username or f"u{self.bot.user.id}"
+        if not prefix[0].isalpha():
+            prefix = f"k_{prefix}"
+
+        if self.bot.user.username:
+            set_title_base = f"@{self.bot.user.username}'s Kang Set"
         else:
-            set_name = f"{str(self.bot.user.id)}_kangPack_VOL{pack_VOL}"
-            set_title = f"{str(self.bot.user.id)}'s Kang Set VOL.{pack_VOL}"
+            set_title_base = f"{self.bot.user.id}'s Kang Set"
 
-        if resize:
-            try:
-                media = await resize_media(media, video)
-            except FileNotFoundError:
-                return (
-                    "❌ [FFmpeg](https://github.com/FFmpeg/FFmpeg) "
-                    "must be installed on the host system.\n\n"
-                    "If you're running this bot on Heroku, "
-                    "you can install FFmpeg by adding this buildpack:\n"
-                    "[FFmpeg](https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest)"
-                )
-            else:
-                if not await media.exists():
-                    return "__Failed to resize media.__"
+        set_name = f"{prefix}_kangPack_VOL{pack_VOL}"
+        set_title = f"{set_title_base} VOL.{pack_VOL}"
 
         if animation:
             set_name += "_animation"
@@ -354,14 +451,8 @@ class Sticker(module.Module):
                 lim = 120 if not (animation or video) else 50
                 if sticker.set.count >= lim:  # type: ignore
                     pack_VOL += 1
-                    if self.bot.user.username:
-                        set_name = f"{self.bot.user.username}_kangPack_VOL{pack_VOL}"
-                        set_title = (
-                            f"@{self.bot.user.username}'s Kang Set VOL.{pack_VOL}"
-                        )
-                    else:
-                        set_name = f"{str(self.bot.user.id)}_kangPack_VOL{pack_VOL}"
-                        set_title = f"{str(self.bot.user.id)}'s Kang Set VOL.{pack_VOL}"
+                    set_name = f"{prefix}_kangPack_VOL{pack_VOL}"
+                    set_title = f"{set_title_base} VOL.{pack_VOL}"
 
                     if animation:
                         set_name += "_animation"
@@ -377,29 +468,102 @@ class Sticker(module.Module):
 
                 break
 
-        if not emoji:
-            emoji = "❓"
+        input_doc = None
+        media = None
 
-        sticker_bytes = await media.read_bytes()
-        sticker_buf = io.BytesIO(sticker_bytes)
-        sticker_buf.seek(0)
-        sticker_buf.name = media.name
-        if not sticker:
-            await ctx.respond("Creating sticker pack...")
-            status, result = await self.create_pack(
-                sticker_buf,
-                set_name,
-                set_title,
-                emoji=emoji,
-                sticker_type="animated"
-                if animation
-                else "video"
-                if video
-                else "static",
-            )
-        else:
-            await ctx.respond("Copying sticker...")
-            status, result = await self.add_sticker(sticker_buf, set_name, emoji=emoji)
+        if reply_msg.sticker and not resize and reply_msg.sticker.file_id:
+            try:
+                decoded = FileId.decode(reply_msg.sticker.file_id)
+                input_doc = raw.types.InputDocument(
+                    id=decoded.media_id,
+                    access_hash=decoded.access_hash,
+                    file_reference=decoded.file_reference,
+                )
+            except Exception as e:
+                self.log.warning(f"Failed to decode sticker file_id: {e}")
+                input_doc = None
+
+        if not input_doc:
+            media_path = await reply_msg.download()
+            if not media_path:
+                return "__Failed to download media.__"
+
+            media = AsyncPath(media_path)
+            if resize:
+                try:
+                    media = await resize_media(media, video)
+                except FileNotFoundError:
+                    return (
+                        "❌ [FFmpeg](https://github.com/FFmpeg/FFmpeg) "
+                        "must be installed on the host system.\n\n"
+                        "If you're running this bot on Heroku, "
+                        "you can install FFmpeg by adding this buildpack:\n"
+                        "[FFmpeg](https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest)"
+                    )
+                else:
+                    if not await media.exists():
+                        return "__Failed to resize media.__"
+
+            try:
+                input_doc = await self.upload_sticker_media(
+                    media,
+                    animation=animation,
+                    video=video,
+                    emoji=emoji,
+                )
+            except Exception as e:
+                self.log.warning(f"Direct MTProto upload failed: {e}")
+                input_doc = None
+
+        status = False
+        result = ""
+
+        if input_doc:
+            if not sticker:
+                await ctx.respond("Creating sticker pack...")
+                status, result = await self.create_pack_mtproto(
+                    input_doc, set_name, set_title, emoji=emoji
+                )
+            else:
+                await ctx.respond("Copying sticker...")
+                status, result = await self.add_sticker_mtproto(
+                    input_doc, set_name, emoji=emoji
+                )
+
+        if not status:
+            if not media:
+                media_path = await reply_msg.download()
+                if not media_path:
+                    return "__Failed to download media.__"
+                media = AsyncPath(media_path)
+                if resize:
+                    media = await resize_media(media, video)
+
+            sticker_bytes = await media.read_bytes()
+            sticker_buf = io.BytesIO(sticker_bytes)
+            sticker_buf.name = media.name
+
+            if not sticker:
+                await ctx.respond("Creating sticker pack via @Stickers...")
+                status, result = await self.create_pack(
+                    sticker_buf,
+                    set_name,
+                    set_title,
+                    emoji=emoji,
+                    sticker_type="animated"
+                    if animation
+                    else "video"
+                    if video
+                    else "static",
+                )
+            else:
+                await ctx.respond("Copying sticker via @Stickers...")
+                status, result = await self.add_sticker(
+                    sticker_buf, set_name, emoji=emoji
+                )
+
+        if media and await media.exists():
+            await media.unlink()
 
         if status:
             await self.bot.log_stat("stickers_created")

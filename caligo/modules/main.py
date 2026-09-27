@@ -51,6 +51,20 @@ class Main(module.Module):
         for page in range(self._total_pages):
             self._prebuilt_buttons[page] = self.build_button(page)
 
+    def get_menu_text(self) -> str:
+        sys_ver = platform.release()
+        try:
+            sys_ver = sys_ver[: sys_ver.index("-")]
+        except ValueError:
+            pass
+
+        return (
+            "<b>Caligo Menu Helper</b>\n\n"
+            f"• <b>Version:</b> <code>v{__version__}</code>\n"
+            f"• <b>System:</b> <code>{platform.system()} {sys_ver}</code>\n"
+            f"• <b>Python:</b> <code>{platform.python_version()}</code>"
+        )
+
     def build_button(self, page: int = 0) -> List[List[types.InlineKeyboardButton]]:
         """Build paginated buttons with 2 buttons per row using ButtonStyle colors"""
         buttons = []
@@ -184,7 +198,7 @@ class Main(module.Module):
                     id=str(uuid.uuid4()),
                     title="Menu",
                     input_message_content=types.InputTextMessageContent(
-                        "<b>Caligo Menu Helper</b>",
+                        self.get_menu_text(),
                         parse_mode=ParseMode.HTML,
                     ),
                     description="Menu Helper.",
@@ -217,7 +231,7 @@ class Main(module.Module):
                     page, self.build_button(page)
                 )
                 await query.edit_message_text(
-                    "<b>Caligo Menu Helper</b>",
+                    self.get_menu_text(),
                     reply_markup=types.InlineKeyboardMarkup(menu_buttons),
                     parse_mode=ParseMode.HTML,
                 )
@@ -237,7 +251,7 @@ class Main(module.Module):
             try:
                 menu_buttons = self._prebuilt_buttons.get(0, self.build_button(0))
                 await query.edit_message_text(
-                    "<b>Caligo Menu Helper</b>",
+                    self.get_menu_text(),
                     reply_markup=types.InlineKeyboardMarkup(menu_buttons),
                     parse_mode=ParseMode.HTML,
                 )
@@ -261,7 +275,7 @@ class Main(module.Module):
                 menu_buttons = self._prebuilt_buttons.get(0, self.build_button(0))
                 menu_buttons = menu_buttons[:-1]
                 await query.edit_message_text(
-                    "<b>Caligo Menu Helper</b>",
+                    self.get_menu_text(),
                     reply_markup=types.InlineKeyboardMarkup(menu_buttons),
                     parse_mode=ParseMode.HTML,
                 )

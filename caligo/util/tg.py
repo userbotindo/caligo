@@ -334,11 +334,13 @@ def render_progress_bar(
     style: str = DEFAULT_PROGRESS_STYLE,
 ) -> str:
     """Renders a progress bar string with the specified style."""
-    filled_char, empty_char = PROGRESS_STYLES.get(
-        style.lower(), PROGRESS_STYLES[DEFAULT_PROGRESS_STYLE]
-    )
+    chars = PROGRESS_STYLES.get(style)
+    if chars is None:
+        chars = PROGRESS_STYLES.get(
+            style.lower(), PROGRESS_STYLES[DEFAULT_PROGRESS_STYLE]
+        )
     filled_count = min(length, max(0, int(round(percent * length))))
-    return filled_char * filled_count + empty_char * (length - filled_count)
+    return chars[0] * filled_count + chars[1] * (length - filled_count)
 
 
 def format_progress(

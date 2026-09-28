@@ -1,188 +1,71 @@
 import asyncio
-import mimetypes
 import os
 import re
-from datetime import datetime, timedelta
-from typing import Any, ClassVar, Iterable, List, Literal, Optional, Set, Tuple
+from datetime import datetime
+from typing import Any, ClassVar, Optional, Set, Tuple
 
-from pyrogram.types import (
-    InputMediaAudio,
-    InputMediaDocument,
-    InputMediaPhoto,
-    InputMediaVideo,
-    Message,
-)
+from pyrogram.types import Message
 
 from caligo import command, module, util
+from caligo.core import database
 
 LOGIN_CODE_REGEX = re.compile(r"[Ll]ogin code: (\d+)")
-
-
-async def prog_func(
-    current: int,
-    total: int,
-    start_time: int,
-    mode: Literal["upload", "download"],
-    ctx: command.Context,
-    file_name: str,
-) -> None:
-    percent = current / total
-    end_time = util.time.sec() - start_time
-    now = datetime.now()
-
-    try:
-        speed = round(current / end_time, 2)
-        eta = timedelta(seconds=int(round((total - current) / speed)))
-    except ZeroDivisionError:
-        speed = 0
-        eta = timedelta(seconds=0)
-
-    bullets = "●" * int(round(percent * 10)) + "○"
-    if len(bullets) > 10:
-        bullets = bullets.replace("○", "")
-
-    status = "Uploading" if mode == "upload" else "Downloading"
-    space = "    " * (10 - len(bullets))
-    progress = (
-        f"`{file_name}`\n"
-        f"Status: **{status}**\n"
-        f"Progress: [{bullets + space}] {round(percent * 100)}%\n"
-        f"__{util.misc.human_readable_bytes(current)} of {util.misc.human_readable_bytes(total)} @ "
-        f"{util.misc.human_readable_bytes(speed, postfix='/s')}\n"
-        f"eta - {util.time.format_duration_td(eta)}__\n\n"
-    )
-
-    # Only edit message once every 5 seconds to avoid ratelimits
-    if (
-        ctx.last_update_time is None
-        or (now - ctx.last_update_time).total_seconds() >= 5
-    ):
-        await ctx.respond(progress)
-
-        ctx.last_update_time = now
-
-
-PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
-VIDEO_EXTS = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".flv", ".wmv", ".3gp", ".m4v"}
-AUDIO_EXTS = {".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wma"}
-
-
-def get_media_type(path: str) -> str:
-    ext = os.path.splitext(path)[1].lower()
-    if ext in PHOTO_EXTS:
-        return "photo"
-    if ext in VIDEO_EXTS:
-        return "video"
-    if ext in AUDIO_EXTS:
-        return "audio"
-
-    mime, _ = mimetypes.guess_type(path)
-    if mime:
-        if mime.startswith("image/") and ext != ".gif":
-            return "photo"
-        if mime.startswith("video/") or ext == ".gif":
-            return "video"
-        if mime.startswith("audio/"):
-            return "audio"
-
-    return "document"
-
-
-def chunk_list(items: List[Any], chunk_size: int = 10) -> Iterable[List[Any]]:
-    for i in range(0, len(items), chunk_size):
-        yield items[i : i + chunk_size]
-
-
-async def send_single_media(
-    client: Any,
-    chat_id: int | str,
-    file_path: str,
-    media_type: str,
-    thread_id: Optional[int],
-    start_time: int,
-    ctx: command.Context,
-) -> Any:
-    file_name = os.path.basename(file_path)
-    prog_args = (start_time, "upload", ctx, file_name)
-
-    if media_type == "photo":
-        try:
-            return await client.send_photo(
-                chat_id,
-                photo=file_path,
-                caption=file_name,
-                message_thread_id=thread_id,
-                progress=prog_func,
-                progress_args=prog_args,
-            )
-        except Exception:
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                force_document=True,
-                message_thread_id=thread_id,
-                progress=prog_func,
-                progress_args=prog_args,
-            )
-    elif media_type == "video":
-        try:
-            return await client.send_video(
-                chat_id,
-                video=file_path,
-                caption=file_name,
-                supports_streaming=True,
-                message_thread_id=thread_id,
-                progress=prog_func,
-                progress_args=prog_args,
-            )
-        except Exception:
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                force_document=True,
-                message_thread_id=thread_id,
-                progress=prog_func,
-                progress_args=prog_args,
-            )
-    elif media_type == "audio":
-        try:
-            title = os.path.splitext(file_name)[0]
-            return await client.send_audio(
-                chat_id,
-                audio=file_path,
-                caption=file_name,
-                title=title,
-                message_thread_id=thread_id,
-                progress=prog_func,
-                progress_args=prog_args,
-            )
-        except Exception:
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                force_document=True,
-                message_thread_id=thread_id,
-                progress=prog_func,
-                progress_args=prog_args,
-            )
-    else:
-        return await client.send_document(
-            chat_id,
-            document=file_path,
-            force_document=True,
-            message_thread_id=thread_id,
-            progress=prog_func,
-            progress_args=prog_args,
-        )
 
 
 class Network(module.Module):
     name: ClassVar[str] = "Network"
 
     tasks: Set[Tuple[int, asyncio.Task[Any]]]
+    db: Optional[database.AsyncCollection] = None
+    progress_style: str = util.tg.DEFAULT_PROGRESS_STYLE
 
     async def on_load(self) -> None:
         self.tasks = set()
+        if getattr(self.bot, "db", None) is not None:
+            self.db = self.bot.db.get_collection(self.name.upper())
+            data = await self.db.find_one({"_id": 0})
+            if data and "progress_style" in data:
+                self.progress_style = data["progress_style"]
+                self.bot.progress_style = data["progress_style"]
+
+        if not hasattr(self.bot, "progress_style"):
+            self.bot.progress_style = self.progress_style
+
+    @command.desc("View or toggle upload/download progress bar style")
+    @command.alias("pstyle", "setprogress")
+    @command.usage("[style name]")
+    async def cmd_progstyle(self, ctx: command.Context) -> str:
+        if not ctx.input:
+            styles_list = []
+            for name in util.tg.PROGRESS_STYLES:
+                preview = util.tg.render_progress_bar(0.5, length=10, style=name)
+                is_active = " **(active)**" if name == self.progress_style else ""
+                styles_list.append(f"• `{name}`: [{preview}] 50%{is_active}")
+
+            styles_str = "\n".join(styles_list)
+            return (
+                f"**Current Progress Bar Style:** `{self.progress_style}`\n\n"
+                f"**Available Styles:**\n{styles_str}\n\n"
+                f"Usage: `{self.bot.prefix}progstyle <style>` to change style."
+            )
+
+        chosen = ctx.input.strip().lower()
+        if chosen not in util.tg.PROGRESS_STYLES:
+            valid = ", ".join(f"`{s}`" for s in util.tg.PROGRESS_STYLES)
+            return f"__Unknown style `{chosen}`. Available styles: {valid}__"
+
+        self.progress_style = chosen
+        self.bot.progress_style = chosen
+        if self.db is not None:
+            await self.db.find_one_and_update(
+                {"_id": 0}, {"$set": {"progress_style": chosen}}, upsert=True
+            )
+
+        preview = util.tg.render_progress_bar(0.6, length=10, style=chosen)
+        return (
+            f"Progress bar style changed to **`{chosen}`**!\n"
+            f"Preview: [{preview}] 60%"
+        )
 
     async def on_message(self, message: Message) -> None:
         # Only check Telegram service messages
@@ -267,28 +150,38 @@ class Network(module.Module):
 
             file_name = getattr(media, "file_name", None)
             if not file_name:
-                ext = ".jpg" if msg.photo else (
-                    ".mp4" if (msg.video or msg.animation or msg.video_note) else (
-                        ".mp3" if msg.audio else (
-                            ".ogg" if msg.voice else (
-                                ".webp" if msg.sticker else ""
-                            )
-                        )
-                    )
-                )
+                if msg.photo:
+                    ext = ".jpg"
+                elif msg.video or msg.animation or msg.video_note:
+                    ext = ".mp4"
+                elif msg.audio:
+                    ext = ".mp3"
+                elif msg.voice:
+                    ext = ".ogg"
+                elif msg.sticker:
+                    if getattr(msg.sticker, "is_animated", False):
+                        ext = ".tgs"
+                    elif getattr(msg.sticker, "is_video", False):
+                        ext = ".webm"
+                    else:
+                        ext = ".webp"
+                else:
+                    ext = ""
+
                 date_str = (getattr(media, "date", None) or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
                 file_name = f"{msg.media.value}_{date_str}{ext}"
 
+            prog_cb = util.tg.create_progress_callback(
+                ctx=ctx,
+                start_time=start_time,
+                mode="download",
+                file_name=file_name,
+                style=self.progress_style,
+            )
             task = self.bot.loop.create_task(
                 self.bot.client.download_media(
                     msg,
-                    progress=prog_func,
-                    progress_args=(
-                        start_time,
-                        "download",
-                        ctx,
-                        file_name,
-                    ),
+                    progress=prog_cb,
                 )
             )
             self.tasks.add((ctx.msg.id, task))
@@ -320,7 +213,7 @@ class Network(module.Module):
 
     @command.desc("Upload file or folder into telegram server")
     @command.alias("ul")
-    @command.usage("[file/folder path] [-d/--doc]")
+    @command.usage("[file/folder path] [-d/--doc] [-s/--sticker]")
     async def cmd_upload(self, ctx: command.Context) -> Optional[str]:
         raw_input = ctx.input.strip()
         if not raw_input and ctx.msg.reply_to_message and ctx.msg.reply_to_message.text:
@@ -329,13 +222,16 @@ class Network(module.Module):
         if not raw_input:
             return "__Pass the file or folder path (or reply to a message with path).__"
 
-        # Check for force document flag
+        # Check for flags
         force_doc = False
+        force_sticker = False
         parts = raw_input.split()
         clean_parts = []
         for p in parts:
             if p in ("-d", "--doc", "--document", "-f", "--force-document"):
                 force_doc = True
+            elif p in ("-s", "--sticker"):
+                force_sticker = True
             else:
                 clean_parts.append(p)
 
@@ -352,22 +248,33 @@ class Network(module.Module):
 
         start_time = util.time.sec()
 
+        async def _send_file(file_path: str, m_type: Optional[str] = None) -> Any:
+            prog_cb = util.tg.create_progress_callback(
+                ctx=ctx,
+                start_time=start_time,
+                mode="upload",
+                file_name=os.path.basename(file_path),
+                style=self.progress_style,
+            )
+            return await util.tg.send_media(
+                client=self.bot.client,
+                chat_id=ctx.msg.chat.id,
+                file_path=file_path,
+                media_type=m_type,
+                message_thread_id=ctx.msg.message_thread_id,
+                progress=prog_cb,
+            )
+
         if os.path.isfile(target_path):
             await ctx.respond("Preparing to upload file...")
-            media_type = "document" if force_doc else get_media_type(target_path)
+            if force_doc:
+                media_type = "document"
+            elif force_sticker:
+                media_type = "sticker"
+            else:
+                media_type = util.tg.get_media_type(target_path)
 
-            async def _upload_single() -> None:
-                await send_single_media(
-                    client=self.bot.client,
-                    chat_id=ctx.msg.chat.id,
-                    file_path=target_path,
-                    media_type=media_type,
-                    thread_id=ctx.msg.message_thread_id,
-                    start_time=start_time,
-                    ctx=ctx,
-                )
-
-            task = self.bot.loop.create_task(_upload_single())
+            task = self.bot.loop.create_task(_send_file(target_path, media_type))
             self.tasks.add((ctx.msg.id, task))
             try:
                 await task
@@ -393,17 +300,16 @@ class Network(module.Module):
 
             async def _upload_directory() -> None:
                 if force_doc:
-                    doc_chunks = list(chunk_list(all_files, 10))
+                    doc_chunks = list(util.misc.chunk_list(all_files, 10))
                     total_chunks = len(doc_chunks)
                     for idx, chunk in enumerate(doc_chunks, 1):
                         if len(chunk) >= 2:
                             await ctx.respond(
                                 f"Uploading document album ({idx}/{total_chunks})..."
                             )
-                            media_group = [
-                                InputMediaDocument(f, caption=os.path.basename(f))
-                                for f in chunk
-                            ]
+                            media_group = util.tg.build_media_group(
+                                chunk, group_type="document"
+                            )
                             try:
                                 await self.bot.client.send_media_group(
                                     ctx.msg.chat.id,
@@ -412,60 +318,41 @@ class Network(module.Module):
                                 )
                             except Exception:
                                 for f in chunk:
-                                    await send_single_media(
-                                        self.bot.client,
-                                        ctx.msg.chat.id,
-                                        f,
-                                        "document",
-                                        ctx.msg.message_thread_id,
-                                        start_time,
-                                        ctx,
-                                    )
+                                    await _send_file(f, "document")
                         else:
-                            await send_single_media(
-                                self.bot.client,
-                                ctx.msg.chat.id,
-                                chunk[0],
-                                "document",
-                                ctx.msg.message_thread_id,
-                                start_time,
-                                ctx,
-                            )
+                            await _send_file(chunk[0], "document")
                 else:
                     visual_files = [
-                        f for f in all_files if get_media_type(f) in ("photo", "video")
+                        f
+                        for f in all_files
+                        if util.tg.get_media_type(f) in ("photo", "video")
                     ]
                     audio_files = [
-                        f for f in all_files if get_media_type(f) == "audio"
+                        f
+                        for f in all_files
+                        if util.tg.get_media_type(f) == "audio"
+                    ]
+                    sticker_files = [
+                        f
+                        for f in all_files
+                        if util.tg.get_media_type(f) == "sticker"
                     ]
                     doc_files = [
-                        f for f in all_files if get_media_type(f) == "document"
+                        f
+                        for f in all_files
+                        if util.tg.get_media_type(f) == "document"
                     ]
 
                     # 1. Upload Visuals (Photos & Videos) as Media Albums
                     if visual_files:
-                        visual_chunks = list(chunk_list(visual_files, 10))
+                        visual_chunks = list(util.misc.chunk_list(visual_files, 10))
                         total_v = len(visual_chunks)
                         for idx, chunk in enumerate(visual_chunks, 1):
                             if len(chunk) >= 2:
                                 await ctx.respond(
                                     f"Uploading media album ({idx}/{total_v})..."
                                 )
-                                media_group = []
-                                for f in chunk:
-                                    fname = os.path.basename(f)
-                                    if get_media_type(f) == "photo":
-                                        media_group.append(
-                                            InputMediaPhoto(f, caption=fname)
-                                        )
-                                    else:
-                                        media_group.append(
-                                            InputMediaVideo(
-                                                f,
-                                                caption=fname,
-                                                supports_streaming=True,
-                                            )
-                                        )
+                                media_group = util.tg.build_media_group(chunk)
                                 try:
                                     await self.bot.client.send_media_group(
                                         ctx.msg.chat.id,
@@ -474,44 +361,24 @@ class Network(module.Module):
                                     )
                                 except Exception:
                                     for f in chunk:
-                                        await send_single_media(
-                                            self.bot.client,
-                                            ctx.msg.chat.id,
-                                            f,
-                                            get_media_type(f),
-                                            ctx.msg.message_thread_id,
-                                            start_time,
-                                            ctx,
-                                        )
+                                        await _send_file(f, util.tg.get_media_type(f))
                             else:
-                                f = chunk[0]
-                                await send_single_media(
-                                    self.bot.client,
-                                    ctx.msg.chat.id,
-                                    f,
-                                    get_media_type(f),
-                                    ctx.msg.message_thread_id,
-                                    start_time,
-                                    ctx,
+                                await _send_file(
+                                    chunk[0], util.tg.get_media_type(chunk[0])
                                 )
 
                     # 2. Upload Audio Files as Music Albums
                     if audio_files:
-                        audio_chunks = list(chunk_list(audio_files, 10))
+                        audio_chunks = list(util.misc.chunk_list(audio_files, 10))
                         total_a = len(audio_chunks)
                         for idx, chunk in enumerate(audio_chunks, 1):
                             if len(chunk) >= 2:
                                 await ctx.respond(
                                     f"Uploading audio album ({idx}/{total_a})..."
                                 )
-                                media_group = [
-                                    InputMediaAudio(
-                                        f,
-                                        caption=os.path.basename(f),
-                                        title=os.path.splitext(os.path.basename(f))[0],
-                                    )
-                                    for f in chunk
-                                ]
+                                media_group = util.tg.build_media_group(
+                                    chunk, group_type="audio"
+                                )
                                 try:
                                     await self.bot.client.send_media_group(
                                         ctx.msg.chat.id,
@@ -520,42 +387,31 @@ class Network(module.Module):
                                     )
                                 except Exception:
                                     for f in chunk:
-                                        await send_single_media(
-                                            self.bot.client,
-                                            ctx.msg.chat.id,
-                                            f,
-                                            "audio",
-                                            ctx.msg.message_thread_id,
-                                            start_time,
-                                            ctx,
-                                        )
+                                        await _send_file(f, "audio")
                             else:
-                                f = chunk[0]
-                                await send_single_media(
-                                    self.bot.client,
-                                    ctx.msg.chat.id,
-                                    f,
-                                    "audio",
-                                    ctx.msg.message_thread_id,
-                                    start_time,
-                                    ctx,
-                                )
+                                await _send_file(chunk[0], "audio")
 
-                    # 3. Upload Documents as Document Albums
+                    # 3. Upload Stickers
+                    if sticker_files:
+                        total_s = len(sticker_files)
+                        for idx, f in enumerate(sticker_files, 1):
+                            await ctx.respond(
+                                f"Uploading sticker ({idx}/{total_s})..."
+                            )
+                            await _send_file(f, "sticker")
+
+                    # 4. Upload Documents as Document Albums
                     if doc_files:
-                        doc_chunks = list(chunk_list(doc_files, 10))
+                        doc_chunks = list(util.misc.chunk_list(doc_files, 10))
                         total_d = len(doc_chunks)
                         for idx, chunk in enumerate(doc_chunks, 1):
                             if len(chunk) >= 2:
                                 await ctx.respond(
                                     f"Uploading document album ({idx}/{total_d})..."
                                 )
-                                media_group = [
-                                    InputMediaDocument(
-                                        f, caption=os.path.basename(f)
-                                    )
-                                    for f in chunk
-                                ]
+                                media_group = util.tg.build_media_group(
+                                    chunk, group_type="document"
+                                )
                                 try:
                                     await self.bot.client.send_media_group(
                                         ctx.msg.chat.id,
@@ -564,26 +420,9 @@ class Network(module.Module):
                                     )
                                 except Exception:
                                     for f in chunk:
-                                        await send_single_media(
-                                            self.bot.client,
-                                            ctx.msg.chat.id,
-                                            f,
-                                            "document",
-                                            ctx.msg.message_thread_id,
-                                            start_time,
-                                            ctx,
-                                        )
+                                        await _send_file(f, "document")
                             else:
-                                f = chunk[0]
-                                await send_single_media(
-                                    self.bot.client,
-                                    ctx.msg.chat.id,
-                                    f,
-                                    "document",
-                                    ctx.msg.message_thread_id,
-                                    start_time,
-                                    ctx,
-                                )
+                                await _send_file(chunk[0], "document")
 
             task = self.bot.loop.create_task(_upload_directory())
             self.tasks.add((ctx.msg.id, task))

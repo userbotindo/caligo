@@ -408,7 +408,7 @@ class Main(module.Module):
                 response = util.text.join_map(data, parse_mode="html")
 
                 return (
-                    f"<b>Help for <code>{cmd.name}</code></b>"
+                    f"<b>Help for <code>{cmd.name}</code></b>\n"
                     f"<blockquote expandable>\n{response}\n</blockquote>"
                 )
 

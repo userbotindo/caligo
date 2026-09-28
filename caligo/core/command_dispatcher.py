@@ -2,6 +2,7 @@ import inspect
 from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, Optional
 
 from pyrogram.client import Client
+from pyrogram.enums import ParseMode
 from pyrogram.errors import FloodWait, MessageNotModified
 from pyrogram.filters import Filter, create
 from pyrogram.types import Message
@@ -148,7 +149,23 @@ class CommandDispatcher(CaligoBase):
             try:
                 ret = await cmd.func(ctx)
                 if ret is not None:
-                    await ctx.respond(ret)
+                    kwargs: dict[str, Any] = {}
+                    if isinstance(ret, str) and any(
+                        tag in ret
+                        for tag in (
+                            "<blockquote",
+                            "<b>",
+                            "<code>",
+                            "<pre",
+                            "<i>",
+                            "<spoiler",
+                            "<u>",
+                            "<s>",
+                        )
+                    ):
+                        kwargs["parse_mode"] = ParseMode.HTML
+
+                    await ctx.respond(ret, **kwargs)
             except MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
@@ -161,7 +178,23 @@ class CommandDispatcher(CaligoBase):
                 try:
                     ret = await cmd.func(ctx)
                     if ret is not None:
-                        await ctx.respond(ret)
+                        kwargs = {}
+                        if isinstance(ret, str) and any(
+                            tag in ret
+                            for tag in (
+                                "<blockquote",
+                                "<b>",
+                                "<code>",
+                                "<pre",
+                                "<i>",
+                                "<spoiler",
+                                "<u>",
+                                "<s>",
+                            )
+                        ):
+                            kwargs["parse_mode"] = ParseMode.HTML
+
+                        await ctx.respond(ret, **kwargs)
                 except Exception as retry_err:  # skipcq: PYL-W0703
                     cmd.module.log.error(
                         f"Error in command '{cmd.name}' after FloodWait retry",

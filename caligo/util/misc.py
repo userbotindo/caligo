@@ -19,18 +19,23 @@ def find_prefixed_funcs(obj: Any,
     return results
 
 
-def human_readable_bytes(value: Union[int, float],
-                         digits: int = 2,
-                         delim: str = "",
-                         postfix: str = "") -> str:
+_BYTE_UNITS = ("KiB", "MiB", "GiB", "TiB")
+
+
+def human_readable_bytes(
+    value: Union[int, float],
+    digits: int = 2,
+    delim: str = "",
+    postfix: str = "",
+) -> str:
     chosen_unit = "B"
-    for unit in ("KiB", "MiB", "GiB", "TiB"):
+    for unit in _BYTE_UNITS:
         if value > 1000:
             value /= 1024
             chosen_unit = unit
         else:
             break
-    return f"{value:.{digits}f}" + delim + chosen_unit + postfix
+    return f"{value:.{digits}f}{delim}{chosen_unit}{postfix}"
 
 
 def chunk_list(items: Sequence[Any], chunk_size: int = 10) -> Iterable[Sequence[Any]]:

@@ -25,32 +25,27 @@ def format_duration_us(t_us: Union[int, float]) -> str:
     """Formats the given microsecond duration as a string."""
 
     t_us = int(t_us)
+    if t_us < 1000:
+        return f"{t_us} μs"
 
-    t_ms = t_us / 1000
-    t_s = t_ms / 1000
-    t_m = t_s / 60
-    t_h = t_m / 60
-    t_d = t_h / 24
+    t_ms = t_us // 1000
+    if t_ms < 1000:
+        return f"{t_ms} ms"
 
-    if t_d >= 1:
-        rem_h = t_h % 24
-        return "%dd %dh" % (t_d, rem_h)  # skipcq: PYL-C0209
+    t_s = t_ms // 1000
+    if t_s < 60:
+        return f"{t_s} sec"
 
-    if t_h >= 1:
-        rem_m = t_m % 60
-        return "%dh %dm" % (t_h, rem_m)  # skipcq: PYL-C0209
+    t_m = t_s // 60
+    if t_m < 60:
+        return f"{t_m}m {t_s % 60}s"
 
-    if t_m >= 1:
-        rem_s = t_s % 60
-        return "%dm %ds" % (t_m, rem_s)  # skipcq: PYL-C0209
+    t_h = t_m // 60
+    if t_h < 24:
+        return f"{t_h}h {t_m % 60}m"
 
-    if t_s >= 1:
-        return "%d sec" % t_s  # skipcq: PYL-C0209
-
-    if t_ms >= 1:
-        return "%d ms" % t_ms  # skipcq: PYL-C0209
-
-    return "%d μs" % t_us  # skipcq: PYL-C0209
+    t_d = t_h // 24
+    return f"{t_d}d {t_h % 24}h"
 
 
 def format_duration_td(value: timedelta, precision: int = 0) -> str:
@@ -62,14 +57,12 @@ def format_duration_td(value: timedelta, precision: int = 0) -> str:
     seconds = value.seconds
 
     if seconds >= 3600:
-        hours = int(seconds / 3600)
+        hours, seconds = divmod(seconds, 3600)
         pieces.append(f"{hours}h")
-        seconds -= hours * 3600
 
     if seconds >= 60:
-        minutes = int(seconds / 60)
+        minutes, seconds = divmod(seconds, 60)
         pieces.append(f"{minutes}m")
-        seconds -= minutes * 60
 
     if seconds > 0 or not pieces:
         pieces.append(f"{seconds}s")

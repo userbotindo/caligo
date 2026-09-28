@@ -46,6 +46,7 @@ class CommandDispatcher(CaligoBase):
         usage_optional: bool = False,
         usage_reply: bool = False,
         aliases: Iterable[str] = [],
+        no_processing: bool = False,
     ) -> None:
         if getattr(func, "_listener_filters", None):
             self.log.warning(
@@ -58,7 +59,16 @@ class CommandDispatcher(CaligoBase):
             )
 
         cmd = command.Command(
-            name, mod, func, filters, desc, usage, usage_optional, usage_reply, aliases
+            name,
+            mod,
+            func,
+            filters,
+            desc,
+            usage,
+            usage_optional,
+            usage_reply,
+            aliases,
+            no_processing=no_processing,
         )
 
         if name in self.commands:
@@ -98,6 +108,7 @@ class CommandDispatcher(CaligoBase):
                     usage_optional=getattr(func, "_cmd_usage_optional", False),
                     usage_reply=getattr(func, "_cmd_usage_reply", False),
                     aliases=getattr(func, "_cmd_aliases", []),
+                    no_processing=getattr(func, "_cmd_no_processing", False),
                 )
                 done = True
             finally:
@@ -167,9 +178,15 @@ class CommandDispatcher(CaligoBase):
                 len(self.prefix) + len(message.command[0]) + 1,
             )
 
-            # Show processing message if global processing is enabled
+            # Show processing message if global processing is enabled and command doesn't opt out
             proc_status = getattr(self, "processing_status", None)
-            if proc_status:
+            skip_proc = (
+                getattr(cmd, "no_processing", False)
+                or getattr(cmd.func, "_cmd_no_processing", False)
+                or cmd.name == "ping"
+                or "ping" in getattr(cmd, "aliases", ())
+            )
+            if proc_status and not skip_proc:
                 proc_text = (
                     proc_status
                     if isinstance(proc_status, str)

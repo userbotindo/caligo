@@ -67,6 +67,20 @@ def filters(_filters: Optional[Filter] = None) -> Decorator:
     return filter_decorator
 
 
+def no_processing(
+    func: Optional[CommandFunc] = None,
+) -> Union[Decorator, CommandFunc]:
+    """Marks a command function to bypass automatic global processing status."""
+
+    def no_proc_decorator(f: CommandFunc) -> CommandFunc:
+        setattr(f, "_cmd_no_processing", True)
+        return f
+
+    if func is not None:
+        return no_proc_decorator(func)
+    return no_proc_decorator
+
+
 class Command:
     name: str
     desc: Optional[str]
@@ -77,6 +91,7 @@ class Command:
     filters: Optional[Filter]
     module: Any
     func: CommandFunc
+    no_processing: bool
 
     def __init__(
         self,
@@ -89,6 +104,7 @@ class Command:
         usage_optional: bool = False,
         usage_reply: bool = False,
         aliases: Iterable[str] = [],
+        no_processing: bool = False,
     ) -> None:
         self.name = name
         self.module = mod
@@ -99,6 +115,7 @@ class Command:
         self.usage_optional = usage_optional
         self.usage_reply = usage_reply
         self.aliases = aliases
+        self.no_processing = no_processing or getattr(func, "_cmd_no_processing", False)
 
     def __repr__(self) -> str:
         return f"<command module '{self.name}' from '{self.module.name}'>"

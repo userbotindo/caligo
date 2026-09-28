@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from anyio import Path as AsyncPath
 
 from caligo.util import misc, text, tg, time
+from caligo import command
 from caligo.command import Command
 from caligo.core.command_dispatcher import CommandDispatcher
 from caligo.core.telegram_bot import TelegramBot
@@ -627,6 +628,55 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             second_call_text = mock_respond.call_args_list[1][0][0]
             self.assertEqual(first_call_text, "__Processing...__")
             self.assertEqual(second_call_text, "Final output")
+
+    async def test_dispatcher_processing_bypassed_on_ping_and_no_processing(self):
+        dispatcher = CommandDispatcher()
+        dispatcher.delete_after = None
+        dispatcher.processing_status = "__Processing...__"
+        dispatcher.prefix = "."
+        dispatcher.log = MagicMock()
+        dispatcher.dispatch_event = AsyncMock()
+
+        dummy_mod = MagicMock()
+        dummy_mod.log = MagicMock()
+
+        async def ping_func(ctx):
+            return "Pong 10ms"
+
+        @command.no_processing
+        async def custom_no_proc(ctx):
+            return "Fast result"
+
+        dispatcher.register_command(dummy_mod, "ping", ping_func)
+        dispatcher.register_command(
+            dummy_mod,
+            "fast",
+            custom_no_proc,
+            no_processing=getattr(custom_no_proc, "_cmd_no_processing", False),
+        )
+
+        # 1. Test ping command
+        msg_ping = MagicMock()
+        msg_ping.command = ["ping"]
+        msg_ping.text = ".ping"
+        msg_ping.continue_propagation = MagicMock()
+
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg_ping)
+            # Should have called respond only once with final output (processing was skipped)
+            self.assertEqual(mock_respond.call_count, 1)
+            self.assertEqual(mock_respond.call_args[0][0], "Pong 10ms")
+
+        # 2. Test command with @command.no_processing
+        msg_fast = MagicMock()
+        msg_fast.command = ["fast"]
+        msg_fast.text = ".fast"
+        msg_fast.continue_propagation = MagicMock()
+
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg_fast)
+            self.assertEqual(mock_respond.call_count, 1)
+            self.assertEqual(mock_respond.call_args[0][0], "Fast result")
 
     async def test_system_cmd_speedtest_modernized(self):
         bot = MagicMock()

@@ -73,6 +73,7 @@ class Network(module.Module):
         if match is not None:
             self.log.info(f"Received Telegram login code: {match.group(1)}")
 
+    @command.no_processing
     @command.desc("Pong")
     async def cmd_ping(self, ctx: command.Context):
         start = datetime.now()

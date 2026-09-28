@@ -35,7 +35,7 @@ caligo = "caligo.main:main"
 [tool.poetry.dependencies]
 python = ">=3.12,<4.0"
 
-aiohttp = "^3.8.5"
+httpx = "^0.28.1"
 aiorun = "^2023.7.2"
 anyio = ">=4.0.0"
 beauty-print = "^0.6.1"

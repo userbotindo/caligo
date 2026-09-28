@@ -1,12 +1,18 @@
+import asyncio
+import os
+import tempfile
 import unittest
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+
+from anyio import Path as AsyncPath
 
 from caligo.util import misc, text, tg, time
 from caligo.command import Command
 from caligo.core.command_dispatcher import CommandDispatcher
 from caligo.core.telegram_bot import TelegramBot
 from caligo.core.database.storage import PersistentStorage
+from caligo.modules.network import Network
 from caligo.modules.stats import Stats, _calc_pct, _calc_pd, _calc_ph
 from caligo.modules.text import Text
 
@@ -225,6 +231,253 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         ctx.input = encoded
         decoded = await text_mod.cmd_base64decode(ctx)
         self.assertEqual(decoded, "caligo fast")
+
+    def test_tg_parse_telegram_message_link(self):
+        self.assertEqual(
+            tg.parse_telegram_message_link("https://t.me/deltaDiscuss/208009"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("http://t.me/deltaDiscuss/208009"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("t.me/deltaDiscuss/208009"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("https://t.me/deltaDiscuss/208009?single"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("https://t.me/deltaDiscuss/123/208009"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("https://t.me/c/1234567890/208009"),
+            (-1001234567890, 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("https://t.me/c/1234567890/15/208009"),
+            (-1001234567890, 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("https://telegram.me/deltaDiscuss/208009"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertEqual(
+            tg.parse_telegram_message_link("tg://resolve?domain=deltaDiscuss&post=208009"),
+            ("deltaDiscuss", 208009),
+        )
+        self.assertIsNone(tg.parse_telegram_message_link("https://example.com/not_tg/123"))
+
+    async def test_network_cmd_download_telegram_link(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        net_mod = Network(bot)
+        await net_mod.on_load()
+
+        mock_msg = MagicMock()
+        mock_msg.id = 208009
+        mock_msg.empty = False
+        mock_msg.media_group_id = None
+        mock_media = MagicMock()
+        mock_media.value = "document"
+        mock_msg.media = mock_media
+        mock_doc = MagicMock()
+        mock_doc.file_name = "test_file.apk"
+        mock_msg.document = mock_doc
+
+        bot.client.get_messages = AsyncMock(return_value=mock_msg)
+        bot.client.download_media = AsyncMock(return_value="/downloads/test_file.apk")
+
+        ctx = MagicMock()
+        ctx.input = "https://t.me/deltaDiscuss/208009"
+        ctx.msg.id = 100
+        ctx.msg.reply_to_message = None
+        ctx.respond = AsyncMock()
+
+        result = await net_mod.cmd_download(ctx)
+        bot.client.get_messages.assert_called_once_with("deltaDiscuss", 208009)
+        bot.client.download_media.assert_called_once()
+        self.assertIn("Downloaded to:", result)
+        self.assertIn("/downloads/test_file.apk", result)
+
+    async def test_network_cmd_download_reply_media(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        net_mod = Network(bot)
+        await net_mod.on_load()
+
+        mock_media = MagicMock()
+        mock_media.value = "photo"
+        reply_msg = MagicMock()
+        reply_msg.id = 555
+        reply_msg.media = mock_media
+        reply_msg.media_group_id = None
+        reply_msg.photo = MagicMock()
+        reply_msg.photo.file_name = "photo.jpg"
+
+        bot.client.download_media = AsyncMock(return_value="/downloads/photo.jpg")
+
+        ctx = MagicMock()
+        ctx.input = ""
+        ctx.msg.id = 101
+        ctx.msg.reply_to_message = reply_msg
+        ctx.respond = AsyncMock()
+
+        result = await net_mod.cmd_download(ctx)
+        bot.client.download_media.assert_called_once()
+        self.assertIn("Downloaded to:", result)
+        self.assertIn("/downloads/photo.jpg", result)
+
+    async def test_network_cmd_download_no_source(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        net_mod = Network(bot)
+        await net_mod.on_load()
+
+        ctx = MagicMock()
+        ctx.input = ""
+        ctx.msg.id = 102
+        ctx.msg.reply_to_message = None
+        ctx.respond = AsyncMock()
+
+        result = await net_mod.cmd_download(ctx)
+        self.assertIn("Pass a Telegram message link/ID", result)
+
+    async def test_network_cmd_download_unique_sticker(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        net_mod = Network(bot)
+        await net_mod.on_load()
+
+        mock_sticker = MagicMock()
+        mock_sticker.file_unique_id = "AQAD999XYZ"
+        mock_sticker.set_name = "CuteCats"
+        mock_sticker.is_animated = False
+        mock_sticker.is_video = False
+
+        mock_media = MagicMock()
+        mock_media.value = "sticker"
+        reply_msg = MagicMock()
+        reply_msg.id = 777
+        reply_msg.media = mock_media
+        reply_msg.media_group_id = None
+        reply_msg.sticker = mock_sticker
+
+        async def fake_download(msg, file_name=None, progress=None):
+            return file_name
+
+        bot.client.download_media = AsyncMock(side_effect=fake_download)
+        net_mod.get_download_dir = AsyncMock(return_value=AsyncPath("downloads"))
+
+        ctx = MagicMock()
+        ctx.input = ""
+        ctx.msg.id = 103
+        ctx.msg.reply_to_message = reply_msg
+        ctx.respond = AsyncMock()
+
+        result = await net_mod.cmd_download(ctx)
+        call_kwargs = bot.client.download_media.call_args.kwargs
+        self.assertIn("downloads/sticker_CuteCats_AQAD999XYZ.webp", call_kwargs["file_name"])
+        self.assertIn("sticker_CuteCats_AQAD999XYZ.webp", result)
+
+    async def test_network_cmd_cleardownloads_single_and_all(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        net_mod = Network(bot)
+        await net_mod.on_load()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dl_dir = AsyncPath(temp_dir) / "downloads"
+            await dl_dir.mkdir(parents=True, exist_ok=True)
+            net_mod.get_download_dirs = AsyncMock(return_value=[dl_dir])
+
+            # Create test files
+            f1 = dl_dir / "test1.txt"
+            f2 = dl_dir / "test2.txt"
+            await f1.write_text("hello 1")
+            await f2.write_text("hello 2")
+
+            # Test deleting single file
+            ctx_single = MagicMock()
+            ctx_single.input = "test1.txt"
+            ctx_single.msg.reply_to_message = None
+            res_single = await net_mod.cmd_cleardownloads(ctx_single)
+            self.assertIn("Deleted", res_single)
+            self.assertIn("`test1.txt`", res_single)
+            self.assertFalse(await f1.exists())
+            self.assertTrue(await f2.exists())
+
+            # Test deleting non-existent file
+            ctx_notfound = MagicMock()
+            ctx_notfound.input = "non_existent.txt"
+            ctx_notfound.msg.reply_to_message = None
+            res_notfound = await net_mod.cmd_cleardownloads(ctx_notfound)
+            self.assertIn("not found in downloads", res_notfound)
+
+            # Test clearing all remaining files
+            ctx_all = MagicMock()
+            ctx_all.input = ""
+            ctx_all.msg.reply_to_message = None
+            res_all = await net_mod.cmd_cleardownloads(ctx_all)
+            self.assertIn("Cleared 1 file", res_all)
+            self.assertFalse(await f2.exists())
+
+            # Test clearing when already empty
+            res_empty = await net_mod.cmd_cleardownloads(ctx_all)
+            self.assertIn("Downloads folder is already empty", res_empty)
+
+    async def test_network_cmd_download_http_url(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        net_mod = Network(bot)
+        await net_mod.on_load()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dl_dir = AsyncPath(temp_dir) / "downloads"
+            await dl_dir.mkdir(parents=True, exist_ok=True)
+            net_mod.get_download_dir = AsyncMock(return_value=dl_dir)
+
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.headers = {
+                "content-disposition": 'attachment; filename="sample.bin"',
+                "content-length": "12",
+            }
+
+            async def fake_aiter(chunk_size=65536):
+                yield b"hello "
+                yield b"httpx!"
+
+            mock_resp.aiter_bytes = fake_aiter
+
+            from contextlib import asynccontextmanager
+
+            @asynccontextmanager
+            async def fake_stream(*args, **kwargs):
+                yield mock_resp
+
+            bot.http = MagicMock()
+            bot.http.stream = fake_stream
+
+            ctx = MagicMock()
+            ctx.input = "https://example.com/files/sample.bin"
+            ctx.msg.id = 104
+            ctx.msg.reply_to_message = None
+            ctx.respond = AsyncMock()
+            ctx.last_update_time = None
+
+            result = await net_mod.cmd_download(ctx)
+            self.assertIn("Downloaded to:", result)
+            self.assertIn("sample.bin", result)
+            self.assertTrue(await (dl_dir / "sample.bin").exists())
 
 
 if __name__ == "__main__":

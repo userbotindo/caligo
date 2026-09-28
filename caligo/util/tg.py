@@ -1,9 +1,11 @@
 import io
 import mimetypes
 import os
+import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from urllib.parse import urlparse
 
 import bprint
 import pyrogram
@@ -127,6 +129,43 @@ async def unpack_inline_id(bot_uid: int, inline_id: str) -> tuple[int, int]:
         chat_id = pyrogram.utils.get_channel_id(abs(owner_id))
 
     return chat_id, message_id
+
+
+TG_MESSAGE_LINK_REGEX = re.compile(
+    r"^(?:https?://)?(?:www\.)?(?:t(?:elegram)?\.(?:me|dog))/(?:c/(\d+)|b/([a-zA-Z0-9_]+)|([a-zA-Z0-9_]+))/(?:(\d+)/)?(\d+)(?:\?.*)?$"
+)
+
+
+def parse_telegram_message_link(url: str) -> Optional[Tuple[Union[int, str], int]]:
+    """Parses a Telegram message link or deep link into (chat_id, message_id)."""
+    clean_url = url.strip().strip("<>\"'")
+
+    if clean_url.startswith("tg://"):
+        parsed = urlparse(clean_url)
+        if parsed.netloc == "resolve":
+            params = dict(p.split("=", 1) for p in parsed.query.split("&") if "=" in p)
+            if "domain" in params and "post" in params:
+                return params["domain"], int(params["post"])
+        elif parsed.netloc == "openmessage":
+            params = dict(p.split("=", 1) for p in parsed.query.split("&") if "=" in p)
+            if "chat_id" in params and "message_id" in params:
+                cid = int(params["chat_id"])
+                if cid > 0:
+                    cid = int(f"-100{cid}")
+                return cid, int(params["message_id"])
+
+    match = TG_MESSAGE_LINK_REGEX.match(clean_url)
+    if match:
+        c_id, b_name, username, _, msg_id = match.groups()
+        if c_id:
+            chat_id: Union[int, str] = int(f"-100{c_id}")
+        elif b_name:
+            chat_id = b_name
+        else:
+            chat_id = username
+        return chat_id, int(msg_id)
+
+    return None
 
 
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
@@ -402,10 +441,11 @@ async def prog_func(
         style=style,
     )
 
-    # Only edit message once every 5 seconds to avoid ratelimits
+    last_update = getattr(ctx, "last_update_time", None)
     if (
-        ctx.last_update_time is None
-        or (now - ctx.last_update_time).total_seconds() >= 5
+        last_update is None
+        or not isinstance(last_update, datetime)
+        or (now - last_update).total_seconds() >= 5
     ):
         await ctx.respond(progress)
         ctx.last_update_time = now

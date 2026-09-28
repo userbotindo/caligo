@@ -51,16 +51,15 @@ class ExampleModule(module.Module):
 
     async def get_cat(self) -> BinaryIO:
         # Get the link to a random cat picture
-        async with self.bot.http.get("https://aws.random.cat/meow") as resp:
-            # Read and parse the response as JSON
-            json = await resp.json()
-            # Get the "file" field from the parsed JSON object
-            cat_url = json["file"]
+        resp = await self.bot.http.get("https://aws.random.cat/meow")
+        # Read and parse the response as JSON
+        json = resp.json()
+        # Get the "file" field from the parsed JSON object
+        cat_url = json["file"]
 
         # Get the actual cat picture
-        async with self.bot.http.get(cat_url) as resp:
-            # Get the data as a byte array (bytes object)
-            cat_data = await resp.read()
+        resp = await self.bot.http.get(cat_url)
+        cat_data = resp.content
 
         # Construct a byte stream from the data.
         # This is necessary because the bytes object is immutable, but we need to add a "name" attribute to set the

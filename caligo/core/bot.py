@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any, Mapping, Optional
 
-import aiohttp
+import httpx
 from pyrogram.client import Client
 
 from .command_dispatcher import CommandDispatcher
@@ -23,7 +23,7 @@ class Caligo(
 ):
     config: Mapping[str, Any]
     client: Client
-    http: aiohttp.ClientSession
+    http: httpx.AsyncClient
     lock: asyncio.Lock
     log: logging.Logger
     loop: asyncio.AbstractEventLoop
@@ -37,7 +37,7 @@ class Caligo(
 
         super().__init__()
 
-        self.http = aiohttp.ClientSession()
+        self.http = httpx.AsyncClient(follow_redirects=True, timeout=httpx.Timeout(60.0))
 
     @classmethod
     async def create_and_run(
@@ -75,7 +75,7 @@ class Caligo(
                         pass
         finally:
             await self.db.close()
-            await self.http.close()
+            await self.http.aclose()
 
         self.log.info("Running post-stop hooks")
         if self.loaded:

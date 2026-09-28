@@ -1,9 +1,12 @@
 import asyncio
+import mimetypes
 import os
 import re
 from datetime import datetime
-from typing import Any, ClassVar, Optional, Set, Tuple
+from typing import Any, ClassVar, List, Optional, Set, Tuple
+from urllib.parse import urlparse
 
+from anyio import Path as AsyncPath
 from pyrogram.types import Message
 
 from caligo import command, module, util
@@ -18,6 +21,43 @@ class Network(module.Module):
     tasks: Set[Tuple[int, asyncio.Task[Any]]]
     db: Optional[database.AsyncCollection] = None
     progress_style: str = util.tg.DEFAULT_PROGRESS_STYLE
+
+    async def get_download_dir(self) -> AsyncPath:
+        """Returns the canonical downloads directory AsyncPath."""
+        client_workdir = getattr(getattr(self.bot, "client", None), "workdir", None)
+        if client_workdir:
+            path = (await AsyncPath(client_workdir).resolve()) / "downloads"
+        else:
+            path = await AsyncPath("downloads").resolve()
+        await path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    async def get_download_dirs(self) -> List[AsyncPath]:
+        """Returns all known download directories (both workdir/downloads and ./downloads)."""
+        primary = await self.get_download_dir()
+        caligo_dl = await (AsyncPath("caligo") / "downloads").resolve()
+        root_dl = await AsyncPath("downloads").resolve()
+
+        candidate_dirs = [primary, caligo_dl, root_dl]
+        unique_dirs: List[AsyncPath] = []
+        for d in candidate_dirs:
+            if d not in unique_dirs and await d.exists():
+                unique_dirs.append(d)
+        return unique_dirs
+
+    @staticmethod
+    async def _async_rmtree(path: AsyncPath) -> int:
+        """Asynchronously removes a directory or file and returns bytes freed."""
+        freed = 0
+        if await path.is_file() or await path.is_symlink():
+            stat = await path.stat()
+            freed += stat.st_size
+            await path.unlink()
+        elif await path.is_dir():
+            async for child in path.iterdir():
+                freed += await Network._async_rmtree(child)
+            await path.rmdir()
+        return freed
 
     async def on_load(self) -> None:
         self.tasks = set()
@@ -113,33 +153,166 @@ class Network(module.Module):
 
         await ctx.msg.delete()
 
-    @command.desc("Download file from telegram server")
+    @command.desc("Download file from Telegram (link/reply/id) or direct URL")
     @command.alias("dl")
-    @command.usage("[message media to download]", reply=True)
+    @command.usage("[link | id | reply to media]", optional=True, reply=True)
     async def cmd_download(self, ctx: command.Context) -> str:
-        if not ctx.msg.reply_to_message:
-            return "__Reply to message with media to download.__"
-
-        reply_msg = ctx.msg.reply_to_message
-        if not reply_msg.media:
-            return "__The message you replied to doesn't contain any media.__"
-
         start_time = util.time.sec()
+
+        target_chat: Optional[Union[int, str]] = None
+        target_msg_id: Optional[int] = None
+        target_msg: Optional[Message] = None
+        http_url: Optional[str] = None
+
+        raw_input = ctx.input.strip()
+        first_arg = raw_input.split()[0] if raw_input else ""
+
+        if first_arg:
+            tg_link_info = util.tg.parse_telegram_message_link(first_arg)
+            if tg_link_info:
+                target_chat, target_msg_id = tg_link_info
+            elif first_arg.isdigit():
+                target_chat = ctx.chat.id
+                target_msg_id = int(first_arg)
+            else:
+                parsed = urlparse(first_arg)
+                if parsed.scheme in ("http", "https"):
+                    http_url = first_arg
+        elif ctx.msg.reply_to_message:
+            reply_msg = ctx.msg.reply_to_message
+            if reply_msg.media:
+                target_msg = reply_msg
+                target_chat = ctx.chat.id
+            elif reply_msg.text:
+                reply_first = reply_msg.text.strip().split()[0]
+                tg_link_info = util.tg.parse_telegram_message_link(reply_first)
+                if tg_link_info:
+                    target_chat, target_msg_id = tg_link_info
+                elif reply_first.isdigit():
+                    target_chat = ctx.chat.id
+                    target_msg_id = int(reply_first)
+                else:
+                    parsed = urlparse(reply_first)
+                    if parsed.scheme in ("http", "https"):
+                        http_url = reply_first
+
+        if not target_chat and not http_url and not target_msg:
+            return (
+                "__Pass a Telegram message link/ID, a direct URL, "
+                "or reply to a message with media to download.__"
+            )
+
+        # Handle direct HTTP/HTTPS URL download
+        if http_url:
+            await ctx.respond("Connecting to URL...")
+
+            async def _download_http(url: str) -> str:
+                dest_dir = await self.get_download_dir()
+
+                async with self.bot.http.stream("GET", url, follow_redirects=True) as resp:
+                    if resp.status_code >= 400:
+                        raise RuntimeError(f"HTTP error {resp.status_code}: {resp.reason_phrase}")
+
+                    raw_filename = ""
+                    content_disposition = resp.headers.get("content-disposition", "")
+                    if "filename=" in content_disposition:
+                        match = re.search(
+                            r'filename\*?=(?:UTF-8\'\')?["\']?([^"\';]+)["\']?',
+                            content_disposition,
+                        )
+                        if match:
+                            raw_filename = match.group(1).strip()
+
+                    if not raw_filename:
+                        parsed_path = urlparse(url).path
+                        raw_filename = AsyncPath(parsed_path).name.split("?")[0]
+
+                    if not raw_filename:
+                        content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+                        ext = mimetypes.guess_extension(content_type) or ".bin"
+                        raw_filename = f"download_{util.time.sec()}{ext}"
+
+                    dest_path = dest_dir / raw_filename
+                    base = dest_path.stem
+                    ext = dest_path.suffix
+                    counter = 1
+                    while await dest_path.exists():
+                        dest_path = dest_dir / f"{base}_{counter}{ext}"
+                        counter += 1
+
+                    total_size = int(resp.headers.get("content-length", 0))
+                    prog_cb = util.tg.create_progress_callback(
+                        ctx=ctx,
+                        start_time=start_time,
+                        mode="download",
+                        file_name=dest_path.name,
+                        style=self.progress_style,
+                    )
+
+                    current_size = 0
+                    try:
+                        async with await dest_path.open("wb") as f:
+                            async for chunk in resp.aiter_bytes(chunk_size=65536):
+                                await f.write(chunk)
+                                current_size += len(chunk)
+                                if total_size > 0:
+                                    await prog_cb(current_size, total_size)
+                    except Exception:
+                        if await dest_path.exists():
+                            await dest_path.unlink()
+                        raise
+
+                    return str(dest_path)
+
+            task = self.bot.loop.create_task(_download_http(http_url))
+            self.tasks.add((ctx.msg.id, task))
+            try:
+                dest_path = await task
+            except asyncio.CancelledError:
+                return "__Transmission aborted.__"
+            except Exception as e:
+                return f"__Download failed: {e}__"
+            finally:
+                self.tasks.discard((ctx.msg.id, task))
+
+            size_str = ""
+            final_p = AsyncPath(dest_path)
+            if await final_p.is_file():
+                stat = await final_p.stat()
+                size_str = f" ({util.misc.human_readable_bytes(stat.st_size)})"
+            return f"**Downloaded to:**\n\n× `{dest_path}`{size_str}"
+
+        # Fetch message if target_msg_id was provided
+        if target_msg_id is not None:
+            await ctx.respond("Fetching message from link...")
+            try:
+                target_msg = await self.bot.client.get_messages(
+                    target_chat, target_msg_id
+                )
+            except Exception as e:
+                return f"__Failed to fetch message: {e}__"
+
+            if not target_msg or getattr(target_msg, "empty", False):
+                return "__The specified message was not found or has been deleted.__"
+
+        if target_msg is None or not target_msg.media:
+            return "__The specified message doesn't contain any media.__"
 
         await ctx.respond("Preparing to download...")
 
         # Check if media is group or not
         try:
-            if getattr(reply_msg, "media_group_id", None):
+            if getattr(target_msg, "media_group_id", None):
                 media_group = await self.bot.client.get_media_group(
-                    ctx.chat.id, reply_msg.id
+                    target_chat or ctx.chat.id, target_msg.id
                 )
             else:
-                media_group = [reply_msg]
+                media_group = [target_msg]
         except Exception:
-            media_group = [reply_msg]
+            media_group = [target_msg]
 
         results = []
+        dest_dir = await self.get_download_dir()
         for msg in media_group:
             if not msg.media:
                 continue
@@ -148,28 +321,48 @@ class Network(module.Module):
             if not media:
                 continue
 
-            file_name = getattr(media, "file_name", None)
-            if not file_name:
-                if msg.photo:
-                    ext = ".jpg"
-                elif msg.video or msg.animation or msg.video_note:
-                    ext = ".mp4"
-                elif msg.audio:
-                    ext = ".mp3"
-                elif msg.voice:
-                    ext = ".ogg"
-                elif msg.sticker:
-                    if getattr(msg.sticker, "is_animated", False):
-                        ext = ".tgs"
-                    elif getattr(msg.sticker, "is_video", False):
-                        ext = ".webm"
-                    else:
-                        ext = ".webp"
+            if msg.sticker:
+                if getattr(msg.sticker, "is_animated", False):
+                    ext = ".tgs"
+                elif getattr(msg.sticker, "is_video", False):
+                    ext = ".webm"
                 else:
-                    ext = ""
+                    ext = ".webp"
 
-                date_str = (getattr(media, "date", None) or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
-                file_name = f"{msg.media.value}_{date_str}{ext}"
+                unique_id = getattr(msg.sticker, "file_unique_id", None) or f"{getattr(msg.chat, 'id', 'chat')}_{msg.id}"
+                set_name = getattr(msg.sticker, "set_name", None)
+                if set_name:
+                    base_name = f"sticker_{set_name}_{unique_id}"
+                else:
+                    base_name = f"sticker_{unique_id}"
+
+                file_name = f"{base_name}{ext}"
+            else:
+                file_name = getattr(media, "file_name", None)
+                if not file_name:
+                    if msg.photo:
+                        ext = ".jpg"
+                    elif msg.video or msg.animation or msg.video_note:
+                        ext = ".mp4"
+                    elif msg.audio:
+                        ext = ".mp3"
+                    elif msg.voice:
+                        ext = ".ogg"
+                    else:
+                        ext = ""
+
+                    date_str = (getattr(media, "date", None) or datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
+                    file_name = f"{msg.media.value}_{date_str}{ext}"
+
+            # Ensure unique filename to prevent overwriting existing files
+            dest_path = dest_dir / file_name
+            base = dest_path.stem
+            ext = dest_path.suffix
+            counter = 1
+            while await dest_path.exists():
+                file_name = f"{base}_{counter}{ext}"
+                dest_path = dest_dir / file_name
+                counter += 1
 
             prog_cb = util.tg.create_progress_callback(
                 ctx=ctx,
@@ -181,6 +374,7 @@ class Network(module.Module):
             task = self.bot.loop.create_task(
                 self.bot.client.download_media(
                     msg,
+                    file_name=str(dest_path),
                     progress=prog_cb,
                 )
             )
@@ -201,8 +395,10 @@ class Network(module.Module):
                 continue
 
             size_str = ""
-            if isinstance(result, str) and os.path.isfile(result):
-                size_str = f" ({util.misc.human_readable_bytes(os.path.getsize(result))})"
+            res_async = AsyncPath(str(result))
+            if await res_async.is_file():
+                stat = await res_async.stat()
+                size_str = f" ({util.misc.human_readable_bytes(stat.st_size)})"
 
             path += f"\n× `{result}`{size_str}"
 
@@ -210,6 +406,92 @@ class Network(module.Module):
             return "__Failed to download media.__"
 
         return f"**Downloaded to:**\n{path}"
+
+    @command.desc("Delete all downloaded files or a specific file from downloads folder")
+    @command.alias("cleardl", "dldel", "cldl", "rmdl")
+    @command.usage("[filename | all]", optional=True, reply=True)
+    async def cmd_cleardownloads(self, ctx: command.Context) -> str:
+        download_dirs = await self.get_download_dirs()
+        if not download_dirs:
+            return "__Downloads folder does not exist or is empty.__"
+
+        raw_input = ctx.input.strip() if ctx.input else ""
+
+        # If no explicit input but replied to a message with text, check if text has a download path
+        if not raw_input and ctx.msg.reply_to_message and ctx.msg.reply_to_message.text:
+            reply_text = ctx.msg.reply_to_message.text
+            match = re.search(r"[`']([^`'\n]+)[`']", reply_text)
+            if match:
+                potential_name = AsyncPath(match.group(1).strip()).name
+                for d in download_dirs:
+                    if await (d / potential_name).exists():
+                        raw_input = potential_name
+                        break
+
+        # Delete all files in downloads
+        if not raw_input or raw_input.lower() in ("all", "*", "-a", "--all"):
+            total_size = 0
+            deleted_count = 0
+
+            for d in download_dirs:
+                try:
+                    async for entry in d.iterdir():
+                        try:
+                            if await entry.is_file() or await entry.is_symlink():
+                                stat = await entry.stat()
+                                total_size += stat.st_size
+                                await entry.unlink()
+                                deleted_count += 1
+                            elif await entry.is_dir():
+                                total_size += await self._async_rmtree(entry)
+                                deleted_count += 1
+                        except Exception as e:
+                            self.log.error(f"Error removing {entry}: {e}")
+                except Exception as e:
+                    self.log.error(f"Error reading directory {d}: {e}")
+
+            if deleted_count == 0:
+                return "__Downloads folder is already empty.__"
+
+            size_str = util.misc.human_readable_bytes(total_size)
+            item_label = "file" if deleted_count == 1 else "files"
+            return f"__Cleared {deleted_count} {item_label} ({size_str} freed).__"
+
+        # Delete specific file or folder
+        clean_name = raw_input.strip("\"'")
+        if clean_name.startswith("caligo/downloads/"):
+            clean_name = clean_name[len("caligo/downloads/"):]
+        elif clean_name.startswith("downloads/"):
+            clean_name = clean_name[len("downloads/"):]
+
+        found_target: Optional[AsyncPath] = None
+        for d in download_dirs:
+            resolved_d = await d.resolve()
+            target = await (d / clean_name).resolve()
+            # Security check: must not escape directory resolved_d
+            str_d = str(resolved_d)
+            str_t = str(target)
+            if not str_t.startswith(str_d + os.sep) and str_t != str_d:
+                continue
+            if await target.exists():
+                found_target = target
+                break
+
+        if not found_target:
+            return f"__Item__ `{clean_name}` __not found in downloads.__"
+
+        try:
+            if await found_target.is_file() or await found_target.is_symlink():
+                stat = await found_target.stat()
+                await found_target.unlink()
+                size_str = util.misc.human_readable_bytes(stat.st_size)
+                return f"__Deleted__ `{found_target.name}` __({size_str} freed).__"
+            elif await found_target.is_dir():
+                freed = await self._async_rmtree(found_target)
+                size_str = util.misc.human_readable_bytes(freed)
+                return f"__Deleted folder__ `{found_target.name}` __({size_str} freed).__"
+        except Exception as e:
+            return f"__Failed to delete__ `{clean_name}`: {e}__"
 
     @command.desc("Upload file or folder into telegram server")
     @command.alias("ul")
@@ -241,9 +523,9 @@ class Network(module.Module):
         ):
             target_path = target_path[1:-1]
 
-        target_path = os.path.abspath(os.path.expanduser(target_path))
+        target_async = await AsyncPath(os.path.expanduser(target_path)).resolve()
 
-        if not os.path.exists(target_path):
+        if not await target_async.exists():
             return f"__Path `{target_path}` does not exist.__"
 
         start_time = util.time.sec()
@@ -253,7 +535,7 @@ class Network(module.Module):
                 ctx=ctx,
                 start_time=start_time,
                 mode="upload",
-                file_name=os.path.basename(file_path),
+                file_name=AsyncPath(file_path).name,
                 style=self.progress_style,
             )
             return await util.tg.send_media(
@@ -265,16 +547,16 @@ class Network(module.Module):
                 progress=prog_cb,
             )
 
-        if os.path.isfile(target_path):
+        if await target_async.is_file():
             await ctx.respond("Preparing to upload file...")
             if force_doc:
                 media_type = "document"
             elif force_sticker:
                 media_type = "sticker"
             else:
-                media_type = util.tg.get_media_type(target_path)
+                media_type = util.tg.get_media_type(str(target_async))
 
-            task = self.bot.loop.create_task(_send_file(target_path, media_type))
+            task = self.bot.loop.create_task(_send_file(str(target_async), media_type))
             self.tasks.add((ctx.msg.id, task))
             try:
                 await task
@@ -283,13 +565,13 @@ class Network(module.Module):
             finally:
                 self.tasks.discard((ctx.msg.id, task))
 
-        elif os.path.isdir(target_path):
-            entries = sorted(os.listdir(target_path))
+        elif await target_async.is_dir():
             all_files = [
-                os.path.join(target_path, f)
-                for f in entries
-                if os.path.isfile(os.path.join(target_path, f)) and not f.startswith(".")
+                str(f)
+                async for f in target_async.iterdir()
+                if await f.is_file() and not f.name.startswith(".")
             ]
+            all_files.sort()
 
             if not all_files:
                 return f"__Directory `{target_path}` contains no files to upload.__"

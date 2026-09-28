@@ -1,6 +1,7 @@
+import re
 import time
 from datetime import timedelta
-from typing import Union
+from typing import Optional, Tuple, Union
 
 
 def usec() -> int:
@@ -71,3 +72,35 @@ def format_duration_td(value: timedelta, precision: int = 0) -> str:
         return "".join(pieces)
 
     return "".join(pieces[:precision])
+
+
+def parse_duration(text: str) -> Optional[timedelta]:
+    """Parses duration string (e.g. '10s', '30m', '2h', '1d', '2w', '1d12h') into timedelta."""
+    tokens = re.findall(r"(\d+)\s*([smhdw])", text, re.IGNORECASE)
+    if not tokens:
+        return None
+
+    remainder = re.sub(r"(\d+)\s*([smhdw])", "", text, flags=re.IGNORECASE).strip()
+    if remainder:
+        return None
+
+    multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
+    total = sum(int(val) * multipliers[unit.lower()] for val, unit in tokens)
+    return timedelta(seconds=total)
+
+
+def extract_duration_and_reason(
+    rest: Optional[str],
+) -> Tuple[Optional[timedelta], Optional[str]]:
+    """Extracts a leading duration (if any) and remaining text as reason."""
+    if not rest:
+        return None, None
+
+    parts = rest.split(maxsplit=1)
+    dur = parse_duration(parts[0])
+    if dur is not None:
+        reason = parts[1].strip() if len(parts) > 1 else None
+        return dur, reason
+
+    return None, rest
+

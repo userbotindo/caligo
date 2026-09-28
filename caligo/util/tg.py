@@ -52,6 +52,88 @@ def mention_user(user: pyrogram.types.User) -> str:
     return f"[{name}](tg://user?id={user.id})"
 
 
+def get_target_id(target: Union[pyrogram.types.User, int, str]) -> Union[int, str]:
+    """Returns the integer or string user ID from a User object, int, or string."""
+    if isinstance(target, pyrogram.types.User):
+        return target.id
+    return target
+
+
+def format_target(target: Union[pyrogram.types.User, int, str]) -> str:
+    """Formats and mentions a target User, numeric ID, or username string."""
+    if isinstance(target, pyrogram.types.User):
+        return mention_user(target)
+    if isinstance(target, int):
+        return f"[{target}](tg://user?id={target})"
+    return str(target)
+
+
+async def resolve_user(
+    client: Any, target: Union[int, str, pyrogram.types.User]
+) -> Union[pyrogram.types.User, int, str]:
+    """Attempts to resolve a User object using the client, falling back to original target."""
+    if isinstance(target, pyrogram.types.User) or client is None:
+        return target
+
+    try:
+        return await client.get_users(target)
+    except Exception:
+        return target
+
+
+async def extract_target_and_rest(
+    source: Any,
+    *,
+    client: Optional[Any] = None,
+    input_text: Optional[str] = None,
+    args: Optional[Sequence[str]] = None,
+) -> Tuple[Optional[Union[pyrogram.types.User, int, str]], Optional[str]]:
+    """Extracts target user/entity (from reply, entity, or first argument) and the remaining text.
+
+    `source` can be a `command.Context` or a `pyrogram.types.Message`.
+    """
+    if hasattr(source, "msg"):  # Context object
+        msg = source.msg
+        client = client or getattr(getattr(source, "bot", None), "client", None)
+        if input_text is None:
+            input_text = getattr(source, "input", None)
+        if args is None:
+            args = getattr(source, "args", None)
+    else:
+        msg = source
+
+    # 1. From replied message
+    if msg.reply_to_message:
+        reply = msg.reply_to_message
+        if reply.from_user:
+            return reply.from_user, input_text.strip() if input_text else None
+        if reply.sender_chat:
+            return reply.sender_chat.id, input_text.strip() if input_text else None
+
+    # 2. From message entities (text_mention)
+    if msg.entities:
+        for entity in msg.entities:
+            if entity.user:
+                return entity.user, input_text.strip() if input_text else None
+
+    # 3. From arguments
+    if args:
+        user_arg = args[0]
+        rest = " ".join(args[1:]).strip() if len(args) > 1 else None
+        if user_arg.isdigit() or (user_arg.startswith("-") and user_arg[1:].isdigit()):
+            target_raw: Union[int, str] = int(user_arg)
+        else:
+            target_raw = user_arg
+
+        if client:
+            resolved = await resolve_user(client, target_raw)
+            return resolved, rest
+        return target_raw, rest
+
+    return None, None
+
+
+
 def filter_code_block(inp: str) -> str:
     """Returns the content inside the given Markdown code block or inline code."""
 

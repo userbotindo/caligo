@@ -75,6 +75,24 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(time.format_duration_td(timedelta(days=1, hours=2)), "1d2h")
         self.assertEqual(time.format_duration_td(timedelta(hours=3, minutes=10, seconds=5), precision=2), "3h10m")
 
+    def test_time_parse_duration(self):
+        self.assertEqual(time.parse_duration("10s"), timedelta(seconds=10))
+        self.assertEqual(time.parse_duration("15m"), timedelta(minutes=15))
+        self.assertEqual(time.parse_duration("2h"), timedelta(hours=2))
+        self.assertEqual(time.parse_duration("1d"), timedelta(days=1))
+        self.assertEqual(time.parse_duration("2w"), timedelta(weeks=2))
+        self.assertEqual(time.parse_duration("1d12h"), timedelta(days=1, hours=12))
+        self.assertIsNone(time.parse_duration("invalid"))
+
+        dur, reason = time.extract_duration_and_reason("1d spam")
+        self.assertEqual(dur, timedelta(days=1))
+        self.assertEqual(reason, "spam")
+
+    def test_tg_target_helpers(self):
+        self.assertEqual(tg.get_target_id(12345), 12345)
+        self.assertEqual(tg.format_target(12345), "[12345](tg://user?id=12345)")
+        self.assertEqual(tg.format_target("@username"), "@username")
+
     def test_tg_render_progress_bar(self):
         bar_bullet_0 = tg.render_progress_bar(0.0, length=10, style="bullet")
         self.assertEqual(bar_bullet_0, "○○○○○○○○○○")

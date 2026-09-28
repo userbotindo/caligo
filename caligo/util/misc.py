@@ -1,4 +1,4 @@
-from typing import Any, Callable, Sequence, Tuple, Union
+from typing import Any, Callable, Iterable, Sequence, Tuple, Union
 
 
 def find_prefixed_funcs(obj: Any,
@@ -31,3 +31,9 @@ def human_readable_bytes(value: Union[int, float],
         else:
             break
     return f"{value:.{digits}f}" + delim + chosen_unit + postfix
+
+
+def chunk_list(items: Sequence[Any], chunk_size: int = 10) -> Iterable[Sequence[Any]]:
+    """Splits a sequence into chunks of given size."""
+    for i in range(0, len(items), chunk_size):
+        yield items[i : i + chunk_size]

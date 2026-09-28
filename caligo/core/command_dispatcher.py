@@ -174,7 +174,14 @@ class CommandDispatcher(CaligoBase):
                     if isinstance(ret, str) and any(tag in ret for tag in HTML_TAGS):
                         kwargs["parse_mode"] = ParseMode.HTML
 
+                    del_after = getattr(self, "delete_after", None)
+                    if del_after:
+                        kwargs["delete_after"] = del_after
+
                     await ctx.respond(ret, **kwargs)
+                elif getattr(self, "delete_after", None) and ctx.response:
+                    if not ctx._delete_task or ctx._delete_task.done():
+                        await ctx._delete(delay=self.delete_after)
             except MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
@@ -191,7 +198,14 @@ class CommandDispatcher(CaligoBase):
                         if isinstance(ret, str) and any(tag in ret for tag in HTML_TAGS):
                             kwargs["parse_mode"] = ParseMode.HTML
 
+                        del_after = getattr(self, "delete_after", None)
+                        if del_after:
+                            kwargs["delete_after"] = del_after
+
                         await ctx.respond(ret, **kwargs)
+                    elif getattr(self, "delete_after", None) and ctx.response:
+                        if not ctx._delete_task or ctx._delete_task.done():
+                            await ctx._delete(delay=self.delete_after)
                 except Exception as retry_err:  # skipcq: PYL-W0703
                     cmd.module.log.error(
                         f"Error in command '{cmd.name}' after FloodWait retry",
@@ -199,11 +213,17 @@ class CommandDispatcher(CaligoBase):
                     )
             except Exception as e:  # skipcq: PYL-W0703
                 cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=e)
+                err_kwargs: dict[str, Any] = {}
+                del_after = getattr(self, "delete_after", None)
+                if del_after:
+                    err_kwargs["delete_after"] = del_after
+
                 await ctx.respond(
                     "**In**:\n"
                     f"{ctx.input if ctx.input is not None else message.text}\n\n"
                     "**Out**:\n⚠️ Error executing command:\n"
-                    f"```{util.error.format_exception(e)}```"
+                    f"```{util.error.format_exception(e)}```",
+                    **err_kwargs,
                 )
 
             await self.dispatch_event("command", cmd, message)

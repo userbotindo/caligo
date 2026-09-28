@@ -141,6 +141,7 @@ class Context:
 
         self.response = None  # type: ignore
         self.response_mode = None
+        self._delete_task: Optional[asyncio.Task[Any]] = None
 
         self.input = self.msg.text[self.cmd_len :]
 
@@ -164,6 +165,10 @@ class Context:
     async def _delete(
         self, delay: Optional[float] = None, message: Optional[Message] = None
     ) -> None:
+        if self._delete_task and not self._delete_task.done():
+            self._delete_task.cancel()
+            self._delete_task = None
+
         content = message or self.response
         if not content:
             return
@@ -171,12 +176,20 @@ class Context:
         if delay:
 
             async def delete(delay: float) -> None:
-                await asyncio.sleep(delay)
-                await content.delete(True)
+                try:
+                    await asyncio.sleep(delay)
+                    await content.delete(True)
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    self.bot.log.debug(f"Failed to auto-delete message: {e}")
 
-            self.bot.loop.create_task(delete(delay))
+            self._delete_task = self.bot.loop.create_task(delete(delay))
         else:
-            await content.delete(True)
+            try:
+                await content.delete(True)
+            except Exception as e:
+                self.bot.log.debug(f"Failed to delete message: {e}")
 
     async def respond(
         self,
@@ -189,6 +202,9 @@ class Context:
         delete_after: Optional[Union[int, float]] = None,
         **kwargs: Any,
     ) -> Message:
+        if self._delete_task and not self._delete_task.done():
+            self._delete_task.cancel()
+            self._delete_task = None
 
         self.response = await self.bot.respond(
             msg or self.msg,
@@ -205,7 +221,6 @@ class Context:
 
         if delete_after:
             await self._delete(delete_after)
-            self.response = None  # type: ignore
 
         return self.response  # type: ignore
 

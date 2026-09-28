@@ -110,30 +110,60 @@ class System(module.Module):
     async def cmd_speedtest(self, ctx: command.Context) -> str:
         before = util.time.usec()
 
+        await ctx.respond("Selecting speedtest server...")
         st = await util.run_sync(speedtest.Speedtest)
-        status = "Selecting server..."
-
-        await ctx.respond(status)
         server = await util.run_sync(st.get_best_server)
-        status += f" {server['sponsor']} ({server['name']})\n"
-        status += f"Ping: {server['latency']:.2f} ms\n"
+        sponsor = server.get("sponsor", "Unknown")
 
-        status += "Performing download test..."
-        await ctx.respond(status)
+        await ctx.respond(f"Testing download speed ({sponsor})...")
         dl_bits = await util.run_sync(st.download)
-        dl_mbit = dl_bits / 1000 / 1000
-        status += f" {dl_mbit:.2f} Mbps\n"
+        dl_mbit = dl_bits / 1_000_000
+        dl_mbyte = dl_bits / 8 / 1_000_000
 
-        status += "Performing upload test..."
-        await ctx.respond(status)
+        await ctx.respond(f"Testing upload speed ({dl_mbit:.1f} Mbps down)...")
         ul_bits = await util.run_sync(st.upload)
-        ul_mbit = ul_bits / 1000 / 1000
-        status += f" {ul_mbit:.2f} Mbps\n"
+        ul_mbit = ul_bits / 1_000_000
+        ul_mbyte = ul_bits / 8 / 1_000_000
 
+        # Attempt to generate Ookla share link (if supported)
+        try:
+            share_url = await util.run_sync(st.results.share)
+        except Exception:
+            share_url = None
+
+        server_name = server.get("name", "")
+        server_country = server.get("country", "")
+        dist = server.get("d")
+        dist_str = f" ({dist:.1f} km)" if dist else ""
+
+        server_parts = [sponsor]
+        loc = ", ".join(p for p in (server_name, server_country) if p)
+        if loc:
+            server_parts.append(loc)
+        server_str = " — ".join(server_parts) + dist_str
+
+        client_info = getattr(st.results, "client", {}) or {}
+        isp = client_info.get("isp", "Unknown")
+        client_country = client_info.get("country", "")
+        isp_str = f"{isp} ({client_country})" if client_country else isp
+
+        ping = float(server.get("latency", 0))
         delta = util.time.usec() - before
-        status += f"\nTime elapsed: {util.time.format_duration_us(delta)}"
+        duration = util.time.format_duration_us(delta)
 
-        return status
+        data = {
+            "Download": f"<code>{dl_mbit:.2f} Mbps</code> <i>({dl_mbyte:.2f} MB/s)</i>",
+            "Upload": f"<code>{ul_mbit:.2f} Mbps</code> <i>({ul_mbyte:.2f} MB/s)</i>",
+            "Ping": f"<code>{ping:.2f} ms</code>",
+            "Server": server_str,
+            "ISP": isp_str,
+            "Elapsed": f"<code>{duration}</code>",
+        }
+        if share_url:
+            data["Result"] = f'<a href="{share_url}">Speedtest.net</a>'
+
+        body = util.text.join_map(data, heading="Speedtest", parse_mode="html")
+        return f"<blockquote>\n{body}\n</blockquote>"
 
     @command.desc("Get information about the host system")
     @command.alias("si")

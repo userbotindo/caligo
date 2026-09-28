@@ -86,10 +86,15 @@ class TelegramBot(CaligoBase):
         self.client.storage = PersistentStorage(self.db)  # type: ignore
 
         self.prefix = self.config["bot"]["prefix"]
-        # Override default prefix if found any saved in database
-        data = await self.db["MAIN"].find_one({"_id": 0}, {"prefix": 1})
-        if data and data.get("prefix"):
-            self.prefix = data["prefix"]
+        # Override default prefix and delete_after if found any saved in database
+        data = await self.db["MAIN"].find_one(
+            {"_id": 0}, {"prefix": 1, "delete_after": 1}
+        )
+        if data:
+            if data.get("prefix"):
+                self.prefix = data["prefix"]
+            if "delete_after" in data:
+                self.delete_after = data["delete_after"]
 
         # Initialize bot client helper if has token
         bot_token = self.config["telegram"]["helper"].get("token")

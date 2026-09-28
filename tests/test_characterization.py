@@ -13,6 +13,9 @@ from caligo.core.command_dispatcher import CommandDispatcher
 from caligo.core.telegram_bot import TelegramBot
 from caligo.core.database.storage import PersistentStorage
 from caligo.modules.network import Network
+from caligo.modules.transfer import Transfer
+from caligo.modules.auto_delete import AutoDelete
+from caligo.modules.system import System
 from caligo.modules.stats import Stats, _calc_pct, _calc_pd, _calc_ph
 from caligo.modules.text import Text
 
@@ -275,8 +278,8 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         bot = MagicMock()
         bot.db = None
         bot.loop = asyncio.get_running_loop()
-        net_mod = Network(bot)
-        await net_mod.on_load()
+        trans_mod = Transfer(bot)
+        await trans_mod.on_load()
 
         mock_msg = MagicMock()
         mock_msg.id = 208009
@@ -298,7 +301,7 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         ctx.msg.reply_to_message = None
         ctx.respond = AsyncMock()
 
-        result = await net_mod.cmd_download(ctx)
+        result = await trans_mod.cmd_download(ctx)
         bot.client.get_messages.assert_called_once_with("deltaDiscuss", 208009)
         bot.client.download_media.assert_called_once()
         self.assertIn("Downloaded to:", result)
@@ -308,8 +311,8 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         bot = MagicMock()
         bot.db = None
         bot.loop = asyncio.get_running_loop()
-        net_mod = Network(bot)
-        await net_mod.on_load()
+        trans_mod = Transfer(bot)
+        await trans_mod.on_load()
 
         mock_media = MagicMock()
         mock_media.value = "photo"
@@ -328,7 +331,7 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         ctx.msg.reply_to_message = reply_msg
         ctx.respond = AsyncMock()
 
-        result = await net_mod.cmd_download(ctx)
+        result = await trans_mod.cmd_download(ctx)
         bot.client.download_media.assert_called_once()
         self.assertIn("Downloaded to:", result)
         self.assertIn("/downloads/photo.jpg", result)
@@ -337,8 +340,8 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         bot = MagicMock()
         bot.db = None
         bot.loop = asyncio.get_running_loop()
-        net_mod = Network(bot)
-        await net_mod.on_load()
+        trans_mod = Transfer(bot)
+        await trans_mod.on_load()
 
         ctx = MagicMock()
         ctx.input = ""
@@ -346,15 +349,15 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         ctx.msg.reply_to_message = None
         ctx.respond = AsyncMock()
 
-        result = await net_mod.cmd_download(ctx)
+        result = await trans_mod.cmd_download(ctx)
         self.assertIn("Pass a Telegram message link/ID", result)
 
     async def test_network_cmd_download_unique_sticker(self):
         bot = MagicMock()
         bot.db = None
         bot.loop = asyncio.get_running_loop()
-        net_mod = Network(bot)
-        await net_mod.on_load()
+        trans_mod = Transfer(bot)
+        await trans_mod.on_load()
 
         mock_sticker = MagicMock()
         mock_sticker.file_unique_id = "AQAD999XYZ"
@@ -374,7 +377,7 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             return file_name
 
         bot.client.download_media = AsyncMock(side_effect=fake_download)
-        net_mod.get_download_dir = AsyncMock(return_value=AsyncPath("downloads"))
+        trans_mod.get_download_dir = AsyncMock(return_value=AsyncPath("downloads"))
 
         ctx = MagicMock()
         ctx.input = ""
@@ -382,7 +385,7 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         ctx.msg.reply_to_message = reply_msg
         ctx.respond = AsyncMock()
 
-        result = await net_mod.cmd_download(ctx)
+        result = await trans_mod.cmd_download(ctx)
         call_kwargs = bot.client.download_media.call_args.kwargs
         self.assertIn("downloads/sticker_CuteCats_AQAD999XYZ.webp", call_kwargs["file_name"])
         self.assertIn("sticker_CuteCats_AQAD999XYZ.webp", result)
@@ -391,12 +394,12 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         bot = MagicMock()
         bot.db = None
         bot.loop = asyncio.get_running_loop()
-        net_mod = Network(bot)
-        await net_mod.on_load()
+        trans_mod = Transfer(bot)
+        await trans_mod.on_load()
         with tempfile.TemporaryDirectory() as temp_dir:
             dl_dir = AsyncPath(temp_dir) / "downloads"
             await dl_dir.mkdir(parents=True, exist_ok=True)
-            net_mod.get_download_dirs = AsyncMock(return_value=[dl_dir])
+            trans_mod.get_download_dirs = AsyncMock(return_value=[dl_dir])
 
             # Create test files
             f1 = dl_dir / "test1.txt"
@@ -408,7 +411,7 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             ctx_single = MagicMock()
             ctx_single.input = "test1.txt"
             ctx_single.msg.reply_to_message = None
-            res_single = await net_mod.cmd_cleardownloads(ctx_single)
+            res_single = await trans_mod.cmd_cleardownloads(ctx_single)
             self.assertIn("Deleted", res_single)
             self.assertIn("`test1.txt`", res_single)
             self.assertFalse(await f1.exists())
@@ -418,32 +421,32 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             ctx_notfound = MagicMock()
             ctx_notfound.input = "non_existent.txt"
             ctx_notfound.msg.reply_to_message = None
-            res_notfound = await net_mod.cmd_cleardownloads(ctx_notfound)
+            res_notfound = await trans_mod.cmd_cleardownloads(ctx_notfound)
             self.assertIn("not found in downloads", res_notfound)
 
             # Test clearing all remaining files
             ctx_all = MagicMock()
             ctx_all.input = ""
             ctx_all.msg.reply_to_message = None
-            res_all = await net_mod.cmd_cleardownloads(ctx_all)
+            res_all = await trans_mod.cmd_cleardownloads(ctx_all)
             self.assertIn("Cleared 1 file", res_all)
             self.assertFalse(await f2.exists())
 
             # Test clearing when already empty
-            res_empty = await net_mod.cmd_cleardownloads(ctx_all)
+            res_empty = await trans_mod.cmd_cleardownloads(ctx_all)
             self.assertIn("Downloads folder is already empty", res_empty)
 
     async def test_network_cmd_download_http_url(self):
         bot = MagicMock()
         bot.db = None
         bot.loop = asyncio.get_running_loop()
-        net_mod = Network(bot)
-        await net_mod.on_load()
+        trans_mod = Transfer(bot)
+        await trans_mod.on_load()
 
         with tempfile.TemporaryDirectory() as temp_dir:
             dl_dir = AsyncPath(temp_dir) / "downloads"
             await dl_dir.mkdir(parents=True, exist_ok=True)
-            net_mod.get_download_dir = AsyncMock(return_value=dl_dir)
+            trans_mod.get_download_dir = AsyncMock(return_value=dl_dir)
 
             mock_resp = MagicMock()
             mock_resp.status_code = 200
@@ -474,10 +477,110 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             ctx.respond = AsyncMock()
             ctx.last_update_time = None
 
-            result = await net_mod.cmd_download(ctx)
+            result = await trans_mod.cmd_download(ctx)
             self.assertIn("Downloaded to:", result)
             self.assertIn("sample.bin", result)
             self.assertTrue(await (dl_dir / "sample.bin").exists())
+
+    async def test_autodel_module(self):
+        bot = MagicMock()
+        bot.delete_after = 15.0
+        bot.db = MagicMock()
+        bot.db.__getitem__.return_value.update_one = AsyncMock()
+
+        mod = AutoDelete(bot)
+        await mod.on_load()
+
+        # Query status
+        ctx = MagicMock()
+        ctx.input = ""
+        res = await mod.cmd_autodel(ctx)
+        self.assertIn("Auto-delete is set to", res)
+        self.assertIn("15", res)
+
+        # Set new duration
+        ctx.input = "30"
+        res = await mod.cmd_autodel(ctx)
+        self.assertEqual(bot.delete_after, 30.0)
+        self.assertIn("Auto-delete duration set to", res)
+        self.assertIn("30", res)
+
+        # Disable
+        ctx.input = "off"
+        res = await mod.cmd_autodel(ctx)
+        self.assertIsNone(bot.delete_after)
+        self.assertIn("Auto-delete has been disabled", res)
+
+        # Query when disabled
+        ctx.input = ""
+        res = await mod.cmd_autodel(ctx)
+        self.assertIn("Auto-delete is currently disabled", res)
+
+        # Invalid input
+        ctx.input = "invalid_string"
+        res = await mod.cmd_autodel(ctx)
+        self.assertIn("Invalid duration", res)
+
+    async def test_dispatcher_global_delete_after(self):
+        dispatcher = CommandDispatcher()
+        dispatcher.delete_after = 15.0
+        dispatcher.prefix = "."
+        dispatcher.log = MagicMock()
+        dispatcher.dispatch_event = AsyncMock()
+
+        dummy_mod = MagicMock()
+        dummy_mod.log = MagicMock()
+
+        async def dummy_func(ctx):
+            return "Command executed successfully!"
+
+        dispatcher.register_command(dummy_mod, "testcmd", dummy_func)
+
+        msg = MagicMock()
+        msg.command = ["testcmd"]
+        msg.text = ".testcmd"
+        msg.continue_propagation = MagicMock()
+
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg)
+            mock_respond.assert_called_once()
+            call_kwargs = mock_respond.call_args.kwargs
+            self.assertEqual(call_kwargs.get("delete_after"), 15.0)
+
+    async def test_system_cmd_speedtest_modernized(self):
+        bot = MagicMock()
+        bot.db = None
+        bot.loop = asyncio.get_running_loop()
+        sys_mod = System(bot)
+
+        fake_st = MagicMock()
+        fake_st.get_best_server.return_value = {
+            "sponsor": "PT Merdeka",
+            "name": "Boyolali",
+            "country": "Indonesia",
+            "latency": 16.5,
+            "d": 336.0,
+        }
+        fake_st.download.return_value = 100_000_000
+        fake_st.upload.return_value = 50_000_000
+        fake_st.results.client = {"isp": "MyRepublic", "country": "ID"}
+        fake_st.results.share.return_value = "https://www.speedtest.net/result/12345.png"
+
+        ctx = MagicMock()
+        ctx.respond = AsyncMock()
+
+        with patch("speedtest.Speedtest", return_value=fake_st):
+            result = await sys_mod.cmd_speedtest(ctx)
+
+        self.assertIn("<blockquote>", result)
+        self.assertIn("<b>Speedtest:</b>", result)
+        self.assertIn("100.00 Mbps", result)
+        self.assertIn("50.00 Mbps", result)
+        self.assertIn("16.50 ms", result)
+        self.assertIn("PT Merdeka", result)
+        self.assertIn("Boyolali, Indonesia", result)
+        self.assertIn("MyRepublic (ID)", result)
+        self.assertIn("https://www.speedtest.net/result/12345.png", result)
 
 
 if __name__ == "__main__":

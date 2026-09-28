@@ -39,3 +39,6 @@ def setup_log(colorlog_enable: bool = False) -> None:
     logging.getLogger("pyrogram").setLevel(logging.ERROR)
     logging.getLogger("kurigram").setLevel(logging.ERROR)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+

@@ -600,6 +600,42 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         self.assertIn("MyRepublic (ID)", result)
         self.assertIn("https://www.speedtest.net/result/12345.png", result)
 
+    async def test_text_cmd_translate(self):
+        bot = MagicMock()
+        text_mod = Text(bot)
+
+        # Mock http response
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [["Halo dunia", "en"]]
+        bot.http.get = AsyncMock(return_value=mock_resp)
+
+        # 1. Translate with direct input
+        ctx = MagicMock()
+        ctx.msg.reply_to_message = None
+        ctx.input = "id Hello world"
+        res = await text_mod.cmd_translate(ctx)
+        self.assertIn("<b>English</b> (<code>en</code>) ➔ <b>Indonesian</b> (<code>id</code>)", res)
+        self.assertIn("Halo dunia", res)
+        self.assertIn("<blockquote expandable>", res)
+
+        # 2. Translate with reply
+        ctx = MagicMock()
+        ctx.msg.reply_to_message = MagicMock()
+        ctx.msg.reply_to_message.text = "Hello world"
+        ctx.msg.reply_to_message.caption = None
+        ctx.input = "id"
+        res = await text_mod.cmd_translate(ctx)
+        self.assertIn("Halo dunia", res)
+
+        # 3. Empty input and no reply
+        ctx = MagicMock()
+        ctx.msg.reply_to_message = None
+        ctx.input = ""
+        res = await text_mod.cmd_translate(ctx)
+        self.assertIn("Give me text to translate or reply to a message", res)
+
 
 if __name__ == "__main__":
     unittest.main()
+

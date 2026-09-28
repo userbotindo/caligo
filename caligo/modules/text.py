@@ -1,8 +1,11 @@
 import base64
 import binascii
+import html
 import random
 import unicodedata
-from typing import ClassVar
+from typing import ClassVar, Optional, Tuple
+
+import httpx
 
 from caligo import command, module
 
@@ -105,3 +108,159 @@ class Text(module.Module):
             return base64.b64decode(text).decode("utf-8", "replace")
         except binascii.Error as e:
             return f"⚠️ Invalid Base64 data: {e}"
+
+    async def _translate(
+        self, text: str, source_lang: str, target_lang: str
+    ) -> Tuple[Optional[str], Optional[str]]:
+        url = "https://clients5.google.com/translate_a/t"
+        params = {
+            "client": "dict-chrome-ex",
+            "sl": source_lang,
+            "tl": target_lang,
+            "q": text,
+        }
+        http = getattr(self.bot, "http", None)
+
+        # 1. Primary: Google clients5 API
+        try:
+            if http is not None:
+                resp = await http.get(url, params=params, timeout=15)
+            else:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+                    resp = await client.get(url, params=params)
+
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list) and len(data) > 0:
+                    item = data[0]
+                    if isinstance(item, list) and len(item) >= 2:
+                        return item[0], item[1]
+                    if isinstance(item, str):
+                        return item, source_lang
+        except Exception as e:
+            self.log.warning(f"Google translate request failed: {e}")
+
+        # 2. Fallback: MyMemory API
+        try:
+            langpair = f"{source_lang if source_lang != 'auto' else 'en'}|{target_lang}"
+            mm_url = "https://api.mymemory.translated.net/get"
+            mm_params = {"q": text, "langpair": langpair}
+            if http is not None:
+                resp = await http.get(mm_url, params=mm_params, timeout=15)
+            else:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+                    resp = await client.get(mm_url, params=mm_params)
+
+            if resp.status_code == 200:
+                data = resp.json()
+                translated = data.get("responseData", {}).get("translatedText")
+                if translated and not translated.startswith("'AUTO' IS AN INVALID"):
+                    return translated, source_lang
+        except Exception as e:
+            self.log.warning(f"MyMemory translate fallback failed: {e}")
+
+        return None, None
+
+    @command.desc("Translate text to another language")
+    @command.alias("tr")
+    @command.usage("[lang? (e.g. 'id', 'ja', 'en-id')] [text?]", reply=True)
+    async def cmd_translate(self, ctx: command.Context) -> str:
+        reply = ctx.msg.reply_to_message
+        reply_text = (reply.text or reply.caption) if reply else None
+        raw_input = ctx.input.strip() if ctx.input else ""
+
+        if not raw_input and not reply_text:
+            return "__Give me text to translate or reply to a message.__"
+
+        source_lang = "auto"
+        target_lang = "en"
+        text = ""
+
+        if reply_text:
+            if raw_input:
+                token = raw_input.split()[0].lower()
+                if "-" in token:
+                    source_lang, target_lang = token.split("-", 1)
+                elif "/" in token:
+                    source_lang, target_lang = token.split("/", 1)
+                else:
+                    target_lang = token
+            text = reply_text
+        else:
+            parts = raw_input.split(maxsplit=1)
+            token = parts[0].lower()
+            if "-" in token and len(parts) > 1:
+                source_lang, target_lang = token.split("-", 1)
+                text = parts[1]
+            elif "/" in token and len(parts) > 1:
+                source_lang, target_lang = token.split("/", 1)
+                text = parts[1]
+            elif token in LANGUAGES and len(parts) > 1:
+                target_lang = token
+                text = parts[1]
+            else:
+                text = raw_input
+
+        if not text:
+            return "__No text found to translate.__"
+
+        translated_text, detected_lang = await self._translate(
+            text, source_lang, target_lang
+        )
+
+        if not translated_text:
+            return "⚠️ __Translation failed: Could not retrieve translation.__"
+
+        # If detected language matches default target language (en), translate to Indonesian (id)
+        if (
+            source_lang == "auto"
+            and detected_lang == target_lang
+            and target_lang == "en"
+            and (not raw_input or raw_input == text)
+        ):
+            alt_translated, alt_detected = await self._translate(text, "en", "id")
+            if alt_translated:
+                translated_text = alt_translated
+                target_lang = "id"
+                detected_lang = alt_detected or "en"
+
+        src_name = LANGUAGES.get(
+            (detected_lang or "auto").lower(), (detected_lang or "auto").upper()
+        )
+        dst_name = LANGUAGES.get(target_lang.lower(), target_lang.upper())
+        src_code = detected_lang or "auto"
+
+        escaped_result = html.escape(translated_text)
+        return (
+            f"<b>{src_name}</b> (<code>{src_code}</code>) ➔ "
+            f"<b>{dst_name}</b> (<code>{target_lang}</code>)\n"
+            f"<blockquote expandable>{escaped_result}</blockquote>"
+        )
+
+
+LANGUAGES = {
+    "af": "Afrikaans", "sq": "Albanian", "am": "Amharic", "ar": "Arabic", "hy": "Armenian",
+    "az": "Azerbaijani", "eu": "Basque", "be": "Belarusian", "bn": "Bengali", "bs": "Bosnian",
+    "bg": "Bulgarian", "ca": "Catalan", "ceb": "Cebuano", "ny": "Chichewa", "zh": "Chinese",
+    "zh-cn": "Chinese (Simplified)", "zh-tw": "Chinese (Traditional)", "co": "Corsican",
+    "hr": "Croatian", "cs": "Czech", "da": "Danish", "nl": "Dutch", "en": "English",
+    "eo": "Esperanto", "et": "Estonian", "tl": "Filipino", "fi": "Finnish", "fr": "French",
+    "fy": "Frisian", "gl": "Galician", "ka": "Georgian", "de": "German", "el": "Greek",
+    "gu": "Gujarati", "ht": "Haitian Creole", "ha": "Hausa", "haw": "Hawaiian", "he": "Hebrew",
+    "iw": "Hebrew", "hi": "Hindi", "hmn": "Hmong", "hu": "Hungarian", "is": "Icelandic",
+    "ig": "Igbo", "id": "Indonesian", "ga": "Irish", "it": "Italian", "ja": "Japanese",
+    "jw": "Javanese", "kn": "Kannada", "kk": "Kazakh", "km": "Khmer", "ko": "Korean",
+    "ku": "Kurdish", "ky": "Kyrgyz", "lo": "Lao", "la": "Latin", "lv": "Latvian",
+    "lt": "Lithuanian", "lb": "Luxembourgish", "mk": "Macedonian", "mg": "Malagasy",
+    "ms": "Malay", "ml": "Malayalam", "mt": "Maltese", "mi": "Maori", "mr": "Marathi",
+    "mn": "Mongolian", "my": "Myanmar (Burmese)", "ne": "Nepali", "no": "Norwegian",
+    "ps": "Pashto", "fa": "Persian", "pl": "Polish", "pt": "Portuguese", "pa": "Punjabi",
+    "ro": "Romanian", "ru": "Russian", "sm": "Samoan", "gd": "Scots Gaelic", "sr": "Serbian",
+    "st": "Sesotho", "sn": "Shona", "sd": "Sindhi", "si": "Sinhala", "sk": "Slovak",
+    "sl": "Slovenian", "so": "Somali", "es": "Spanish", "su": "Sundanese", "sw": "Swahili",
+    "sv": "Swedish", "tg": "Tajik", "ta": "Tamil", "te": "Telugu", "th": "Thai",
+    "tr": "Turkish", "uk": "Ukrainian", "ur": "Urdu", "ug": "Uyghur", "uz": "Uzbek",
+    "vi": "Vietnamese", "cy": "Welsh", "xh": "Xhosa", "yi": "Yiddish", "yo": "Yoruba",
+    "zu": "Zulu",
+}
+

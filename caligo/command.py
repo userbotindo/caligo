@@ -144,6 +144,10 @@ class Context:
 
         self.input = self.msg.text[self.cmd_len :]
 
+    @property
+    def prefix(self) -> str:
+        return self.bot.prefix
+
     def __getattr__(self, name: str) -> Any:
         if name == "args":
             return self._get_args()

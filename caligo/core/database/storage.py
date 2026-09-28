@@ -2,6 +2,7 @@
 
 import asyncio
 import inspect
+import sys
 import time
 from typing import Any, Iterable, List, Optional, Tuple, Union
 
@@ -190,47 +191,49 @@ class PersistentStorage(Storage):
 
         return get_input_peer(res["_id"], res["access_hash"], res["type"])
 
-    async def _get(self) -> Optional[Any]:
-        attr = inspect.stack()[2].function
+    async def _get(self, attr: Optional[str] = None) -> Optional[Any]:
+        if attr is None:
+            attr = sys._getframe(1).f_code.co_name
         data = await self._session.find_one({"_id": 0}, {attr: 1})
         if not data:
             return
 
-        return data[attr]
+        return data.get(attr)
 
-    async def _set(self, value: Any) -> None:
-        attr = inspect.stack()[2].function
+    async def _set(self, value: Any, attr: Optional[str] = None) -> None:
+        if attr is None:
+            attr = sys._getframe(1).f_code.co_name
         await self._session.update_one({"_id": 0}, {"$set": {attr: value}}, upsert=True)
 
-    async def _accessor(self, value: Any = object) -> Any:
-        return await self._get() if value == object else await self._set(value)
+    async def _accessor(self, attr: str, value: Any = object) -> Any:
+        return await self._get(attr) if value == object else await self._set(value, attr)
 
     async def dc_id(self, value=object) -> Optional[int]:
-        return await self._accessor(value)
+        return await self._accessor("dc_id", value)
 
     async def api_id(self, value=object) -> Optional[int]:
-        return await self._accessor(value)
+        return await self._accessor("api_id", value)
 
     async def test_mode(self, value=object) -> Optional[bool]:
-        return await self._accessor(value)
+        return await self._accessor("test_mode", value)
 
     async def auth_key(self, value=object) -> Optional[bytes]:
-        return await self._accessor(value)
+        return await self._accessor("auth_key", value)
 
     async def date(self, value=object) -> Optional[int]:
-        return await self._accessor(value)
+        return await self._accessor("date", value)
 
     async def user_id(self, value=object) -> Optional[int]:
-        return await self._accessor(value)
+        return await self._accessor("user_id", value)
 
     async def is_bot(self, value=object) -> Optional[bool]:
-        return await self._accessor(value)
+        return await self._accessor("is_bot", value)
 
     async def server_address(self, value=object) -> Optional[str]:
-        return await self._accessor(value)
+        return await self._accessor("server_address", value)
 
     async def port(self, value=object) -> Optional[int]:
-        return await self._accessor(value)
+        return await self._accessor("port", value)
 
     async def get_update_states(
         self, ids: Union[int, Iterable[int], None] = None

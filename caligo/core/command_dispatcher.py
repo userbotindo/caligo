@@ -15,6 +15,18 @@ if TYPE_CHECKING:
     from .bot import Caligo
 
 
+HTML_TAGS = (
+    "<blockquote",
+    "<b>",
+    "<code>",
+    "<pre",
+    "<i>",
+    "<spoiler",
+    "<u>",
+    "<s>",
+)
+
+
 class CommandDispatcher(CaligoBase):
     commands: MutableMapping[str, command.Command]
 
@@ -110,15 +122,24 @@ class CommandDispatcher(CaligoBase):
             if message.via_bot:
                 return False
 
-            if message.text is not None and message.text.startswith(self.prefix):
-                parts = message.text.split()
-                parts[0] = parts[0][len(self.prefix) :]  # Remove prefix
+            text = message.text
+            if text is not None and text.startswith(self.prefix):
+                after_prefix = text[len(self.prefix):]
+                if not after_prefix:
+                    return False
+
+                first_words = after_prefix.split(maxsplit=1)
+                if not first_words:
+                    return False
 
                 # Filter if command is not in commands
                 try:
-                    cmd = self.commands[parts[0]]
+                    cmd = self.commands[first_words[0]]
                 except KeyError:
                     return False
+
+                parts = text.split()
+                parts[0] = first_words[0]
 
                 # Check additional built-in filters
                 if cmd.filters:
@@ -150,19 +171,7 @@ class CommandDispatcher(CaligoBase):
                 ret = await cmd.func(ctx)
                 if ret is not None:
                     kwargs: dict[str, Any] = {}
-                    if isinstance(ret, str) and any(
-                        tag in ret
-                        for tag in (
-                            "<blockquote",
-                            "<b>",
-                            "<code>",
-                            "<pre",
-                            "<i>",
-                            "<spoiler",
-                            "<u>",
-                            "<s>",
-                        )
-                    ):
+                    if isinstance(ret, str) and any(tag in ret for tag in HTML_TAGS):
                         kwargs["parse_mode"] = ParseMode.HTML
 
                     await ctx.respond(ret, **kwargs)
@@ -179,19 +188,7 @@ class CommandDispatcher(CaligoBase):
                     ret = await cmd.func(ctx)
                     if ret is not None:
                         kwargs = {}
-                        if isinstance(ret, str) and any(
-                            tag in ret
-                            for tag in (
-                                "<blockquote",
-                                "<b>",
-                                "<code>",
-                                "<pre",
-                                "<i>",
-                                "<spoiler",
-                                "<u>",
-                                "<s>",
-                            )
-                        ):
+                        if isinstance(ret, str) and any(tag in ret for tag in HTML_TAGS):
                             kwargs["parse_mode"] = ParseMode.HTML
 
                         await ctx.respond(ret, **kwargs)

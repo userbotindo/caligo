@@ -310,22 +310,34 @@ class TelegramBot(CaligoBase):
     def helper_initialized(self: "Caligo") -> bool:
         return hasattr(self, "client_helper") and isinstance(self.client_helper, Client)
 
+    def _get_redact_secrets(self: "Caligo") -> Tuple[str, ...]:
+        if not hasattr(self, "_redact_secrets"):
+            secrets: List[str] = []
+            try:
+                tg_cfg = self.config.get("telegram", {})
+                api_id = tg_cfg.get("api_id")
+                if api_id is not None:
+                    secrets.append(str(api_id))
+                api_hash = tg_cfg.get("api_hash")
+                if api_hash:
+                    secrets.append(str(api_hash))
+                bot_cfg = self.config.get("bot", {})
+                db_uri = bot_cfg.get("db_uri")
+                if db_uri:
+                    secrets.append(str(db_uri))
+                helper_token = tg_cfg.get("helper", {}).get("token")
+                if helper_token:
+                    secrets.append(str(helper_token))
+            except Exception:
+                pass
+            self._redact_secrets = tuple(secrets)
+        return self._redact_secrets
+
     def redact_message(self: "Caligo", text: str) -> str:
         redacted = "[REDACTED]"
-
-        api_id = str(self.config["telegram"]["api_id"])
-        api_hash = self.config["telegram"]["api_hash"]
-        db_uri = self.config["bot"]["db_uri"]
-        bot_token = self.config["telegram"]["helper"].get("token")
-
-        if api_id in text:
-            text = text.replace(api_id, redacted)
-        if api_hash in text:
-            text = text.replace(api_hash, redacted)
-        if db_uri in text:
-            text = text.replace(db_uri, redacted)
-        if bot_token is not None and bot_token in text:
-            text = text.replace(bot_token, redacted)
+        for secret in self._get_redact_secrets():
+            if secret in text:
+                text = text.replace(secret, redacted)
 
         return text
 

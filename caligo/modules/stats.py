@@ -19,12 +19,18 @@ def _calc_pct(num1: int, num2: int) -> str:
 
 def _calc_ph(stat: int, uptime: int) -> str:
     up_hr = max(1, uptime) / USEC_PER_HOUR
-    return "{:.1f}".format(stat / up_hr).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
+    val = stat / up_hr
+    if val >= 1000:
+        return f"{val:,.1f}".rstrip("0").rstrip(".")
+    return "{:.1f}".format(val).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
 
 
 def _calc_pd(stat: int, uptime: int) -> str:
     up_day = max(1, uptime) / USEC_PER_DAY
-    return "{:.1f}".format(stat / up_day).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
+    val = stat / up_day
+    if val >= 1000:
+        return f"{val:,.1f}".rstrip("0").rstrip(".")
+    return "{:.1f}".format(val).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
 
 
 class Stats(module.Module):
@@ -67,8 +73,9 @@ class Stats(module.Module):
 
     async def on_start(self, time_us: int) -> None:
         # Initialize start_time_usec for new instances
-        if not await self.db.find_one({"_id": 0}):
-            await self.inc("start_time_usec", time_us)
+        doc = await self.db.find_one({"_id": 0})
+        if not doc or "start_time_usec" not in doc:
+            await self.put("start_time_usec", time_us)
 
     async def on_message(self, msg: Message) -> None:
         stat = "sent" if msg.outgoing else "received"
@@ -101,27 +108,43 @@ class Stats(module.Module):
             await self.on_start(util.time.usec())
             return "__All stats have been reset.__"
 
-        start_time: Optional[int] = await self.get("start_time_usec")
+        doc = await self.db.find_one({"_id": 0}) or {}
+        start_time: Optional[int] = doc.get("start_time_usec")
         if start_time is None:
             start_time = util.time.usec()
             await self.put("start_time_usec", start_time)
         uptime = util.time.usec() - start_time
 
-        sent: int = await self.get("sent") or 0
-        sent_stickers: int = await self.get("sent_stickers") or 0
-        recv: int = await self.get("received") or 0
-        recv_stickers: int = await self.get("received_stickers") or 0
-        processed: int = await self.get("processed") or 0
-        stickers: int = await self.get("stickers_created") or 0
+        sent: int = doc.get("sent") or 0
+        sent_stickers: int = doc.get("sent_stickers") or 0
+        recv: int = doc.get("received") or 0
+        recv_stickers: int = doc.get("received_stickers") or 0
+        processed: int = doc.get("processed") or 0
+        stickers: int = doc.get("stickers_created") or 0
 
-        return util.text.join_map(
-            {
-                "Total time elapsed": util.time.format_duration_us(uptime),
-                "Messages received": f"{recv} ({_calc_ph(recv, uptime)}/h) • {_calc_pct(recv_stickers, recv)}% are stickers",
-                "Messages sent": f"{sent} ({_calc_ph(sent, uptime)}/h) • {_calc_pct(sent_stickers, sent)}% are stickers",
-                "Total messages sent": f"{_calc_pct(sent, sent + recv)}% of all accounted messages",
-                "Commands processed": f"{processed} ({_calc_ph(processed, uptime)}/h) • {_calc_pct(processed, sent)}% of sent messages",
-                "Stickers created": f"{stickers} ({_calc_pd(stickers, uptime)}/day)",
-            },
-            heading="Stats since last reset",
+        stats_data = {
+            "Total time elapsed": f"<code>{util.time.format_duration_us(uptime)}</code>",
+            "Messages received": (
+                f"<code>{recv:,}</code> (<code>{_calc_ph(recv, uptime)}/h</code>) • "
+                f"<code>{_calc_pct(recv_stickers, recv)}%</code> are stickers"
+            ),
+            "Messages sent": (
+                f"<code>{sent:,}</code> (<code>{_calc_ph(sent, uptime)}/h</code>) • "
+                f"<code>{_calc_pct(sent_stickers, sent)}%</code> are stickers"
+            ),
+            "Total messages sent": (
+                f"<code>{_calc_pct(sent, sent + recv)}%</code> of all accounted messages"
+            ),
+            "Commands processed": (
+                f"<code>{processed:,}</code> (<code>{_calc_ph(processed, uptime)}/h</code>) • "
+                f"<code>{_calc_pct(processed, sent)}%</code> of sent messages"
+            ),
+            "Stickers created": (
+                f"<code>{stickers:,}</code> (<code>{_calc_pd(stickers, uptime)}/day</code>)"
+            ),
+        }
+
+        body = util.text.join_map(
+            stats_data, heading="Stats since last reset", parse_mode="html"
         )
+        return f"<blockquote expandable>\n{body}\n</blockquote>"

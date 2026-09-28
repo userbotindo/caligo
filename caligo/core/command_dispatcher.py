@@ -47,6 +47,8 @@ class CommandDispatcher(CaligoBase):
         usage_reply: bool = False,
         aliases: Iterable[str] = [],
         no_processing: bool = False,
+        no_autodel: bool = False,
+        opts: Optional[dict[str, Any]] = None,
     ) -> None:
         if getattr(func, "_listener_filters", None):
             self.log.warning(
@@ -69,6 +71,8 @@ class CommandDispatcher(CaligoBase):
             usage_reply,
             aliases,
             no_processing=no_processing,
+            no_autodel=no_autodel,
+            opts=opts,
         )
 
         if name in self.commands:
@@ -109,6 +113,8 @@ class CommandDispatcher(CaligoBase):
                     usage_reply=getattr(func, "_cmd_usage_reply", False),
                     aliases=getattr(func, "_cmd_aliases", []),
                     no_processing=getattr(func, "_cmd_no_processing", False),
+                    no_autodel=getattr(func, "_cmd_no_autodel", False),
+                    opts=getattr(func, "_cmd_opts", None),
                 )
                 done = True
             finally:
@@ -180,9 +186,18 @@ class CommandDispatcher(CaligoBase):
 
             # Show processing message if global processing is enabled and command doesn't opt out
             proc_status = getattr(self, "processing_status", None)
+            mod = getattr(cmd, "module", None)
+            mod_opts = (
+                getattr(mod, "opts", None)
+                if isinstance(getattr(mod, "opts", None), dict)
+                else {}
+            )
             skip_proc = (
-                getattr(cmd, "no_processing", False)
-                or getattr(cmd.func, "_cmd_no_processing", False)
+                getattr(cmd, "no_processing", False) is True
+                or getattr(cmd.func, "_cmd_no_processing", False) is True
+                or getattr(mod, "_cmd_no_processing", False) is True
+                or mod_opts.get("processing") is False
+                or mod_opts.get("raw") is True
                 or cmd.name == "ping"
                 or "ping" in getattr(cmd, "aliases", ())
             )
@@ -197,6 +212,15 @@ class CommandDispatcher(CaligoBase):
                 except Exception as e:
                     self.log.debug(f"Failed to show processing status: {e}")
 
+            skip_autodel = (
+                getattr(cmd, "no_autodel", False) is True
+                or getattr(cmd.func, "_cmd_no_autodel", False) is True
+                or getattr(mod, "_cmd_no_autodel", False) is True
+                or mod_opts.get("autodel") is False
+                or mod_opts.get("raw") is True
+            )
+            del_after = getattr(self, "delete_after", None) if not skip_autodel else None
+
             try:
                 ret = await cmd.func(ctx)
                 if ret is not None:
@@ -204,14 +228,13 @@ class CommandDispatcher(CaligoBase):
                     if isinstance(ret, str) and any(tag in ret for tag in HTML_TAGS):
                         kwargs["parse_mode"] = ParseMode.HTML
 
-                    del_after = getattr(self, "delete_after", None)
                     if del_after:
                         kwargs["delete_after"] = del_after
 
                     await ctx.respond(ret, **kwargs)
-                elif getattr(self, "delete_after", None) and ctx.response:
+                elif del_after and ctx.response:
                     if not ctx._delete_task or ctx._delete_task.done():
-                        await ctx._delete(delay=self.delete_after)
+                        await ctx._delete(delay=del_after)
             except MessageNotModified:
                 cmd.module.log.warning(
                     f"Command '{cmd.name}' triggered a message edit with no changes"
@@ -228,14 +251,13 @@ class CommandDispatcher(CaligoBase):
                         if isinstance(ret, str) and any(tag in ret for tag in HTML_TAGS):
                             kwargs["parse_mode"] = ParseMode.HTML
 
-                        del_after = getattr(self, "delete_after", None)
                         if del_after:
                             kwargs["delete_after"] = del_after
 
                         await ctx.respond(ret, **kwargs)
-                    elif getattr(self, "delete_after", None) and ctx.response:
+                    elif del_after and ctx.response:
                         if not ctx._delete_task or ctx._delete_task.done():
-                            await ctx._delete(delay=self.delete_after)
+                            await ctx._delete(delay=del_after)
                 except Exception as retry_err:  # skipcq: PYL-W0703
                     cmd.module.log.error(
                         f"Error in command '{cmd.name}' after FloodWait retry",
@@ -244,7 +266,6 @@ class CommandDispatcher(CaligoBase):
             except Exception as e:  # skipcq: PYL-W0703
                 cmd.module.log.error(f"Error in command '{cmd.name}'", exc_info=e)
                 err_kwargs: dict[str, Any] = {}
-                del_after = getattr(self, "delete_after", None)
                 if del_after:
                     err_kwargs["delete_after"] = del_after
 

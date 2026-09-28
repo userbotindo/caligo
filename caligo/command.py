@@ -81,6 +81,36 @@ def no_processing(
     return no_proc_decorator
 
 
+def opts(
+    *,
+    processing: Optional[bool] = None,
+    autodel: Optional[bool] = None,
+    raw: Optional[bool] = None,
+    **kwargs: Any,
+) -> Any:
+    """Sets behavior options on a command function or Module class."""
+
+    def decorator(target: Any) -> Any:
+        options = dict(getattr(target, "_cmd_opts", {}))
+        if raw:
+            options["processing"] = False
+            options["autodel"] = False
+            setattr(target, "_cmd_no_processing", True)
+            setattr(target, "_cmd_no_autodel", True)
+        if processing is not None:
+            options["processing"] = processing
+            setattr(target, "_cmd_no_processing", not processing)
+        if autodel is not None:
+            options["autodel"] = autodel
+            setattr(target, "_cmd_no_autodel", not autodel)
+        for k, v in kwargs.items():
+            options[k] = v
+        setattr(target, "_cmd_opts", options)
+        return target
+
+    return decorator
+
+
 class Command:
     name: str
     desc: Optional[str]
@@ -92,6 +122,8 @@ class Command:
     module: Any
     func: CommandFunc
     no_processing: bool
+    no_autodel: bool
+    opts: dict[str, Any]
 
     def __init__(
         self,
@@ -105,6 +137,8 @@ class Command:
         usage_reply: bool = False,
         aliases: Iterable[str] = [],
         no_processing: bool = False,
+        no_autodel: bool = False,
+        opts: Optional[dict[str, Any]] = None,
     ) -> None:
         self.name = name
         self.module = mod
@@ -115,7 +149,22 @@ class Command:
         self.usage_optional = usage_optional
         self.usage_reply = usage_reply
         self.aliases = aliases
-        self.no_processing = no_processing or getattr(func, "_cmd_no_processing", False)
+        raw_opts = getattr(func, "_cmd_opts", {})
+        self.opts = dict(raw_opts) if isinstance(raw_opts, dict) else {}
+        if isinstance(opts, dict):
+            self.opts.update(opts)
+        self.no_processing = (
+            no_processing is True
+            or getattr(func, "_cmd_no_processing", False) is True
+            or self.opts.get("processing") is False
+            or self.opts.get("raw") is True
+        )
+        self.no_autodel = (
+            no_autodel is True
+            or getattr(func, "_cmd_no_autodel", False) is True
+            or self.opts.get("autodel") is False
+            or self.opts.get("raw") is True
+        )
 
     def __repr__(self) -> str:
         return f"<command module '{self.name}' from '{self.module.name}'>"

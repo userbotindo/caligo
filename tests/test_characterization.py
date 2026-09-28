@@ -678,6 +678,87 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(mock_respond.call_count, 1)
             self.assertEqual(mock_respond.call_args[0][0], "Fast result")
 
+    async def test_dispatcher_command_opts(self):
+        dispatcher = CommandDispatcher()
+        dispatcher.delete_after = 10.0
+        dispatcher.processing_status = "__Processing...__"
+        dispatcher.prefix = "."
+        dispatcher.log = MagicMock()
+        dispatcher.dispatch_event = AsyncMock()
+
+        dummy_mod = MagicMock()
+        dummy_mod.log = MagicMock()
+
+        @command.opts(processing=False)
+        async def opt_no_proc(ctx):
+            return "No proc"
+
+        @command.opts(autodel=False)
+        async def opt_no_autodel(ctx):
+            return "No autodel"
+
+        @command.opts(processing=False, autodel=False)
+        async def opt_clean(ctx):
+            return "Clean"
+
+        @command.opts(raw=True)
+        async def opt_raw(ctx):
+            return "Raw"
+
+        dispatcher.register_command(dummy_mod, "opt1", opt_no_proc)
+        dispatcher.register_command(dummy_mod, "opt2", opt_no_autodel)
+        dispatcher.register_command(dummy_mod, "opt3", opt_clean)
+        dispatcher.register_command(dummy_mod, "opt4", opt_raw)
+
+        # 1. opt1: processing=False (skip processing, but delete_after=10.0)
+        msg1 = MagicMock(command=["opt1"], text=".opt1", continue_propagation=MagicMock())
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg1)
+            self.assertEqual(mock_respond.call_count, 1)
+            self.assertEqual(mock_respond.call_args[0][0], "No proc")
+            self.assertEqual(mock_respond.call_args.kwargs.get("delete_after"), 10.0)
+
+        # 2. opt2: autodel=False (processing shown, but delete_after is None)
+        msg2 = MagicMock(command=["opt2"], text=".opt2", continue_propagation=MagicMock())
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg2)
+            self.assertEqual(mock_respond.call_count, 2)
+            self.assertEqual(mock_respond.call_args_list[0][0][0], "__Processing...__")
+            self.assertEqual(mock_respond.call_args_list[1][0][0], "No autodel")
+            self.assertIsNone(mock_respond.call_args_list[1].kwargs.get("delete_after"))
+
+        # 3. opt3: processing=False, autodel=False
+        msg3 = MagicMock(command=["opt3"], text=".opt3", continue_propagation=MagicMock())
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg3)
+            self.assertEqual(mock_respond.call_count, 1)
+            self.assertEqual(mock_respond.call_args[0][0], "Clean")
+            self.assertIsNone(mock_respond.call_args.kwargs.get("delete_after"))
+
+        # 4. opt4: raw=True
+        msg4 = MagicMock(command=["opt4"], text=".opt4", continue_propagation=MagicMock())
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg4)
+            self.assertEqual(mock_respond.call_count, 1)
+            self.assertEqual(mock_respond.call_args[0][0], "Raw")
+            self.assertIsNone(mock_respond.call_args.kwargs.get("delete_after"))
+
+        # 5. Module-level opts
+        raw_mod = MagicMock()
+        raw_mod.log = MagicMock()
+        raw_mod.opts = {"processing": False, "autodel": False}
+
+        async def mod_cmd(ctx):
+            return "From raw mod"
+
+        dispatcher.register_command(raw_mod, "modcmd", mod_cmd)
+        msg5 = MagicMock(command=["modcmd"], text=".modcmd", continue_propagation=MagicMock())
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg5)
+            self.assertEqual(mock_respond.call_count, 1)
+            self.assertEqual(mock_respond.call_args[0][0], "From raw mod")
+            self.assertIsNone(mock_respond.call_args.kwargs.get("delete_after"))
+
     async def test_system_cmd_speedtest_modernized(self):
         bot = MagicMock()
         bot.db = None

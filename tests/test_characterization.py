@@ -14,7 +14,6 @@ from caligo.core.telegram_bot import TelegramBot
 from caligo.core.database.storage import PersistentStorage
 from caligo.modules.network import Network
 from caligo.modules.transfer import Transfer
-from caligo.modules.auto_delete import AutoDelete
 from caligo.modules.system import System
 from caligo.modules.stats import Stats, _calc_pct, _calc_pd, _calc_ph
 from caligo.modules.text import Text
@@ -506,7 +505,7 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         bot.db = MagicMock()
         bot.db.__getitem__.return_value.update_one = AsyncMock()
 
-        mod = AutoDelete(bot)
+        mod = System(bot)
         await mod.on_load()
 
         # Query status
@@ -539,9 +538,43 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         res = await mod.cmd_autodel(ctx)
         self.assertIn("Invalid duration", res)
 
+    async def test_system_cmd_processing(self):
+        bot = MagicMock()
+        bot.processing_status = None
+        bot.db = MagicMock()
+        bot.db.__getitem__.return_value.update_one = AsyncMock()
+
+        mod = System(bot)
+        await mod.on_load()
+
+        # Query status when disabled
+        ctx = MagicMock()
+        ctx.input = ""
+        res = await mod.cmd_processing(ctx)
+        self.assertIn("disabled", res)
+
+        # Enable default
+        ctx.input = "on"
+        res = await mod.cmd_processing(ctx)
+        self.assertEqual(bot.processing_status, "__Processing...__")
+        self.assertIn("set to:", res)
+
+        # Set custom text
+        ctx.input = "⏳ Working on it..."
+        res = await mod.cmd_processing(ctx)
+        self.assertEqual(bot.processing_status, "⏳ Working on it...")
+        self.assertIn("⏳ Working on it...", res)
+
+        # Disable
+        ctx.input = "off"
+        res = await mod.cmd_processing(ctx)
+        self.assertIsNone(bot.processing_status)
+        self.assertIn("disabled", res)
+
     async def test_dispatcher_global_delete_after(self):
         dispatcher = CommandDispatcher()
         dispatcher.delete_after = 15.0
+        dispatcher.processing_status = None
         dispatcher.prefix = "."
         dispatcher.log = MagicMock()
         dispatcher.dispatch_event = AsyncMock()
@@ -564,6 +597,36 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
             mock_respond.assert_called_once()
             call_kwargs = mock_respond.call_args.kwargs
             self.assertEqual(call_kwargs.get("delete_after"), 15.0)
+
+    async def test_dispatcher_global_processing(self):
+        dispatcher = CommandDispatcher()
+        dispatcher.delete_after = None
+        dispatcher.processing_status = "__Processing...__"
+        dispatcher.prefix = "."
+        dispatcher.log = MagicMock()
+        dispatcher.dispatch_event = AsyncMock()
+
+        dummy_mod = MagicMock()
+        dummy_mod.log = MagicMock()
+
+        async def dummy_func(ctx):
+            return "Final output"
+
+        dispatcher.register_command(dummy_mod, "proc_test", dummy_func)
+
+        msg = MagicMock()
+        msg.command = ["proc_test"]
+        msg.text = ".proc_test"
+        msg.continue_propagation = MagicMock()
+
+        with patch("caligo.command.Context.respond", new_callable=AsyncMock) as mock_respond:
+            await dispatcher.on_command(MagicMock(), msg)
+            # Should have called respond twice: first for processing message, second for final output
+            self.assertEqual(mock_respond.call_count, 2)
+            first_call_text = mock_respond.call_args_list[0][0][0]
+            second_call_text = mock_respond.call_args_list[1][0][0]
+            self.assertEqual(first_call_text, "__Processing...__")
+            self.assertEqual(second_call_text, "Final output")
 
     async def test_system_cmd_speedtest_modernized(self):
         bot = MagicMock()

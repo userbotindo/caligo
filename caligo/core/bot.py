@@ -28,6 +28,7 @@ class Caligo(
     log: logging.Logger
     loop: asyncio.AbstractEventLoop
     delete_after: Optional[float]
+    processing_status: Optional[str]
     stopping: bool
 
     def __init__(self, config: Mapping[str, Any]) -> None:
@@ -36,6 +37,7 @@ class Caligo(
         self.loop = asyncio.get_event_loop()
         self.stopping = False
         self.delete_after = 15.0
+        self.processing_status = None
 
         super().__init__()
 

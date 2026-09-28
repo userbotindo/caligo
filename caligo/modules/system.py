@@ -21,8 +21,15 @@ class System(module.Module):
 
     async def on_load(self):
         self.restart_pending = False
+        if not hasattr(self.bot, "delete_after"):
+            self.bot.delete_after = 15.0
+        if not hasattr(self.bot, "processing_status"):
+            self.bot.processing_status = None
 
-        self.db = self.bot.db.get_collection(self.name.upper())
+        if getattr(self.bot, "db", None) is not None:
+            self.db = self.bot.db.get_collection(self.name.upper())
+        else:
+            self.db = None
 
     async def on_start(self, time_us: int) -> None:  # skipcq: PYL-W0613
         # Update restart status message if applicable
@@ -309,3 +316,89 @@ Dependency updates are automatic if you're running the bot in a virtualenv."""
 
         # Restart after updating
         return await self.cmd_restart(ctx, restart_time=update_time, reason="update")
+
+    @command.desc("Get or set global command output auto-delete duration (in seconds)")
+    @command.alias("deleteafter", "autodelete", "deldecay", "da")
+    @command.usage("[seconds | 'off' / 'disable']", optional=True)
+    async def cmd_autodel(self, ctx: command.Context) -> str:
+        raw = ctx.input.strip().lower() if ctx.input else ""
+
+        if not raw:
+            current = getattr(self.bot, "delete_after", None)
+            if current:
+                sec_str = int(current) if current == int(current) else current
+                return f"__Auto-delete is set to__ `{sec_str}` __seconds.__"
+            return "__Auto-delete is currently disabled.__"
+
+        if raw in ("off", "disable", "disabled", "no", "false", "none", "0"):
+            self.bot.delete_after = None
+            if getattr(self.bot, "db", None) is not None:
+                await self.bot.db["MAIN"].update_one(
+                    {"_id": 0},
+                    {"$set": {"delete_after": None}},
+                    upsert=True,
+                )
+            return "__Auto-delete has been disabled.__"
+
+        try:
+            val = float(raw)
+            if val <= 0:
+                self.bot.delete_after = None
+                if getattr(self.bot, "db", None) is not None:
+                    await self.bot.db["MAIN"].update_one(
+                        {"_id": 0},
+                        {"$set": {"delete_after": None}},
+                        upsert=True,
+                    )
+                return "__Auto-delete has been disabled.__"
+
+            self.bot.delete_after = val
+            if getattr(self.bot, "db", None) is not None:
+                await self.bot.db["MAIN"].update_one(
+                    {"_id": 0},
+                    {"$set": {"delete_after": val}},
+                    upsert=True,
+                )
+            sec_str = int(val) if val == int(val) else val
+            return f"__Auto-delete duration set to__ `{sec_str}` __seconds.__"
+        except ValueError:
+            return "__Invalid duration. Pass number of seconds (e.g. `15`) or `off`.__"
+
+    @command.desc("Get or toggle global command processing status message")
+    @command.alias("setprocessing", "globalprocessing", "proc")
+    @command.usage("[on / off | custom text]", optional=True)
+    async def cmd_processing(self, ctx: command.Context) -> str:
+        raw = ctx.input.strip() if ctx.input else ""
+
+        if not raw:
+            current = getattr(self.bot, "processing_status", None)
+            if current:
+                return f"__Global processing message is set to:__ `{current}`"
+            return "__Global processing message is currently disabled (silent execution).__"
+
+        lower = raw.lower()
+        if lower in ("off", "disable", "disabled", "no", "false", "none", "0"):
+            self.bot.processing_status = None
+            if getattr(self.bot, "db", None) is not None:
+                await self.bot.db["MAIN"].update_one(
+                    {"_id": 0},
+                    {"$set": {"processing_status": None}},
+                    upsert=True,
+                )
+            return "__Global processing message has been disabled (silent execution).__"
+
+        if lower in ("on", "enable", "enabled", "yes", "true", "1"):
+            text = "__Processing...__"
+        else:
+            text = raw
+
+        self.bot.processing_status = text
+        if getattr(self.bot, "db", None) is not None:
+            await self.bot.db["MAIN"].update_one(
+                {"_id": 0},
+                {"$set": {"processing_status": text}},
+                upsert=True,
+            )
+
+        return f"__Global processing message set to:__ `{text}`"
+

@@ -232,9 +232,9 @@ class Text(module.Module):
 
         escaped_result = html.escape(translated_text)
         return (
+            f"<blockquote expandable>{escaped_result}\n\n"
             f"<b>{src_name}</b> (<code>{src_code}</code>) ➔ "
-            f"<b>{dst_name}</b> (<code>{target_lang}</code>)\n"
-            f"<blockquote expandable>{escaped_result}</blockquote>"
+            f"<b>{dst_name}</b> (<code>{target_lang}</code>)</blockquote>"
         )
 
 

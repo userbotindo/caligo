@@ -167,6 +167,19 @@ class CommandDispatcher(CaligoBase):
                 len(self.prefix) + len(message.command[0]) + 1,
             )
 
+            # Show processing message if global processing is enabled
+            proc_status = getattr(self, "processing_status", None)
+            if proc_status:
+                proc_text = (
+                    proc_status
+                    if isinstance(proc_status, str)
+                    else "__Processing...__"
+                )
+                try:
+                    await ctx.respond(proc_text)
+                except Exception as e:
+                    self.log.debug(f"Failed to show processing status: {e}")
+
             try:
                 ret = await cmd.func(ctx)
                 if ret is not None:

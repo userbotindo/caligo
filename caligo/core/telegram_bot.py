@@ -138,7 +138,7 @@ class TelegramBot(CaligoBase):
         self.client.add_handler(
             MessageHandler(
                 self.on_command,
-                filters=(self.command_predicate() & filt.me & filt.outgoing),
+                filters=(self.command_predicate() & filt.me),
             ),
             0,
         )

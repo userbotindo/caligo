@@ -25,6 +25,7 @@ class AsyncClient(AsyncMongoClient):
 
 
 from .storage import PersistentStorage
+from .sync import sync_mongo_to_sqlite, sync_sqlite_to_mongo
 
 
 __all__ = [
@@ -34,4 +35,7 @@ __all__ = [
     "AsyncDatabase",
     "AsyncMongoClient",
     "PersistentStorage",
+    "sync_mongo_to_sqlite",
+    "sync_sqlite_to_mongo",
 ]
+

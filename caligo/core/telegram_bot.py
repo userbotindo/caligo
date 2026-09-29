@@ -16,11 +16,14 @@ from pyrogram.handlers.inline_query_handler import InlineQueryHandler
 from pyrogram.handlers.message_handler import MessageHandler
 from pyrogram.types import CallbackQuery, InlineQuery, LinkPreviewOptions, Message, User
 
+from pathlib import Path
+
 from caligo.util import tg, time
 from caligo.version import __version__
 
 from .base import CaligoBase
-from .database.storage import PersistentStorage
+from .database import sync_mongo_to_sqlite, sync_sqlite_to_mongo
+
 
 if TYPE_CHECKING:
     from .bot import Caligo
@@ -68,7 +71,10 @@ class TelegramBot(CaligoBase):
         lang_code = self.config["telegram"].get("lang_code", "en")
         system_lang_code = self.config["telegram"].get("system_lang_code", "en")
 
-        # Initialize Telegram client with gathered parameters
+        # Sync session and peers from MongoDB into local SQLite storage if needed
+        await sync_mongo_to_sqlite(self.db, Path("caligo/caligo.session"), self.log)
+
+        # Initialize Telegram client with gathered parameters (uses local fast SQLite)
         self.client = Client(
             name="caligo",
             api_id=api_id,
@@ -83,7 +89,7 @@ class TelegramBot(CaligoBase):
             lang_code=lang_code,
             system_lang_code=system_lang_code,
         )
-        self.client.storage = PersistentStorage(self.db)  # type: ignore
+
 
         self.prefix = self.config["bot"]["prefix"]
         # Override default prefix, delete_after, and processing_status if found any saved in database
@@ -169,6 +175,19 @@ class TelegramBot(CaligoBase):
 
         self.log.info("Bot is ready")
         await self.dispatch_event("started")
+        self.loop.create_task(self._auto_sync_loop())
+
+    async def _auto_sync_loop(self: "Caligo") -> None:
+        while not self.stopping:
+            try:
+                await asyncio.sleep(600)  # Every 10 minutes
+                if not self.stopping:
+                    await sync_sqlite_to_mongo(self.db, Path("caligo/caligo.session"), self.log)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.log.debug("Periodic backup error: %s", e)
+
 
     async def idle(self: "Caligo") -> None:
         if self.__idle__:

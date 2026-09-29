@@ -8,6 +8,7 @@ config.toml
 dist/
 
 # Runtime data
+.venv/
 .cache/
 .heroku/
 .profile.d/

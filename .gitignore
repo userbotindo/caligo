@@ -25,6 +25,13 @@ vendor/
 *.log
 *.session
 *.session-journal
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
 
 # IDE specific files
 .idea/

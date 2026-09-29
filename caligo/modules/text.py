@@ -112,22 +112,57 @@ class Text(module.Module):
     async def _translate(
         self, text: str, source_lang: str, target_lang: str
     ) -> Tuple[Optional[str], Optional[str]]:
-        url = "https://clients5.google.com/translate_a/t"
-        params = {
-            "client": "dict-chrome-ex",
-            "sl": source_lang,
-            "tl": target_lang,
-            "q": text,
+        http: Optional[httpx.AsyncClient] = getattr(self.bot, "http", None)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        http = getattr(self.bot, "http", None)
 
-        # 1. Primary: Google clients5 API
+        # 1. Primary: Google GTX API (supports full sentences & Asian scripts: ko, ja, zh-cn, etc.)
         try:
+            url = "https://translate.googleapis.com/translate_a/single"
+            params = {
+                "client": "gtx",
+                "sl": source_lang,
+                "tl": target_lang,
+                "dt": "t",
+                "q": text,
+            }
             if http is not None:
-                resp = await http.get(url, params=params, timeout=15)
+                resp = await http.get(url, params=params, headers=headers, timeout=15)
             else:
                 async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
-                    resp = await client.get(url, params=params)
+                    resp = await client.get(url, params=params, headers=headers)
+
+            if resp.status_code == 200:
+                data = resp.json()
+                if data and isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                    translated = "".join(
+                        s[0] for s in data[0] if s and isinstance(s, list) and len(s) > 0 and s[0]
+                    )
+                    detected = (
+                        data[2]
+                        if len(data) > 2 and isinstance(data[2], str)
+                        else source_lang
+                    )
+                    if translated:
+                        return translated, detected
+        except Exception as e:
+            self.log.debug("Google GTX translate failed: %s", e)
+
+        # 2. Secondary: Google clients5 API
+        try:
+            url = "https://clients5.google.com/translate_a/t"
+            params = {
+                "client": "dict-chrome-ex",
+                "sl": source_lang,
+                "tl": target_lang,
+                "q": text,
+            }
+            if http is not None:
+                resp = await http.get(url, params=params, headers=headers, timeout=15)
+            else:
+                async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+                    resp = await client.get(url, params=params, headers=headers)
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -138,18 +173,18 @@ class Text(module.Module):
                     if isinstance(item, str):
                         return item, source_lang
         except Exception as e:
-            self.log.warning(f"Google translate request failed: {e}")
+            self.log.debug("Google clients5 translate failed: %s", e)
 
-        # 2. Fallback: MyMemory API
+        # 3. Tertiary: MyMemory API
         try:
             langpair = f"{source_lang if source_lang != 'auto' else 'en'}|{target_lang}"
             mm_url = "https://api.mymemory.translated.net/get"
             mm_params = {"q": text, "langpair": langpair}
             if http is not None:
-                resp = await http.get(mm_url, params=mm_params, timeout=15)
+                resp = await http.get(mm_url, params=mm_params, headers=headers, timeout=15)
             else:
                 async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
-                    resp = await client.get(mm_url, params=mm_params)
+                    resp = await client.get(mm_url, params=mm_params, headers=headers)
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -157,48 +192,75 @@ class Text(module.Module):
                 if translated and not translated.startswith("'AUTO' IS AN INVALID"):
                     return translated, source_lang
         except Exception as e:
-            self.log.warning(f"MyMemory translate fallback failed: {e}")
+            self.log.debug("MyMemory translate fallback failed: %s", e)
 
         return None, None
 
     @command.desc("Translate text to another language")
     @command.alias("tr")
-    @command.usage("[lang? (e.g. 'id', 'ja', 'en-id')] [text?]", reply=True)
+    @command.usage("[lang? (e.g. 'id', 'ja', 'kr', 'ko-id')] [text?]", reply=True)
     async def cmd_translate(self, ctx: command.Context) -> str:
         reply = ctx.msg.reply_to_message
-        reply_text = (reply.text or reply.caption) if reply else None
         raw_input = ctx.input.strip() if ctx.input else ""
+
+        # Check for quoted text in reply or command
+        quote_text = None
+        if hasattr(ctx.msg, "quote") and ctx.msg.quote and ctx.msg.quote.text:
+            quote_text = ctx.msg.quote.text
+        elif reply:
+            if hasattr(reply, "quote") and reply.quote and reply.quote.text:
+                quote_text = reply.quote.text
+            elif reply.entities:
+                full_rep = reply.text or reply.caption or ""
+                for ent in reply.entities:
+                    if str(ent.type) in (
+                        "MessageEntityType.BLOCKQUOTE",
+                        "MessageEntityType.EXPANDABLE_BLOCKQUOTE",
+                        "blockquote",
+                        "expandable_blockquote",
+                    ):
+                        quote_text = full_rep[ent.offset : ent.offset + ent.length]
+                        break
+
+        reply_text = quote_text or ((reply.text or reply.caption) if reply else None)
 
         if not raw_input and not reply_text:
             return "__Give me text to translate or reply to a message.__"
 
         source_lang = "auto"
-        target_lang = "en"
+        target_lang = "id"
         text = ""
 
         if reply_text:
             if raw_input:
                 token = raw_input.split()[0].lower()
                 if "-" in token:
-                    source_lang, target_lang = token.split("-", 1)
+                    s, t = token.split("-", 1)
+                    source_lang, target_lang = normalize_lang(s), normalize_lang(t)
                 elif "/" in token:
-                    source_lang, target_lang = token.split("/", 1)
+                    s, t = token.split("/", 1)
+                    source_lang, target_lang = normalize_lang(s), normalize_lang(t)
                 else:
-                    target_lang = token
+                    target_lang = normalize_lang(token)
+            else:
+                target_lang = "id"
             text = reply_text
         else:
             parts = raw_input.split(maxsplit=1)
             token = parts[0].lower()
             if "-" in token and len(parts) > 1:
-                source_lang, target_lang = token.split("-", 1)
+                s, t = token.split("-", 1)
+                source_lang, target_lang = normalize_lang(s), normalize_lang(t)
                 text = parts[1]
             elif "/" in token and len(parts) > 1:
-                source_lang, target_lang = token.split("/", 1)
+                s, t = token.split("/", 1)
+                source_lang, target_lang = normalize_lang(s), normalize_lang(t)
                 text = parts[1]
-            elif token in LANGUAGES and len(parts) > 1:
-                target_lang = token
+            elif (token in LANGUAGE_ALIASES or token in LANGUAGES) and len(parts) > 1:
+                target_lang = normalize_lang(token)
                 text = parts[1]
             else:
+                target_lang = "id"
                 text = raw_input
 
         if not text:
@@ -211,31 +273,85 @@ class Text(module.Module):
         if not translated_text:
             return "⚠️ __Translation failed: Could not retrieve translation.__"
 
-        # If detected language matches default target language (en), translate to Indonesian (id)
-        if (
-            source_lang == "auto"
-            and detected_lang == target_lang
-            and target_lang == "en"
-            and (not raw_input or raw_input == text)
-        ):
-            alt_translated, alt_detected = await self._translate(text, "en", "id")
-            if alt_translated:
-                translated_text = alt_translated
-                target_lang = "id"
-                detected_lang = alt_detected or "en"
+        det_clean = (detected_lang or "auto").lower().replace("_", "-")
+        # If auto detected language is same as default target, auto switch
+        if source_lang == "auto" and (det_clean == target_lang or det_clean.startswith(target_lang)):
+            if target_lang == "id" and (not raw_input or raw_input == text):
+                alt_tr, alt_det = await self._translate(text, "id", "en")
+                if alt_tr:
+                    translated_text = alt_tr
+                    target_lang = "en"
+                    detected_lang = alt_det or "id"
+            elif target_lang == "en" and (not raw_input or raw_input == text):
+                alt_tr, alt_det = await self._translate(text, "en", "id")
+                if alt_tr:
+                    translated_text = alt_tr
+                    target_lang = "id"
+                    detected_lang = alt_det or "en"
 
-        src_name = LANGUAGES.get(
-            (detected_lang or "auto").lower(), (detected_lang or "auto").upper()
-        )
-        dst_name = LANGUAGES.get(target_lang.lower(), target_lang.upper())
-        src_code = detected_lang or "auto"
+        det_code = (detected_lang or "auto").lower().replace("_", "-")
+        src_name = LANGUAGES.get(det_code, LANGUAGES.get(det_code.split("-")[0], det_code.upper()))
+        dst_code = target_lang.lower().replace("_", "-")
+        dst_name = LANGUAGES.get(dst_code, LANGUAGES.get(dst_code.split("-")[0], dst_code.upper()))
 
         escaped_result = html.escape(translated_text)
         return (
-            f"<blockquote expandable>{escaped_result}\n\n"
-            f"<b>{src_name}</b> (<code>{src_code}</code>) ➔ "
-            f"<b>{dst_name}</b> (<code>{target_lang}</code>)</blockquote>"
+            f"<blockquote>\n"
+            f"{escaped_result}\n"
+            f"</blockquote>\n"
+            f"<b>{src_name}</b> (<code>{det_code}</code>) ➔ "
+            f"<b>{dst_name}</b> (<code>{dst_code}</code>)"
         )
+
+
+LANGUAGE_ALIASES = {
+    # Indonesian
+    "id": "id", "ina": "id", "indo": "id", "indonesia": "id", "indonesian": "id",
+    # English
+    "en": "en", "eng": "en", "english": "en", "us": "en", "uk": "en",
+    # Korean
+    "ko": "ko", "kr": "ko", "kor": "ko", "korea": "ko", "korean": "ko",
+    # Japanese
+    "ja": "ja", "jp": "ja", "jpn": "ja", "japan": "ja", "japanese": "ja",
+    # Chinese
+    "zh": "zh-cn", "cn": "zh-cn", "chn": "zh-cn", "chinese": "zh-cn", "mandarin": "zh-cn",
+    "zh-cn": "zh-cn", "zh-tw": "zh-tw", "tw": "zh-tw", "taiwan": "zh-tw", "hk": "zh-tw",
+    # Russian
+    "ru": "ru", "rus": "ru", "russia": "ru", "russian": "ru",
+    # Spanish
+    "es": "es", "esp": "es", "spanish": "es", "spain": "es",
+    # French
+    "fr": "fr", "fra": "fr", "french": "fr", "france": "fr",
+    # German
+    "de": "de", "ger": "de", "german": "de", "deutsch": "de",
+    # Arabic
+    "ar": "ar", "ara": "ar", "arab": "ar", "arabic": "ar",
+    # Thai
+    "th": "th", "tha": "th", "thai": "th", "thailand": "th",
+    # Vietnamese
+    "vi": "vi", "vie": "vi", "vietnam": "vi", "vietnamese": "vi",
+    # Filipino / Tagalog
+    "tl": "tl", "fil": "tl", "tagalog": "tl", "filipino": "tl", "ph": "tl",
+    # Malay
+    "ms": "ms", "mys": "ms", "malay": "ms", "malaysia": "ms",
+    # Portuguese
+    "pt": "pt", "por": "pt", "portuguese": "pt", "brazil": "pt", "br": "pt",
+    # Italian
+    "it": "it", "ita": "it", "italian": "it", "italy": "it",
+    # Turkish
+    "tr": "tr", "tur": "tr", "turkish": "tr", "turkey": "tr",
+    # Hindi
+    "hi": "hi", "hin": "hi", "hindi": "hi", "india": "hi",
+    # Dutch
+    "nl": "nl", "dut": "nl", "dutch": "nl", "netherlands": "nl",
+}
+
+
+def normalize_lang(token: str) -> str:
+    cleaned = token.strip().lower()
+    if cleaned in LANGUAGE_ALIASES:
+        return LANGUAGE_ALIASES[cleaned]
+    return cleaned
 
 
 LANGUAGES = {

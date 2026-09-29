@@ -30,9 +30,10 @@ async def sync_mongo_to_sqlite(
 
     log.info("Importing session and peers from MongoDB to local SQLite (%s)...", session_path.name)
 
-    conn = sqlite3.connect(str(session_path))
+    conn = sqlite3.connect(str(session_path), timeout=30.0)
     try:
         cursor = conn.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL;")
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'")
         if not cursor.fetchone():
             cursor.executescript(SCHEMA)
@@ -141,7 +142,7 @@ async def sync_sqlite_to_mongo(
         return False
 
     log.info("Exporting local session & peers from SQLite to MongoDB...")
-    conn = sqlite3.connect(f"file:{session_path.resolve()}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"file:{session_path.resolve()}?mode=ro", uri=True, timeout=30.0)
     conn.row_factory = sqlite3.Row
     try:
         cursor = conn.cursor()

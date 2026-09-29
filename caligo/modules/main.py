@@ -1,18 +1,20 @@
 import asyncio
+from datetime import datetime, timezone
+import html
 import platform
 import re
 import uuid
 from collections import defaultdict
 from hashlib import sha256
-from typing import ClassVar, List, MutableMapping
+from typing import ClassVar, List, MutableMapping, Optional, Union
 
 from anyio import Path as AsyncPath
 from bson.binary import Binary
 import pymongo
 from pymongo.asynchronous.collection import AsyncCollection
 import pyrogram
-from pyrogram import errors, filters, types
-from pyrogram.enums import ButtonStyle, ParseMode
+from pyrogram import enums, errors, filters, raw, types
+from pyrogram.enums import ButtonStyle, ChatMembersFilter, ChatMemberStatus, ChatType, ParseMode
 
 from caligo import __version__, command, listener, module, util
 
@@ -59,14 +61,23 @@ class Main(module.Module):
         except ValueError:
             pass
 
+        start_time = getattr(self.bot, "start_time_us", None)
+        uptime = (
+            util.time.format_duration_us(util.time.usec() - start_time)
+            if start_time
+            else "Unknown"
+        )
+
         return (
             "<b>Caligo Menu Helper</b>\n\n"
+            f"• <b>Uptime:</b> <code>{uptime}</code>\n"
             f"• <b>Caligo:</b> <code>v{__version__}</code>\n"
             f"• <b>Pyrogram:</b> <code>v{pyrogram.__version__}</code>\n"
             f"• <b>PyMongo:</b> <code>v{pymongo.__version__}</code>\n"
             f"• <b>Python:</b> <code>{platform.python_version()}</code>\n"
             f"• <b>System:</b> <code>{platform.system()} {sys_ver}</code>"
         )
+
 
     def build_button(self, page: int = 0) -> List[List[types.InlineKeyboardButton]]:
         """Build paginated buttons with 2 buttons per row using ButtonStyle colors"""
@@ -159,17 +170,127 @@ class Main(module.Module):
         )
 
     async def on_inline_query(self, query: types.InlineQuery) -> None:
-        if query.query and query.query.strip().lower() not in {"", "help"}:
+        q_raw = query.query.strip() if query.query else ""
+        q_lower = q_raw.lower()
+
+        if q_lower.startswith(("info_cache ", "pkg_cache ")):
+            key = q_raw.split(maxsplit=1)[1].strip()
+            inline_cache = getattr(self.bot, "_inline_cache", {})
+            cached = inline_cache.pop(key, None)
+            if cached:
+                text = cached["text"]
+                buttons = cached.get("buttons")
+                photo_file_id = cached.get("photo_file_id")
+                photo_url = cached.get("photo_url")
+                reply_markup = (
+                    types.InlineKeyboardMarkup(buttons) if buttons else None
+                )
+
+                if photo_file_id:
+                    res = [
+                        types.InlineQueryResultCachedPhoto(
+                            photo_file_id=photo_file_id,
+                            caption=text,
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=reply_markup,
+                            id=str(uuid.uuid4()),
+                        )
+                    ]
+                elif photo_url:
+                    res = [
+                        types.InlineQueryResultPhoto(
+                            photo_url=photo_url,
+                            thumb_url=photo_url,
+                            caption=text,
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=reply_markup,
+                            id=str(uuid.uuid4()),
+                        )
+                    ]
+                else:
+                    res = [
+                        types.InlineQueryResultArticle(
+                            id=str(uuid.uuid4()),
+                            title="Result",
+                            input_message_content=types.InputTextMessageContent(
+                                text,
+                                parse_mode=ParseMode.HTML,
+                                link_preview_options=types.LinkPreviewOptions(
+                                    is_disabled=True
+                                ),
+                            ),
+                            description="View result",
+                            reply_markup=reply_markup,
+                        )
+                    ]
+                await query.answer(results=res, cache_time=0)
+                return
+
+        if q_lower.startswith(("info ", "whois ", "chatinfo ", "userinfo ")):
+            info_mod = self.bot.modules.get("Info")
+            if info_mod is not None:
+                target_str = q_raw.split(maxsplit=1)[1].strip()
+                clean: Union[int, str] = target_str
+                if isinstance(clean, str):
+                    if clean.startswith("https://t.me/"):
+                        clean = clean[13:]
+                    elif clean.startswith("t.me/"):
+                        clean = clean[5:]
+                    if clean.startswith("@"):
+                        clean = clean[1:]
+                    try:
+                        clean = int(clean)
+                    except ValueError:
+                        pass
+
+                data = await info_mod._get_deep_user_info(clean)
+                if not data:
+                    data = await info_mod._get_deep_chat_info(clean)
+
+                if data:
+                    text, photo_file_id, buttons = data
+                    reply_markup = (
+                        types.InlineKeyboardMarkup(buttons) if buttons else None
+                    )
+                    res = [
+                        types.InlineQueryResultArticle(
+                            id=str(uuid.uuid4()),
+                            title=f"Info: {target_str}",
+                            input_message_content=types.InputTextMessageContent(
+                                text,
+                                parse_mode=ParseMode.HTML,
+                                link_preview_options=types.LinkPreviewOptions(
+                                    is_disabled=True
+                                ),
+                            ),
+                            description="View information",
+                            reply_markup=reply_markup,
+                        )
+                    ]
+                    await query.answer(results=res, cache_time=5)
+                    return
+
+        if q_lower not in {"", "help"}:
             return
 
         owner_id = getattr(self.bot, "uid", None) or (
             self.bot.user.id if getattr(self.bot, "user", None) else None
         )
-        owner_button = (
-            types.InlineKeyboardButton("⚡️ Owner", user_id=owner_id)
-            if owner_id
-            else types.InlineKeyboardButton("⚡️ Owner", callback_data="noop")
+        owner_username = (
+            getattr(self.bot.user, "username", None)
+            if getattr(self.bot, "user", None)
+            else None
         )
+        if owner_username:
+            owner_button = types.InlineKeyboardButton(
+                "⚡️ Owner", url=f"https://t.me/{owner_username}"
+            )
+        elif owner_id:
+            owner_button = types.InlineKeyboardButton(
+                "⚡️ Owner", url=f"tg://user?id={owner_id}"
+            )
+        else:
+            owner_button = types.InlineKeyboardButton("⚡️ Owner", callback_data="noop")
 
         results = [
             types.InlineQueryResultArticle(
@@ -460,8 +581,8 @@ class Main(module.Module):
         return f"Prefix set to <code>{self.bot.prefix}</code>"
 
     @command.desc("Get information about this bot instance")
-    @command.alias("botinfo", "binfo", "bi", "i")
-    async def cmd_info(self, ctx: command.Context) -> None:
+    @command.alias("binfo", "bi")
+    async def cmd_botinfo(self, ctx: command.Context) -> None:
         # Get tagged version and optionally the Git commit
         commit = await util.run_sync(util.version.get_commit)
         dirty = ", dirty" if await util.run_sync(util.git.is_dirty) else ""
@@ -519,3 +640,4 @@ class Main(module.Module):
         )
 
         await ctx.respond(response, parse_mode=ParseMode.HTML)
+

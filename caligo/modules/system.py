@@ -74,8 +74,12 @@ class System(module.Module):
     async def on_stopped(self) -> None:
         if self.restart_pending:
             self.log.info("Starting new bot instance...\n")
-            # This is safe because original arguments are reused. skipcq: BAN-B606
-            os.execv(sys.executable, (sys.executable, "-m", "caligo"))
+            if sys.platform == "win32":
+                import subprocess
+                subprocess.Popen([sys.executable] + sys.argv, env=os.environ.copy())
+            else:
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+
 
     @command.desc("Stop this bot")
     async def cmd_stop(self, ctx: command.Context) -> None:

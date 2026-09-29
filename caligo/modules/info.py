@@ -627,10 +627,15 @@ class Info(module.Module):
                                     )
                                     if temp_msg and temp_msg.photo:
                                         bot_photo_file_id = temp_msg.photo.file_id
-                                        try:
-                                            await temp_msg.delete()
-                                        except Exception:
-                                            pass
+
+                                        async def _cleanup_temp_msg(m: types.Message):
+                                            try:
+                                                await asyncio.sleep(4.0)
+                                                await m.delete()
+                                            except Exception:
+                                                pass
+
+                                        self.bot.loop.create_task(_cleanup_temp_msg(temp_msg))
                                 except Exception as up_err:
                                     self.log.debug("Helper send_photo error: %s", up_err)
 

@@ -126,19 +126,30 @@ class Network(module.Module):
 
         return f"Request response time: **{latency:.2f} ms**"
 
-    async def _fetch_webss(self, target_url: str) -> Optional[bytes]:
+    async def _fetch_webss(
+        self, target_url: str, *, mobile: bool = False
+    ) -> Optional[bytes]:
         """Fetch website screenshot bytes using fast public HTTP screenshot APIs without browser binaries."""
         encoded_url = urllib.parse.quote(target_url, safe="")
 
-        api_urls = [
-            f"https://api.microlink.io/?url={encoded_url}&screenshot=true&meta=false&embed=screenshot.url",
-            f"https://image.thum.io/get/width/1280/crop/720/{target_url}",
-        ]
+        if mobile:
+            api_urls = [
+                f"https://api.microlink.io/?url={encoded_url}&screenshot=true&meta=false&embed=screenshot.url&viewport.width=390&viewport.height=844&viewport.isMobile=true&viewport.hasTouch=true&viewport.deviceScaleFactor=2",
+                f"https://image.thum.io/get/width/390/crop/844/{target_url}",
+            ]
+            headers = {
+                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
+            }
+        else:
+            api_urls = [
+                f"https://api.microlink.io/?url={encoded_url}&screenshot=true&meta=false&embed=screenshot.url",
+                f"https://image.thum.io/get/width/1280/crop/720/{target_url}",
+            ]
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
 
         http: Optional[httpx.AsyncClient] = getattr(self.bot, "http", None)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
 
         for api in api_urls:
             try:
@@ -163,16 +174,27 @@ class Network(module.Module):
 
         return None
 
-    @command.desc("Take a screenshot of a website without headless browsers")
-    @command.alias("ss", "screenshot", "webshot")
-    @command.usage("[url] or reply to a message containing URL")
+    @command.desc("Take a screenshot of a website (supports mobile view with -m or mobile)")
+    @command.alias("ss", "screenshot", "webshot", "mss", "mobiless")
+    @command.usage("[-m | mobile?] [url] or reply to a message containing URL", optional=True)
     async def cmd_webss(self, ctx: command.Context) -> Optional[str]:
+        raw_input = ctx.input.strip() if ctx.input else ""
+        is_mobile = False
+
+        # Detect mobile flag or aliases
+        if "-m" in raw_input.split() or "--mobile" in raw_input.split() or "mobile" in raw_input.lower().split():
+            is_mobile = True
+            tokens = [t for t in raw_input.split() if t.lower() not in ("-m", "--mobile", "mobile")]
+            raw_input = " ".join(tokens).strip()
+        elif getattr(ctx, "invoker", None) in ("mss", "mobiless"):
+            is_mobile = True
+
         target_url = None
 
-        if ctx.input:
+        if raw_input:
             match = re.search(
                 r"https?://\S+|[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:/[^\s]*)?",
-                ctx.input.strip(),
+                raw_input,
             )
             if match:
                 target_url = match.group(0).strip()
@@ -199,9 +221,10 @@ class Network(module.Module):
         except Exception:
             return "<i>Invalid website URL provided.</i>"
 
-        await ctx.respond("<i>Capturing website screenshot...</i>", parse_mode=ParseMode.HTML)
+        mode_text = " (Mobile)" if is_mobile else ""
+        await ctx.respond(f"<i>Capturing website screenshot{mode_text}...</i>", parse_mode=ParseMode.HTML)
 
-        img_bytes = await self._fetch_webss(target_url)
+        img_bytes = await self._fetch_webss(target_url, mobile=is_mobile)
         if not img_bytes:
             return f"Failed to capture screenshot for <code>{html.escape(target_url)}</code>."
 
@@ -211,7 +234,7 @@ class Network(module.Module):
         netloc = parsed.netloc
         esc_url = html.escape(target_url)
         esc_netloc = html.escape(netloc)
-        caption = f"<b>Screenshot:</b> <a href=\"{esc_url}\">{esc_netloc}</a>"
+        caption = f"<b>Screenshot:</b> <a href=\"{esc_url}\">{esc_netloc}</a>{mode_text}"
 
         reply_to_id = ctx.reply_msg.id if ctx.reply_msg else None
 

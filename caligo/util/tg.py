@@ -1,3 +1,5 @@
+import asyncio
+import html
 import io
 import mimetypes
 import os
@@ -9,14 +11,17 @@ from urllib.parse import urlparse
 
 import bprint
 import pyrogram
-
-from . import misc, time
+from pyrogram import enums, errors, types
+from pyrogram.enums import ChatMemberStatus, ChatType
 from pyrogram.types import (
+    ChatPrivileges,
     InputMediaAudio,
     InputMediaDocument,
     InputMediaPhoto,
     InputMediaVideo,
 )
+
+from . import misc, time
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"
@@ -52,6 +57,20 @@ def mention_user(user: pyrogram.types.User) -> str:
     return f"[{name}](tg://user?id={user.id})"
 
 
+def mention_user_html(
+    user: Union[pyrogram.types.User, pyrogram.types.Chat]
+) -> str:
+    """Returns an HTML string that mentions the given user or chat."""
+    name = (
+        getattr(user, "first_name", "")
+        or getattr(user, "title", "")
+        or str(user.id)
+    )
+    if getattr(user, "last_name", None):
+        name += f" {user.last_name}"
+    return f'<a href="tg://user?id={user.id}">{html.escape(name)}</a>'
+
+
 def get_target_id(target: Union[pyrogram.types.User, int, str]) -> Union[int, str]:
     """Returns the integer or string user ID from a User object, int, or string."""
     if isinstance(target, pyrogram.types.User):
@@ -66,6 +85,17 @@ def format_target(target: Union[pyrogram.types.User, int, str]) -> str:
     if isinstance(target, int):
         return f"[{target}](tg://user?id={target})"
     return str(target)
+
+
+def format_target_html(
+    target: Union[pyrogram.types.User, pyrogram.types.Chat, int, str]
+) -> str:
+    """Formats target user or chat as an HTML mention, ID link, or bold text."""
+    if isinstance(target, (pyrogram.types.User, pyrogram.types.Chat)):
+        return mention_user_html(target)
+    if isinstance(target, int):
+        return f'<a href="tg://user?id={target}">{target}</a>'
+    return f"<b>{html.escape(str(target))}</b>"
 
 
 async def resolve_user(
@@ -248,6 +278,212 @@ def parse_telegram_message_link(url: str) -> Optional[Tuple[Union[int, str], int
         return chat_id, int(msg_id)
 
     return None
+
+
+def get_message_link(
+    chat: Union[pyrogram.types.Chat, int, str], message_id: int
+) -> Optional[str]:
+    """Generates a direct Telegram link to a message if chat metadata allows it."""
+    username = getattr(chat, "username", None)
+    chat_id = getattr(chat, "id", None) if hasattr(chat, "id") else None
+
+    if username:
+        return f"https://t.me/{username}/{message_id}"
+
+    if chat_id is None:
+        if isinstance(chat, str) and not chat.startswith("-") and not chat.isdigit():
+            return f"https://t.me/{chat}/{message_id}"
+        try:
+            chat_id = int(chat)  # type: ignore
+        except (ValueError, TypeError):
+            return None
+
+    chat_id_str = str(chat_id)
+    if chat_id_str.startswith("-100"):
+        internal_id = chat_id_str[4:]
+        return f"https://t.me/c/{internal_id}/{message_id}"
+
+    return None
+
+
+def get_profile_link(
+    user: Union[pyrogram.types.User, int, str]
+) -> Optional[str]:
+    """Generates a profile link (t.me/username or tg://user?id=...)."""
+    username = getattr(user, "username", None)
+    user_id = getattr(user, "id", None) if hasattr(user, "id") else None
+
+    if username:
+        return f"https://t.me/{username}"
+    if user_id:
+        return f"tg://user?id={user_id}"
+
+    if isinstance(user, int):
+        return f"tg://user?id={user}"
+    if isinstance(user, str):
+        if user.isdigit() or (user.startswith("-") and user[1:].isdigit()):
+            return f"tg://user?id={user}"
+        return f"https://t.me/{user.lstrip('@')}"
+
+    return None
+
+
+def get_chat_link(
+    chat: Union[pyrogram.types.Chat, int, str]
+) -> Optional[str]:
+    """Generates a direct link to a chat or channel if possible."""
+    username = getattr(chat, "username", None)
+    invite_link = getattr(chat, "invite_link", None)
+    chat_id = getattr(chat, "id", None) if hasattr(chat, "id") else None
+
+    if username:
+        return f"https://t.me/{username}"
+    if invite_link:
+        return invite_link
+
+    if chat_id is None:
+        if isinstance(chat, str) and not chat.startswith("-") and not chat.isdigit():
+            return f"https://t.me/{chat.lstrip('@')}"
+        try:
+            chat_id = int(chat)  # type: ignore
+        except (ValueError, TypeError):
+            return None
+
+    chat_id_str = str(chat_id)
+    if chat_id_str.startswith("-100"):
+        internal_id = chat_id_str[4:]
+        return f"https://t.me/c/{internal_id}"
+
+    return None
+
+
+async def ensure_helper_in_chat(bot: Any, chat_id: int) -> bool:
+    """Ensures the helper bot is present and promoted with required admin permissions in a group/channel."""
+    if not getattr(bot, "helper_initialized", False):
+        return False
+
+    bot_uid = getattr(bot, "bot_uid", None)
+    if not bot_uid:
+        if getattr(bot, "bot_user", None):
+            bot_uid = bot.bot_user.id
+        elif getattr(getattr(bot, "client_helper", None), "me", None):
+            bot_uid = bot.client_helper.me.id
+        elif getattr(bot, "client_helper", None):
+            try:
+                bot_me = await bot.client_helper.get_me()
+                bot_uid = bot_me.id
+                bot.bot_uid = bot_uid
+                bot.bot_user = bot_me
+            except Exception:
+                return False
+
+    if not bot_uid or not getattr(bot, "client", None):
+        return False
+
+    try:
+        chat = await bot.client.get_chat(chat_id)
+    except Exception:
+        return False
+
+    if chat.type in (ChatType.PRIVATE, ChatType.BOT):
+        return True
+
+    # Check member status
+    is_admin = False
+    is_member = False
+    try:
+        member = await bot.client.get_chat_member(chat_id, bot_uid)
+        if member.status in (
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER,
+        ):
+            is_admin = True
+            is_member = True
+        elif member.status in (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.RESTRICTED,
+        ):
+            is_member = True
+    except errors.UserNotParticipant:
+        is_member = False
+    except Exception:
+        pass
+
+    if chat.type == ChatType.CHANNEL:
+        privileges = ChatPrivileges(
+            can_manage_chat=True,
+            can_post_messages=True,
+            can_edit_messages=True,
+            can_delete_messages=True,
+            can_invite_users=True,
+        )
+        try:
+            await bot.client.promote_chat_member(
+                chat_id=chat_id,
+                user_id=bot_uid,
+                privileges=privileges,
+            )
+            return True
+        except errors.FloodWait as e:
+            await asyncio.sleep(e.value + 1)
+            try:
+                await bot.client.promote_chat_member(
+                    chat_id=chat_id,
+                    user_id=bot_uid,
+                    privileges=privileges,
+                )
+                return True
+            except Exception:
+                return False
+        except Exception:
+            return False
+
+    # For Groups / Supergroups: add as member first if not joined, then promote
+    if not is_member:
+        try:
+            await bot.client.add_chat_members(chat_id, bot_uid)
+            is_member = True
+        except errors.UserAlreadyParticipant:
+            is_member = True
+        except errors.FloodWait as e:
+            await asyncio.sleep(e.value + 1)
+            try:
+                await bot.client.add_chat_members(chat_id, bot_uid)
+                is_member = True
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    if not is_admin:
+        privileges = ChatPrivileges(
+            can_manage_chat=True,
+            can_delete_messages=True,
+            can_invite_users=True,
+            can_pin_messages=True,
+        )
+        try:
+            await bot.client.promote_chat_member(
+                chat_id=chat_id,
+                user_id=bot_uid,
+                privileges=privileges,
+            )
+            return True
+        except errors.FloodWait as e:
+            await asyncio.sleep(e.value + 1)
+            try:
+                await bot.client.promote_chat_member(
+                    chat_id=chat_id,
+                    user_id=bot_uid,
+                    privileges=privileges,
+                )
+                return True
+            except Exception:
+                return is_member
+        except Exception:
+            return is_member
+
+    return True
 
 
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}

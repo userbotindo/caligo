@@ -18,7 +18,7 @@ class Transfer(module.Module):
 
     @property
     def progress_style(self) -> str:
-        return getattr(self.bot, "progress_style", util.tg.DEFAULT_PROGRESS_STYLE)
+        return getattr(self.bot, "progress_style", util.media.DEFAULT_PROGRESS_STYLE)
 
     async def get_download_dir(self) -> AsyncPath:
         """Returns the canonical downloads directory AsyncPath."""
@@ -43,19 +43,7 @@ class Transfer(module.Module):
                 unique_dirs.append(d)
         return unique_dirs
 
-    @staticmethod
-    async def _async_rmtree(path: AsyncPath) -> int:
-        """Asynchronously removes a directory or file and returns bytes freed."""
-        freed = 0
-        if await path.is_file() or await path.is_symlink():
-            stat = await path.stat()
-            freed += stat.st_size
-            await path.unlink()
-        elif await path.is_dir():
-            async for child in path.iterdir():
-                freed += await Transfer._async_rmtree(child)
-            await path.rmdir()
-        return freed
+    _async_rmtree = staticmethod(util.system.async_rmtree)
 
     async def on_load(self) -> None:
         self.tasks = set()
@@ -172,7 +160,7 @@ class Transfer(module.Module):
                         counter += 1
 
                     total_size = int(resp.headers.get("content-length", 0))
-                    prog_cb = util.tg.create_progress_callback(
+                    prog_cb = util.media.create_progress_callback(
                         ctx=ctx,
                         start_time=start_time,
                         mode="download",
@@ -277,7 +265,7 @@ class Transfer(module.Module):
                 dest_path = dest_dir / file_name
                 counter += 1
 
-            prog_cb = util.tg.create_progress_callback(
+            prog_cb = util.media.create_progress_callback(
                 ctx=ctx,
                 start_time=start_time,
                 mode="download",
@@ -445,14 +433,14 @@ class Transfer(module.Module):
         start_time = util.time.sec()
 
         async def _send_file(file_path: str, media_type: Optional[str] = None) -> Any:
-            prog_cb = util.tg.create_progress_callback(
+            prog_cb = util.media.create_progress_callback(
                 ctx=ctx,
                 start_time=start_time,
                 mode="upload",
                 file_name=AsyncPath(file_path).name,
                 style=self.progress_style,
             )
-            return await util.tg.send_media(
+            return await util.media.send_media(
                 self.bot.client,
                 ctx.msg.chat.id,
                 file_path,
@@ -468,7 +456,7 @@ class Transfer(module.Module):
             elif force_sticker:
                 media_type = "sticker"
             else:
-                media_type = util.tg.get_media_type(str(target_async))
+                media_type = util.media.get_media_type(str(target_async))
 
             task = self.bot.loop.create_task(_send_file(str(target_async), media_type))
             self.tasks.add((ctx.msg.id, task))
@@ -503,7 +491,7 @@ class Transfer(module.Module):
                             await ctx.respond(
                                 f"Uploading document album ({idx}/{total_chunks})..."
                             )
-                            media_group = util.tg.build_media_group(
+                            media_group = util.media.build_media_group(
                                 chunk, group_type="document"
                             )
                             try:
@@ -521,22 +509,22 @@ class Transfer(module.Module):
                     visual_files = [
                         f
                         for f in all_files
-                        if util.tg.get_media_type(f) in ("photo", "video")
+                        if util.media.get_media_type(f) in ("photo", "video")
                     ]
                     audio_files = [
                         f
                         for f in all_files
-                        if util.tg.get_media_type(f) == "audio"
+                        if util.media.get_media_type(f) == "audio"
                     ]
                     sticker_files = [
                         f
                         for f in all_files
-                        if util.tg.get_media_type(f) == "sticker"
+                        if util.media.get_media_type(f) == "sticker"
                     ]
                     doc_files = [
                         f
                         for f in all_files
-                        if util.tg.get_media_type(f) == "document"
+                        if util.media.get_media_type(f) == "document"
                     ]
 
                     # 1. Upload Visuals (Photos & Videos) as Media Albums
@@ -548,7 +536,7 @@ class Transfer(module.Module):
                                 await ctx.respond(
                                     f"Uploading media album ({idx}/{total_v})..."
                                 )
-                                media_group = util.tg.build_media_group(chunk)
+                                media_group = util.media.build_media_group(chunk)
                                 try:
                                     await self.bot.client.send_media_group(
                                         ctx.msg.chat.id,
@@ -570,7 +558,7 @@ class Transfer(module.Module):
                                 await ctx.respond(
                                     f"Uploading audio album ({idx}/{total_a})..."
                                 )
-                                media_group = util.tg.build_media_group(
+                                media_group = util.media.build_media_group(
                                     chunk, group_type="audio"
                                 )
                                 try:
@@ -603,7 +591,7 @@ class Transfer(module.Module):
                                 await ctx.respond(
                                     f"Uploading document album ({idx}/{total_d})..."
                                 )
-                                media_group = util.tg.build_media_group(
+                                media_group = util.media.build_media_group(
                                     chunk, group_type="document"
                                 )
                                 try:

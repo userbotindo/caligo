@@ -2,6 +2,8 @@ import asyncio
 import sys
 from typing import IO, Any, Optional, Sequence, Tuple, Union
 
+from anyio import Path as AsyncPath
+
 ProcessData = Union[str, bytes]
 ProcessStream = Union[int, IO, None]
 
@@ -89,3 +91,21 @@ async def run_command(*cmdline: ProcessData,
         proc = await _spawn_exec(cmdline, in_data, stdout, stderr, **kwargs)
 
     return await _get_proc_output(proc, in_data, timeout, text)
+
+
+async def async_rmtree(path: Union[str, AsyncPath]) -> int:
+    """Asynchronously removes a directory or file and returns total bytes freed."""
+    p = path if isinstance(path, AsyncPath) else AsyncPath(str(path))
+    freed = 0
+    if not await p.exists():
+        return 0
+
+    if await p.is_file() or await p.is_symlink():
+        stat = await p.stat()
+        freed += stat.st_size
+        await p.unlink()
+    elif await p.is_dir():
+        async for child in p.iterdir():
+            freed += await async_rmtree(child)
+        await p.rmdir()
+    return freed

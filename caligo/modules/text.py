@@ -7,7 +7,7 @@ from typing import ClassVar, Optional, Tuple
 
 import httpx
 
-from caligo import command, module
+from caligo import command, module, util
 
 
 class Text(module.Module):
@@ -205,24 +205,32 @@ class Text(module.Module):
 
         # Check for quoted text in reply or command
         quote_text = None
-        if hasattr(ctx.msg, "quote") and ctx.msg.quote and ctx.msg.quote.text:
-            quote_text = ctx.msg.quote.text
+        msg_quote = getattr(ctx.msg, "quote", None)
+        if msg_quote and isinstance(getattr(msg_quote, "text", None), str):
+            quote_text = msg_quote.text
         elif reply:
-            if hasattr(reply, "quote") and reply.quote and reply.quote.text:
-                quote_text = reply.quote.text
-            elif reply.entities:
+            rep_quote = getattr(reply, "quote", None)
+            if rep_quote and isinstance(getattr(rep_quote, "text", None), str):
+                quote_text = rep_quote.text
+            elif getattr(reply, "entities", None) and isinstance(reply.entities, list):
                 full_rep = reply.text or reply.caption or ""
-                for ent in reply.entities:
-                    if str(ent.type) in (
-                        "MessageEntityType.BLOCKQUOTE",
-                        "MessageEntityType.EXPANDABLE_BLOCKQUOTE",
-                        "blockquote",
-                        "expandable_blockquote",
-                    ):
-                        quote_text = full_rep[ent.offset : ent.offset + ent.length]
-                        break
+                if isinstance(full_rep, str):
+                    for ent in reply.entities:
+                        if str(getattr(ent, "type", "")) in (
+                            "MessageEntityType.BLOCKQUOTE",
+                            "MessageEntityType.EXPANDABLE_BLOCKQUOTE",
+                            "blockquote",
+                            "expandable_blockquote",
+                        ):
+                            quote_text = full_rep[ent.offset : ent.offset + ent.length]
+                            break
 
-        reply_text = quote_text or ((reply.text or reply.caption) if reply else None)
+        reply_text = quote_text
+        if not reply_text and reply:
+            if isinstance(getattr(reply, "text", None), str):
+                reply_text = reply.text
+            elif isinstance(getattr(reply, "caption", None), str):
+                reply_text = reply.caption
 
         if not raw_input and not reply_text:
             return "__Give me text to translate or reply to a message.__"
@@ -296,7 +304,7 @@ class Text(module.Module):
 
         escaped_result = html.escape(translated_text)
         return (
-            f"<blockquote>\n"
+            f"<blockquote expandable>\n"
             f"{escaped_result}\n"
             f"</blockquote>\n"
             f"<b>{src_name}</b> (<code>{det_code}</code>) ➔ "
@@ -304,79 +312,7 @@ class Text(module.Module):
         )
 
 
-LANGUAGE_ALIASES = {
-    # Indonesian
-    "id": "id", "ina": "id", "indo": "id", "indonesia": "id", "indonesian": "id",
-    # English
-    "en": "en", "eng": "en", "english": "en", "us": "en", "uk": "en",
-    # Korean
-    "ko": "ko", "kr": "ko", "kor": "ko", "korea": "ko", "korean": "ko",
-    # Japanese
-    "ja": "ja", "jp": "ja", "jpn": "ja", "japan": "ja", "japanese": "ja",
-    # Chinese
-    "zh": "zh-cn", "cn": "zh-cn", "chn": "zh-cn", "chinese": "zh-cn", "mandarin": "zh-cn",
-    "zh-cn": "zh-cn", "zh-tw": "zh-tw", "tw": "zh-tw", "taiwan": "zh-tw", "hk": "zh-tw",
-    # Russian
-    "ru": "ru", "rus": "ru", "russia": "ru", "russian": "ru",
-    # Spanish
-    "es": "es", "esp": "es", "spanish": "es", "spain": "es",
-    # French
-    "fr": "fr", "fra": "fr", "french": "fr", "france": "fr",
-    # German
-    "de": "de", "ger": "de", "german": "de", "deutsch": "de",
-    # Arabic
-    "ar": "ar", "ara": "ar", "arab": "ar", "arabic": "ar",
-    # Thai
-    "th": "th", "tha": "th", "thai": "th", "thailand": "th",
-    # Vietnamese
-    "vi": "vi", "vie": "vi", "vietnam": "vi", "vietnamese": "vi",
-    # Filipino / Tagalog
-    "tl": "tl", "fil": "tl", "tagalog": "tl", "filipino": "tl", "ph": "tl",
-    # Malay
-    "ms": "ms", "mys": "ms", "malay": "ms", "malaysia": "ms",
-    # Portuguese
-    "pt": "pt", "por": "pt", "portuguese": "pt", "brazil": "pt", "br": "pt",
-    # Italian
-    "it": "it", "ita": "it", "italian": "it", "italy": "it",
-    # Turkish
-    "tr": "tr", "tur": "tr", "turkish": "tr", "turkey": "tr",
-    # Hindi
-    "hi": "hi", "hin": "hi", "hindi": "hi", "india": "hi",
-    # Dutch
-    "nl": "nl", "dut": "nl", "dutch": "nl", "netherlands": "nl",
-}
-
-
-def normalize_lang(token: str) -> str:
-    cleaned = token.strip().lower()
-    if cleaned in LANGUAGE_ALIASES:
-        return LANGUAGE_ALIASES[cleaned]
-    return cleaned
-
-
-LANGUAGES = {
-    "af": "Afrikaans", "sq": "Albanian", "am": "Amharic", "ar": "Arabic", "hy": "Armenian",
-    "az": "Azerbaijani", "eu": "Basque", "be": "Belarusian", "bn": "Bengali", "bs": "Bosnian",
-    "bg": "Bulgarian", "ca": "Catalan", "ceb": "Cebuano", "ny": "Chichewa", "zh": "Chinese",
-    "zh-cn": "Chinese (Simplified)", "zh-tw": "Chinese (Traditional)", "co": "Corsican",
-    "hr": "Croatian", "cs": "Czech", "da": "Danish", "nl": "Dutch", "en": "English",
-    "eo": "Esperanto", "et": "Estonian", "tl": "Filipino", "fi": "Finnish", "fr": "French",
-    "fy": "Frisian", "gl": "Galician", "ka": "Georgian", "de": "German", "el": "Greek",
-    "gu": "Gujarati", "ht": "Haitian Creole", "ha": "Hausa", "haw": "Hawaiian", "he": "Hebrew",
-    "iw": "Hebrew", "hi": "Hindi", "hmn": "Hmong", "hu": "Hungarian", "is": "Icelandic",
-    "ig": "Igbo", "id": "Indonesian", "ga": "Irish", "it": "Italian", "ja": "Japanese",
-    "jw": "Javanese", "kn": "Kannada", "kk": "Kazakh", "km": "Khmer", "ko": "Korean",
-    "ku": "Kurdish", "ky": "Kyrgyz", "lo": "Lao", "la": "Latin", "lv": "Latvian",
-    "lt": "Lithuanian", "lb": "Luxembourgish", "mk": "Macedonian", "mg": "Malagasy",
-    "ms": "Malay", "ml": "Malayalam", "mt": "Maltese", "mi": "Maori", "mr": "Marathi",
-    "mn": "Mongolian", "my": "Myanmar (Burmese)", "ne": "Nepali", "no": "Norwegian",
-    "ps": "Pashto", "fa": "Persian", "pl": "Polish", "pt": "Portuguese", "pa": "Punjabi",
-    "ro": "Romanian", "ru": "Russian", "sm": "Samoan", "gd": "Scots Gaelic", "sr": "Serbian",
-    "st": "Sesotho", "sn": "Shona", "sd": "Sindhi", "si": "Sinhala", "sk": "Slovak",
-    "sl": "Slovenian", "so": "Somali", "es": "Spanish", "su": "Sundanese", "sw": "Swahili",
-    "sv": "Swedish", "tg": "Tajik", "ta": "Tamil", "te": "Telugu", "th": "Thai",
-    "tr": "Turkish", "uk": "Ukrainian", "ur": "Urdu", "ug": "Uyghur", "uz": "Uzbek",
-    "vi": "Vietnamese", "cy": "Welsh", "xh": "Xhosa", "yi": "Yiddish", "yo": "Yoruba",
-    "zu": "Zulu",
-}
+LANGUAGE_ALIASES = util.text.LANGUAGE_ALIASES
+normalize_lang = util.text.normalize_lang
+LANGUAGES = util.text.LANGUAGES
 

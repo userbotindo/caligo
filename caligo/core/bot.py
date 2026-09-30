@@ -83,13 +83,15 @@ class Caligo(
                 from .database import sync_sqlite_to_mongo
                 await sync_sqlite_to_mongo(self.db, Path("caligo/caligo.session"), self.log)
                 if self.helper_initialized:
-                    helper_path = Path("caligo/caligo_helper.session")
-                    if helper_path.exists():
+                    from anyio import Path as AsyncPath
+                    helper_path = AsyncPath("caligo/caligo_helper.session")
+                    if await helper_path.exists():
                         from hashlib import sha256
                         api_id = self.config["telegram"]["api_id"]
+                        sess_bytes = await helper_path.read_bytes()
                         await self.db.get_collection("SESSION_HELPER").update_one(
                             {"_id": sha256(str(api_id).encode()).hexdigest()},
-                            {"$set": {"session": helper_path.read_bytes()}},
+                            {"$set": {"session": sess_bytes}},
                             upsert=True,
                         )
             except Exception as e:

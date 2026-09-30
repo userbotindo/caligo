@@ -1,11 +1,11 @@
 import asyncio
+import bisect
 import html
 import io
-import mimetypes
 import os
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse
 
@@ -13,29 +13,23 @@ import bprint
 import pyrogram
 from pyrogram import enums, errors, types
 from pyrogram.enums import ChatMemberStatus, ChatType
-from pyrogram.types import (
-    ChatPrivileges,
-    InputMediaAudio,
-    InputMediaDocument,
-    InputMediaPhoto,
-    InputMediaVideo,
-)
+from pyrogram.types import ChatPrivileges
 
-from . import misc, time
+from . import media, misc, time
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"
 
-SKIP_ATTR_NAMES = (
-    "CONSTRUCTOR_ID",
-    "SUBCLASS_OF_ID",
-    "access_hash",
-    "message",
-    "raw_text",
-    "phone",
+SKIP_ATTR_NAMES = frozenset(
+    (
+        "CONSTRUCTOR_ID",
+        "SUBCLASS_OF_ID",
+        "access_hash",
+        "message",
+        "raw_text",
+        "phone",
+    )
 )
-SKIP_ATTR_VALUES = (False,)
-SKIP_ATTR_TYPES = ()
 
 
 def mention_user(user: pyrogram.types.User) -> str:
@@ -76,6 +70,28 @@ def get_target_id(target: Union[pyrogram.types.User, int, str]) -> Union[int, st
     if isinstance(target, pyrogram.types.User):
         return target.id
     return target
+
+
+def clean_target(target: Union[int, str]) -> Union[int, str]:
+    """Cleans up target identifiers (stripping t.me/ prefixes, @ mentions, and parsing digits to int)."""
+    if isinstance(target, str):
+        target = target.strip()
+        if target.startswith("https://t.me/"):
+            target = target[13:]
+        elif target.startswith("http://t.me/"):
+            target = target[12:]
+        elif target.startswith("t.me/"):
+            target = target[5:]
+        if target.startswith("@"):
+            target = target[1:]
+        try:
+            return int(target)
+        except ValueError:
+            return target
+    return target
+
+
+parse_target_entity = clean_target
 
 
 def format_target(target: Union[pyrogram.types.User, int, str]) -> str:
@@ -179,10 +195,9 @@ def _bprint_skip_predicate(name: str, value: Any) -> bool:
     return (
         name.startswith("_")
         or value is None
+        or value is False
         or callable(value)
         or name in SKIP_ATTR_NAMES
-        or value in SKIP_ATTR_VALUES
-        or type(value) in SKIP_ATTR_TYPES
     )
 
 
@@ -357,8 +372,8 @@ def get_chat_link(
     return None
 
 
-async def ensure_helper_in_chat(bot: Any, chat_id: int) -> bool:
-    """Ensures the helper bot is present and promoted with required admin permissions in a group/channel."""
+async def provision_helper(bot: Any, chat_id: int) -> bool:
+    """Provisions helper bot presence and promotes administrator permissions in a group/channel."""
     if not getattr(bot, "helper_initialized", False):
         return False
 
@@ -486,312 +501,100 @@ async def ensure_helper_in_chat(bot: Any, chat_id: int) -> bool:
     return True
 
 
-PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
-VIDEO_EXTS = {".mp4", ".mkv", ".webm", ".mov", ".avi", ".flv", ".wmv", ".3gp", ".m4v"}
-AUDIO_EXTS = {".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".opus", ".wma"}
-STICKER_EXTS = {".tgs"}
+# Media and progress utilities (re-exported from caligo.util.media)
+PHOTO_EXTS = media.PHOTO_EXTS
+VIDEO_EXTS = media.VIDEO_EXTS
+AUDIO_EXTS = media.AUDIO_EXTS
+STICKER_EXTS = media.STICKER_EXTS
+get_media_type = media.get_media_type
+send_media = media.send_media
+build_media_group = media.build_media_group
+PROGRESS_STYLES = media.PROGRESS_STYLES
+DEFAULT_PROGRESS_STYLE = media.DEFAULT_PROGRESS_STYLE
+render_progress_bar = media.render_progress_bar
+format_progress = media.format_progress
+report_progress = media.report_progress
+prog_func = media.prog_func
+create_progress_callback = media.create_progress_callback
 
 
-def get_media_type(path: str) -> str:
-    """Determines media type ('photo', 'video', 'audio', 'sticker', 'document') from file path."""
-    ext = os.path.splitext(path)[1].lower()
-    if ext in STICKER_EXTS:
-        return "sticker"
-    if ext in PHOTO_EXTS:
-        return "photo"
-    if ext in VIDEO_EXTS:
-        return "video"
-    if ext in AUDIO_EXTS:
-        return "audio"
-
-    mime, _ = mimetypes.guess_type(path)
-    if mime:
-        if mime in ("application/x-tgsticker", "image/tgs"):
-            return "sticker"
-        if mime.startswith("image/") and ext != ".gif":
-            return "photo"
-        if mime.startswith("video/") or ext == ".gif":
-            return "video"
-        if mime.startswith("audio/"):
-            return "audio"
-
-    return "document"
-
-
-async def send_media(
-    client: Any,
-    chat_id: Union[int, str],
-    file_path: str,
-    media_type: Optional[str] = None,
-    *,
-    caption: Optional[str] = None,
-    message_thread_id: Optional[int] = None,
-    progress: Optional[Callable] = None,
-    progress_args: tuple = (),
-) -> Any:
-    """Sends a single media file using the appropriate Pyrogram method with fallback."""
-    if media_type is None:
-        media_type = get_media_type(file_path)
-
-    file_name = os.path.basename(file_path)
-    if caption is None:
-        caption = file_name
-
-    prog_kwargs: dict[str, Any] = {}
-    if progress:
-        prog_kwargs["progress"] = progress
-        prog_kwargs["progress_args"] = progress_args
-
-    thread_kwargs: dict[str, Any] = {}
-    if message_thread_id is not None:
-        thread_kwargs["message_thread_id"] = message_thread_id
-
-    if media_type == "photo":
-        try:
-            return await client.send_photo(
-                chat_id,
-                photo=file_path,
-                caption=caption,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-        except Exception:
-            ext = os.path.splitext(file_path)[1].lower()
-            if ext == ".webp":
-                try:
-                    return await client.send_sticker(
-                        chat_id,
-                        sticker=file_path,
-                        **thread_kwargs,
-                        **prog_kwargs,
-                    )
-                except Exception:
-                    pass
-
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                caption=caption,
-                force_document=True,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-    elif media_type == "sticker":
-        try:
-            return await client.send_sticker(
-                chat_id,
-                sticker=file_path,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-        except Exception:
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                caption=caption,
-                force_document=True,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-    elif media_type == "video":
-        try:
-            return await client.send_video(
-                chat_id,
-                video=file_path,
-                caption=caption,
-                supports_streaming=True,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-        except Exception:
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                caption=caption,
-                force_document=True,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-    elif media_type == "audio":
-        try:
-            title = os.path.splitext(file_name)[0]
-            return await client.send_audio(
-                chat_id,
-                audio=file_path,
-                caption=caption,
-                title=title,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-        except Exception:
-            return await client.send_document(
-                chat_id,
-                document=file_path,
-                caption=caption,
-                force_document=True,
-                **thread_kwargs,
-                **prog_kwargs,
-            )
-    else:
-        return await client.send_document(
-            chat_id,
-            document=file_path,
-            caption=caption,
-            force_document=True,
-            **thread_kwargs,
-            **prog_kwargs,
-        )
-
-
-def build_media_group(
-    files: Sequence[str],
-    group_type: Optional[str] = None,
-) -> list[Union[InputMediaPhoto, InputMediaVideo, InputMediaAudio, InputMediaDocument]]:
-    """Builds a list of Pyrogram InputMedia items for album sending."""
-    media_group: list[
-        Union[InputMediaPhoto, InputMediaVideo, InputMediaAudio, InputMediaDocument]
-    ] = []
-
-    for file_path in files:
-        fname = os.path.basename(file_path)
-        m_type = group_type or get_media_type(file_path)
-
-        if m_type == "photo":
-            media_group.append(InputMediaPhoto(file_path, caption=fname))
-        elif m_type == "video":
-            media_group.append(
-                InputMediaVideo(file_path, caption=fname, supports_streaming=True)
-            )
-        elif m_type == "audio":
-            title = os.path.splitext(fname)[0]
-            media_group.append(
-                InputMediaAudio(file_path, caption=fname, title=title)
-            )
-        else:
-            media_group.append(InputMediaDocument(file_path, caption=fname))
-
-    return media_group
-
-
-PROGRESS_STYLES: dict[str, tuple[str, str]] = {
-    "bullet": ("●", "○"),  # Default Caligo bullet style
-    "block": ("█", "░"),  # Solid blocks
-    "square": ("■", "□"),  # Solid / hollow squares
-    "circle": ("⬤", "◯"),  # Large filled / hollow circles
-    "stripes": ("▰", "▱"),  # Modern angled stripes
-    "arrow": ("►", "▻"),  # Pointer arrows
-    "dots": ("⬢", "⬡"),  # Hexagons
+TELEGRAM_DCS: dict[int, tuple[str, int, str]] = {
+    1: ("149.154.175.53", 443, "Miami"),
+    2: ("149.154.167.51", 443, "Amsterdam"),
+    3: ("149.154.175.100", 443, "Miami"),
+    4: ("149.154.167.91", 443, "Amsterdam"),
+    5: ("91.108.56.130", 443, "Singapore"),
 }
-DEFAULT_PROGRESS_STYLE = "bullet"
+
+ID_REGISTRATION_CHECKPOINTS: list[tuple[int, datetime]] = [
+    (0, datetime(2013, 8, 14)), (2768409, datetime(2013, 11, 1)), (7679610, datetime(2013, 12, 31)),
+    (11538514, datetime(2014, 2, 1)), (15835244, datetime(2014, 2, 20)), (23646077, datetime(2014, 2, 26)),
+    (38015510, datetime(2014, 3, 1)), (44634663, datetime(2014, 5, 6)), (46145305, datetime(2014, 5, 15)),
+    (54845238, datetime(2014, 9, 20)), (63263518, datetime(2014, 10, 27)), (101260938, datetime(2015, 3, 6)),
+    (112594714, datetime(2015, 8, 15)), (152079341, datetime(2016, 1, 22)), (225034354, datetime(2016, 6, 18)),
+    (297621225, datetime(2016, 12, 16)), (390000000, datetime(2017, 6, 15)), (500000000, datetime(2017, 12, 30)),
+    (600000000, datetime(2018, 5, 30)), (700000000, datetime(2018, 10, 31)), (800000000, datetime(2019, 3, 15)),
+    (900000000, datetime(2019, 7, 20)), (1000000000, datetime(2019, 12, 15)), (1200000000, datetime(2020, 7, 15)),
+    (1400000000, datetime(2021, 1, 10)), (1600000000, datetime(2021, 3, 20)), (1800000000, datetime(2021, 6, 15)),
+    (2000000000, datetime(2021, 10, 30)), (5000000000, datetime(2022, 1, 15)), (5300000000, datetime(2022, 5, 1)),
+    (5600000000, datetime(2022, 9, 1)), (5900000000, datetime(2023, 1, 1)), (6300000000, datetime(2023, 6, 1)),
+    (6700000000, datetime(2023, 11, 1)), (7000000000, datetime(2024, 3, 1)), (7300000000, datetime(2024, 7, 1)),
+    (7600000000, datetime(2024, 11, 1)), (7900000000, datetime(2025, 3, 1)), (8200000000, datetime(2025, 7, 1)),
+    (8500000000, datetime(2025, 11, 1)), (8800000000, datetime(2026, 3, 1)), (9200000000, datetime(2026, 9, 1)),
+]
 
 
-def render_progress_bar(
-    percent: float,
-    length: int = 10,
-    style: str = DEFAULT_PROGRESS_STYLE,
-) -> str:
-    """Renders a progress bar string with the specified style."""
-    chars = PROGRESS_STYLES.get(style)
-    if chars is None:
-        chars = PROGRESS_STYLES.get(
-            style.lower(), PROGRESS_STYLES[DEFAULT_PROGRESS_STYLE]
-        )
-    filled_count = min(length, max(0, int(round(percent * length))))
-    return chars[0] * filled_count + chars[1] * (length - filled_count)
+def estimate_creation_date(user_or_chat_id: int) -> Optional[str]:
+    """Estimates the creation/registration date of a Telegram entity ID based on historical checkpoints."""
+    raw_id = abs(int(user_or_chat_id))
+    if str(raw_id).startswith("100") and len(str(raw_id)) > 3:
+        try:
+            raw_id = int(str(raw_id)[3:])
+        except ValueError:
+            pass
+
+    if raw_id <= 0:
+        return None
+
+    ids = [cp[0] for cp in ID_REGISTRATION_CHECKPOINTS]
+    idx = bisect.bisect_left(ids, raw_id)
+    if idx == 0:
+        return ID_REGISTRATION_CHECKPOINTS[0][1].strftime("~%B %Y")
+    if idx >= len(ID_REGISTRATION_CHECKPOINTS):
+        id1, d1 = ID_REGISTRATION_CHECKPOINTS[-2]
+        id2, d2 = ID_REGISTRATION_CHECKPOINTS[-1]
+    else:
+        id1, d1 = ID_REGISTRATION_CHECKPOINTS[idx - 1]
+        id2, d2 = ID_REGISTRATION_CHECKPOINTS[idx]
+
+    denom = id2 - id1
+    ratio = (raw_id - id1) / denom if denom != 0 else 0
+    ts1 = d1.timestamp()
+    ts2 = d2.timestamp()
+    est_ts = ts1 + ratio * (ts2 - ts1)
+    est_dt = datetime.fromtimestamp(est_ts, tz=timezone.utc)
+    return est_dt.strftime("~%B %Y")
 
 
-def format_progress(
-    file_name: str,
-    status: str,
-    percent: float,
-    current: int,
-    total: int,
-    speed: float,
-    eta: timedelta,
-    style: str = DEFAULT_PROGRESS_STYLE,
-) -> str:
-    """Formats the progress message text for Telegram."""
-    bar = render_progress_bar(percent, length=10, style=style)
-    pct_text = f"{round(percent * 100)}%"
-    return (
-        f"`{file_name}`\n"
-        f"Status: **{status}**\n"
-        f"Progress: [{bar}] {pct_text}\n"
-        f"__{misc.human_readable_bytes(current)} of {misc.human_readable_bytes(total)} @ "
-        f"{misc.human_readable_bytes(speed, postfix='/s')}\n"
-        f"ETA: {time.format_duration_td(eta)}__\n\n"
-    )
+def clean_button_url(url: Optional[str]) -> Optional[str]:
+    """Validates and normalizes URL for Telegram inline buttons."""
+    if not url or not isinstance(url, str):
+        return None
+    url = url.strip()
+    if url.startswith("git+https://"):
+        url = url[4:]
+    elif url.startswith("git+http://"):
+        url = url[4:]
+    elif url.startswith("git://"):
+        url = "https://" + url[6:]
+    elif url.startswith("git@github.com:"):
+        url = "https://github.com/" + url[15:]
+    elif url.startswith("github.com/"):
+        url = "https://" + url
+
+    if not url.startswith(("http://", "https://", "tg://")):
+        return None
+    return url
 
 
-async def prog_func(
-    current: int,
-    total: int,
-    start_time: int,
-    mode: str,
-    ctx: Any,
-    file_name: str,
-    style: str = DEFAULT_PROGRESS_STYLE,
-) -> None:
-    """Live progress callback function for Telegram upload/download."""
-    if total <= 0:
-        return
-
-    percent = current / total
-    end_time = time.sec() - start_time
-    now = datetime.now()
-
-    try:
-        speed = round(current / end_time, 2)
-        eta = timedelta(seconds=int(round((total - current) / speed)))
-    except ZeroDivisionError:
-        speed = 0.0
-        eta = timedelta(seconds=0)
-
-    status = "Uploading" if mode == "upload" else "Downloading"
-    progress = format_progress(
-        file_name=file_name,
-        status=status,
-        percent=percent,
-        current=current,
-        total=total,
-        speed=speed,
-        eta=eta,
-        style=style,
-    )
-
-    last_update = getattr(ctx, "last_update_time", None)
-    if (
-        last_update is None
-        or not isinstance(last_update, datetime)
-        or (now - last_update).total_seconds() >= 5
-    ):
-        await ctx.respond(progress)
-        ctx.last_update_time = now
-
-
-def create_progress_callback(
-    ctx: Any,
-    start_time: int,
-    mode: str,
-    file_name: str,
-    style: Optional[str] = None,
-) -> Callable[[int, int], Any]:
-    """Returns a progress callback closure with bound arguments."""
-    active_style = (
-        style
-        or getattr(getattr(ctx, "bot", None), "progress_style", None)
-        or DEFAULT_PROGRESS_STYLE
-    )
-
-    async def _callback(current: int, total: int, *args: Any) -> None:
-        await prog_func(
-            current=current,
-            total=total,
-            start_time=start_time,
-            mode=mode,
-            ctx=ctx,
-            file_name=file_name,
-            style=active_style,
-        )
-
-    return _callback
+clean_url = clean_button_url

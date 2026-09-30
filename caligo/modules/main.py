@@ -230,18 +230,7 @@ class Main(module.Module):
             info_mod = self.bot.modules.get("Info")
             if info_mod is not None:
                 target_str = q_raw.split(maxsplit=1)[1].strip()
-                clean: Union[int, str] = target_str
-                if isinstance(clean, str):
-                    if clean.startswith("https://t.me/"):
-                        clean = clean[13:]
-                    elif clean.startswith("t.me/"):
-                        clean = clean[5:]
-                    if clean.startswith("@"):
-                        clean = clean[1:]
-                    try:
-                        clean = int(clean)
-                    except ValueError:
-                        pass
+                clean = util.tg.clean_target(target_str)
 
                 data = await info_mod._get_deep_user_info(clean)
                 if not data:

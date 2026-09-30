@@ -274,7 +274,12 @@ class TestLoggingAndPMGuard(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Alice Smith", args[1])
         self.assertIn("Test Group", args[1])
         # Check inline keyboard buttons
-        self.assertIsNotNone(kwargs.get("reply_markup"))
+        reply_markup = kwargs.get("reply_markup")
+        self.assertIsNotNone(reply_markup)
+        btn_texts = [b.text for row in reply_markup.inline_keyboard for b in row]
+        self.assertNotIn("Open Chat", btn_texts)
+        self.assertIn("Open Message", btn_texts)
+        self.assertIn("Open Profile", btn_texts)
 
     async def test_chat_action_join_leave_logging(self):
         self.log_mod.enabled = True
@@ -296,9 +301,14 @@ class TestLoggingAndPMGuard(unittest.IsolatedAsyncioTestCase):
 
         await self.log_mod.on_chat_action(join_msg)
         self.client_helper.send_message.assert_called_once()
-        args, _ = self.client_helper.send_message.call_args
+        args, kwargs = self.client_helper.send_message.call_args
         self.assertIn("Member Joined", args[1])
         self.assertIn("Bob", args[1])
+        reply_markup = kwargs.get("reply_markup")
+        self.assertIsNotNone(reply_markup)
+        join_btn_texts = [b.text for row in reply_markup.inline_keyboard for b in row]
+        self.assertNotIn("Open Chat", join_btn_texts)
+        self.assertIn("Open Profile", join_btn_texts)
 
         self.client_helper.send_message.reset_mock()
 
@@ -310,9 +320,96 @@ class TestLoggingAndPMGuard(unittest.IsolatedAsyncioTestCase):
 
         await self.log_mod.on_chat_action(leave_msg)
         self.client_helper.send_message.assert_called_once()
-        args, _ = self.client_helper.send_message.call_args
+        args, kwargs = self.client_helper.send_message.call_args
         self.assertIn("Member Left", args[1])
         self.assertIn("Bob", args[1])
+        reply_markup = kwargs.get("reply_markup")
+        self.assertIsNotNone(reply_markup)
+        leave_btn_texts = [b.text for row in reply_markup.inline_keyboard for b in row]
+        self.assertNotIn("Open Chat", leave_btn_texts)
+        self.assertIn("Open Profile", leave_btn_texts)
+
+    async def test_mention_logging_ignores_bot(self):
+        self.log_mod.enabled = True
+        self.log_mod.chat_id = 123456789
+
+        msg = MagicMock(spec=types.Message)
+        msg.outgoing = False
+        msg.chat = MagicMock(spec=types.Chat)
+        msg.chat.type = ChatType.SUPERGROUP
+        msg.chat.id = -1001122334455
+        msg.chat.title = "Test Group"
+        msg.id = 777
+        msg.from_user = MagicMock(spec=types.User)
+        msg.from_user.id = 888888888
+        msg.from_user.is_bot = True
+        msg.from_user.first_name = "SomeBot"
+        msg.text = "Hello @botowner solve captcha"
+        msg.caption = None
+        msg.reply_to_message = None
+
+        entity = types.MessageEntity(
+            type=enums.MessageEntityType.MENTION,
+            offset=6,
+            length=9,
+        )
+        msg.entities = [entity]
+        msg.caption_entities = None
+
+        await self.log_mod.on_message(msg)
+        self.client_helper.send_message.assert_not_called()
+        self.client.send_message.assert_not_called()
+
+    async def test_chat_action_ignores_bot_join_and_leave(self):
+        self.log_mod.enabled = True
+        self.log_mod.chat_id = 123456789
+
+        # Bot joins
+        join_msg = MagicMock(spec=types.Message)
+        join_msg.chat = MagicMock(spec=types.Chat)
+        join_msg.chat.type = ChatType.SUPERGROUP
+        join_msg.chat.id = -1001122334455
+        join_msg.from_user = None
+        bot_user = MagicMock(spec=types.User)
+        bot_user.id = 888888888
+        bot_user.is_bot = True
+        join_msg.new_chat_members = [bot_user]
+        join_msg.left_chat_member = None
+
+        await self.log_mod.on_chat_action(join_msg)
+        self.client_helper.send_message.assert_not_called()
+
+        # Bot leaves
+        leave_msg = MagicMock(spec=types.Message)
+        leave_msg.chat = join_msg.chat
+        leave_msg.from_user = None
+        leave_msg.new_chat_members = None
+        leave_msg.left_chat_member = bot_user
+
+        await self.log_mod.on_chat_action(leave_msg)
+        self.client_helper.send_message.assert_not_called()
+
+        # Action performed by a bot
+        bot_action_msg = MagicMock(spec=types.Message)
+        bot_action_msg.chat = join_msg.chat
+        bot_action_msg.from_user = bot_user
+        bot_action_msg.new_chat_members = [MagicMock(spec=types.User, is_bot=False)]
+        bot_action_msg.left_chat_member = None
+
+        await self.log_mod.on_chat_action(bot_action_msg)
+        self.client_helper.send_message.assert_not_called()
+
+    async def test_setlog_rejects_bot_chat(self):
+        ctx = MagicMock()
+        ctx.input = "my_bot"
+        mock_chat = MagicMock()
+        mock_chat.id = 888888888
+        mock_chat.type = ChatType.BOT
+        self.client.get_chat.return_value = mock_chat
+
+        res = await self.log_mod.cmd_setlog(ctx)
+        self.assertIn("Cannot set a bot chat", res)
+        self.assertIsNone(self.log_mod.chat_id)
 
     # =========================================================================
     # PM Guard Module Tests

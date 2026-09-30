@@ -1,5 +1,4 @@
 import asyncio
-import bisect
 from datetime import datetime, timezone
 import html
 import re
@@ -12,81 +11,7 @@ from pyrogram.enums import ChatMembersFilter, ChatMemberStatus, ChatType, ParseM
 
 from caligo import command, listener, module, util
 
-ID_REGISTRATION_CHECKPOINTS = [
-    (0, datetime(2013, 8, 14)),
-    (2768409, datetime(2013, 11, 1)),
-    (7679610, datetime(2013, 12, 31)),
-    (11538514, datetime(2014, 2, 1)),
-    (15835244, datetime(2014, 2, 20)),
-    (23646077, datetime(2014, 2, 26)),
-    (38015510, datetime(2014, 3, 1)),
-    (44634663, datetime(2014, 5, 6)),
-    (46145305, datetime(2014, 5, 15)),
-    (54845238, datetime(2014, 9, 20)),
-    (63263518, datetime(2014, 10, 27)),
-    (101260938, datetime(2015, 3, 6)),
-    (112594714, datetime(2015, 8, 15)),
-    (152079341, datetime(2016, 1, 22)),
-    (225034354, datetime(2016, 6, 18)),
-    (297621225, datetime(2016, 12, 16)),
-    (390000000, datetime(2017, 6, 15)),
-    (500000000, datetime(2017, 12, 30)),
-    (600000000, datetime(2018, 5, 30)),
-    (700000000, datetime(2018, 10, 31)),
-    (800000000, datetime(2019, 3, 15)),
-    (900000000, datetime(2019, 7, 20)),
-    (1000000000, datetime(2019, 12, 15)),
-    (1200000000, datetime(2020, 7, 15)),
-    (1400000000, datetime(2021, 1, 10)),
-    (1600000000, datetime(2021, 3, 20)),
-    (1800000000, datetime(2021, 6, 15)),
-    (2000000000, datetime(2021, 10, 30)),
-    (5000000000, datetime(2022, 1, 15)),
-    (5300000000, datetime(2022, 5, 1)),
-    (5600000000, datetime(2022, 9, 1)),
-    (5900000000, datetime(2023, 1, 1)),
-    (6300000000, datetime(2023, 6, 1)),
-    (6700000000, datetime(2023, 11, 1)),
-    (7000000000, datetime(2024, 3, 1)),
-    (7300000000, datetime(2024, 7, 1)),
-    (7600000000, datetime(2024, 11, 1)),
-    (7900000000, datetime(2025, 3, 1)),
-    (8200000000, datetime(2025, 7, 1)),
-    (8500000000, datetime(2025, 11, 1)),
-    (8800000000, datetime(2026, 3, 1)),
-    (9200000000, datetime(2026, 9, 1)),
-]
-
-
-def estimate_creation_date(user_or_chat_id: int) -> Optional[str]:
-    raw_id = abs(int(user_or_chat_id))
-    if str(raw_id).startswith("100") and len(str(raw_id)) > 3:
-        try:
-            raw_id = int(str(raw_id)[3:])
-        except ValueError:
-            pass
-
-    if raw_id <= 0:
-        return None
-
-    ids = [cp[0] for cp in ID_REGISTRATION_CHECKPOINTS]
-    idx = bisect.bisect_left(ids, raw_id)
-    if idx == 0:
-        return ID_REGISTRATION_CHECKPOINTS[0][1].strftime("~%B %Y")
-    if idx >= len(ID_REGISTRATION_CHECKPOINTS):
-        id1, d1 = ID_REGISTRATION_CHECKPOINTS[-2]
-        id2, d2 = ID_REGISTRATION_CHECKPOINTS[-1]
-    else:
-        id1, d1 = ID_REGISTRATION_CHECKPOINTS[idx - 1]
-        id2, d2 = ID_REGISTRATION_CHECKPOINTS[idx]
-
-    denom = id2 - id1
-    ratio = (raw_id - id1) / denom if denom != 0 else 0
-    ts1 = d1.timestamp()
-    ts2 = d2.timestamp()
-    est_ts = ts1 + ratio * (ts2 - ts1)
-    est_dt = datetime.fromtimestamp(est_ts, tz=timezone.utc)
-    return est_dt.strftime("~%B %Y")
+estimate_creation_date = util.tg.estimate_creation_date
 
 
 class Info(module.Module):
@@ -750,18 +675,7 @@ class Info(module.Module):
 
         # Case 1: User explicitly provided an argument
         if target:
-            clean: Union[int, str] = target
-            if isinstance(clean, str):
-                if clean.startswith("https://t.me/"):
-                    clean = clean[13:]
-                elif clean.startswith("t.me/"):
-                    clean = clean[5:]
-                if clean.startswith("@"):
-                    clean = clean[1:]
-                try:
-                    clean = int(clean)
-                except ValueError:
-                    pass
+            clean = util.tg.clean_target(target)
 
             # Try resolving user first
             res = await self._get_deep_user_info(clean, chat_id=ctx.chat.id)

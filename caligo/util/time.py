@@ -104,3 +104,37 @@ def extract_duration_and_reason(
 
     return None, rest
 
+
+USEC_PER_HOUR = 60 * 60 * 1000000
+USEC_PER_DAY = USEC_PER_HOUR * 24
+
+
+def calc_pct(num1: int, num2: int) -> str:
+    """Calculates percentage string representation without trailing zeros."""
+    if not num2:
+        return "0"
+
+    return "{:.1f}".format((num1 / num2) * 100).rstrip("0").rstrip(".")
+
+
+def calc_per_hour(stat: int, uptime_us: int) -> str:
+    """Calculates hourly rate string representation given total stat and uptime in microseconds."""
+    up_hr = max(1, uptime_us) / USEC_PER_HOUR
+    val = stat / up_hr
+    if val >= 1000:
+        return f"{val:,.1f}".rstrip("0").rstrip(".")
+    return "{:.1f}".format(val).rstrip("0").rstrip(".")
+
+
+def calc_per_day(stat: int, uptime_us: int) -> str:
+    """Calculates daily rate string representation given total stat and uptime in microseconds."""
+    up_day = max(1, uptime_us) / USEC_PER_DAY
+    val = stat / up_day
+    if val >= 1000:
+        return f"{val:,.1f}".rstrip("0").rstrip(".")
+    return "{:.1f}".format(val).rstrip("0").rstrip(".")
+
+
+calc_ph = calc_per_hour
+calc_pd = calc_per_day
+

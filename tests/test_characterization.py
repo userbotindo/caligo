@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from anyio import Path as AsyncPath
 
-from caligo.util import misc, text, tg, time
+from caligo.util import media, misc, text, tg, time
 from caligo import command
 from caligo.command import Command
 from caligo.core.command_dispatcher import CommandDispatcher
@@ -92,6 +92,11 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tg.get_target_id(12345), 12345)
         self.assertEqual(tg.format_target(12345), "[12345](tg://user?id=12345)")
         self.assertEqual(tg.format_target("@username"), "@username")
+        self.assertEqual(tg.clean_target("https://t.me/durov"), "durov")
+        self.assertEqual(tg.clean_target("t.me/durov"), "durov")
+        self.assertEqual(tg.clean_target("@durov"), "durov")
+        self.assertEqual(tg.clean_target("123456789"), 123456789)
+        self.assertEqual(tg.clean_target(987654321), 987654321)
 
     def test_tg_render_progress_bar(self):
         bar_bullet_0 = tg.render_progress_bar(0.0, length=10, style="bullet")
@@ -128,6 +133,9 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tg.get_media_type("audio.mp3"), "audio")
         self.assertEqual(tg.get_media_type("sticker.tgs"), "sticker")
         self.assertEqual(tg.get_media_type("archive.zip"), "document")
+        self.assertEqual(media.get_media_type("photo.jpg"), "photo")
+        self.assertEqual(media.get_media_type("video.mp4"), "video")
+        self.assertEqual(media.render_progress_bar(0.5, length=10), tg.render_progress_bar(0.5, length=10))
 
     def test_tg_truncate(self):
         short_text = "short text"

@@ -5,32 +5,11 @@ from pyrogram.types import Message
 from caligo import command, module, util
 from caligo.core import database
 
-USEC_PER_HOUR = 60 * 60 * 1000000
-USEC_PER_DAY = USEC_PER_HOUR * 24
-
-
-def _calc_pct(num1: int, num2: int) -> str:
-    if not num2:
-        return "0"
-
-    # skipcq: PYL-C0209
-    return "{:.1f}".format((num1 / num2) * 100).rstrip("0").rstrip(".")
-
-
-def _calc_ph(stat: int, uptime: int) -> str:
-    up_hr = max(1, uptime) / USEC_PER_HOUR
-    val = stat / up_hr
-    if val >= 1000:
-        return f"{val:,.1f}".rstrip("0").rstrip(".")
-    return "{:.1f}".format(val).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
-
-
-def _calc_pd(stat: int, uptime: int) -> str:
-    up_day = max(1, uptime) / USEC_PER_DAY
-    val = stat / up_day
-    if val >= 1000:
-        return f"{val:,.1f}".rstrip("0").rstrip(".")
-    return "{:.1f}".format(val).rstrip("0").rstrip(".")  # skipcq: PYL-C0209
+USEC_PER_HOUR = util.time.USEC_PER_HOUR
+USEC_PER_DAY = util.time.USEC_PER_DAY
+_calc_pct = util.time.calc_pct
+_calc_ph = util.time.calc_ph
+_calc_pd = util.time.calc_pd
 
 
 class Stats(module.Module):

@@ -89,10 +89,6 @@ async def resize_media(media: AsyncPath, video: bool) -> AsyncPath:
     return AsyncPath(resized_photo)
 
 
-class LengthMismatchError(Exception):
-    pass
-
-
 class InputSticker:
     """A sticker to be added to a sticker set."""
 
@@ -176,7 +172,6 @@ class Sticker(module.Module):
     db: database.AsyncCollection
 
     async def on_load(self):
-        # to use later maybe
         self.db = self.bot.db.get_collection(self.name.upper())
 
         if not await AsyncPath(CACHE_PATH).exists():

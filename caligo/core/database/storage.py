@@ -144,7 +144,6 @@ class PersistentStorage(Storage):
     async def get_peer_by_id(
         self, peer_id: int
     ) -> Union[InputPeerUser, InputPeerChat, InputPeerChannel]:
-        # id, access_hash, type
         res = await self._peer.find_one(
             {"_id": peer_id}, {"_id": 1, "access_hash": 1, "type": 1}
         )
@@ -156,7 +155,6 @@ class PersistentStorage(Storage):
     async def get_peer_by_username(
         self, username: str
     ) -> Union[InputPeerUser, InputPeerChat, InputPeerChannel]:
-        # id, access_hash, type, last_update_on,
         res = await self._peer.find_one(
             {"username": username},
             {"_id": 1, "access_hash": 1, "type": 1, "last_update_on": 1},
@@ -181,7 +179,6 @@ class PersistentStorage(Storage):
     async def get_peer_by_phone_number(
         self, phone_number: str
     ) -> Union[InputPeerUser, InputPeerChat, InputPeerChannel]:
-        #  _id, access_hash, type,
         res = await self._peer.find_one(
             {"phone_number": phone_number}, {"_id": 1, "access_hash": 1, "type": 1}
         )

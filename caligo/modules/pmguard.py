@@ -34,7 +34,6 @@ class PMGuard(module.Module):
     async def on_load(self) -> None:
         self.db = self.bot.db.get_collection(self.name.upper())
 
-        # Load settings
         data = await self.db.find_one({"_id": 0}) or {}
         self.enabled = bool(data.get("enabled", False))
         self.mode = str(data.get("mode", "warn")).lower()
@@ -59,9 +58,6 @@ class PMGuard(module.Module):
             upsert=True,
         )
 
-    # -------------------------------------------------------------------------
-    # Logging Integration & Fallback
-    # -------------------------------------------------------------------------
     async def _log_pm_activity(
         self,
         text: str,
@@ -73,12 +69,10 @@ class PMGuard(module.Module):
             await log_mod.send_log(text, buttons=buttons, force=True)
             return
 
-        # Fallback if Logging module is not loaded
         text = self.bot.redact_message(text)
         reply_markup = types.InlineKeyboardMarkup(buttons) if buttons else None
         owner_id = getattr(self.bot, "uid", None)
 
-        # Try Helper Bot PM to owner
         if (
             self.bot.helper_initialized
             and self.bot.client_helper.is_connected
@@ -96,7 +90,6 @@ class PMGuard(module.Module):
             except Exception as e:
                 self.log.debug("Helper fallback failed: %s", e)
 
-        # Fallback to Userbot client Saved Messages
         try:
             await self.bot.client.send_message(
                 "me",
@@ -107,19 +100,14 @@ class PMGuard(module.Module):
         except Exception as e:
             self.log.error("Failed to send PM guard log to Saved Messages: %s", e)
 
-    # -------------------------------------------------------------------------
-    # Event Listeners
-    # -------------------------------------------------------------------------
     async def on_message(self, msg: types.Message) -> None:
         """Inspects incoming private messages and executes PM Guard policies."""
         if not self.enabled:
             return
 
-        # Only protect private chats
         if not msg.chat or msg.chat.type not in (ChatType.PRIVATE, ChatType.BOT):
             return
 
-        # Ignore outgoing messages sent by the owner
         if msg.outgoing:
             return
 
@@ -131,7 +119,6 @@ class PMGuard(module.Module):
         if sender.is_self or (owner_id and sender.id == owner_id):
             return
 
-        # Ignore official Telegram service notifications and verified bots/support
         if (
             sender.id in (777000, 42777)
             or sender.is_support
@@ -140,13 +127,9 @@ class PMGuard(module.Module):
         ):
             return
 
-        # Ignore approved users and contacts
         if sender.id in self.approved_users or sender.is_contact:
             return
 
-        # ---------------------------------------------------------------------
-        # Unauthorized PM detected! Execute selected mode
-        # ---------------------------------------------------------------------
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         sender_mention = _format_target_html(sender)
         user_id = sender.id
@@ -211,7 +194,6 @@ class PMGuard(module.Module):
             await self._log_pm_activity(log_text, buttons=buttons)
 
         elif self.mode == "warn":
-            # Increment and persist warning counter for this user in MongoDB
             doc = await self.db.find_one_and_update(
                 {"_id": user_id},
                 {
@@ -224,7 +206,6 @@ class PMGuard(module.Module):
             count = doc.get("count", 1) if doc else 1
 
             if count < self.limit:
-                # Send warning message directly to that user in their PM chat
                 template = self.custom_message or DEFAULT_WARN_TEMPLATE
                 warn_msg = template.format(current=count, limit=self.limit)
 
@@ -239,9 +220,7 @@ class PMGuard(module.Module):
                 except Exception as e:
                     self.log.debug("Failed to reply PM warning: %s", e)
 
-                # No intermediate warnings logged to log destination
             else:
-                # Warning limit reached: Block user and delete their message
                 try:
                     await self.bot.client.block_user(user_id)
                 except Exception as e:
@@ -249,7 +228,6 @@ class PMGuard(module.Module):
                         "Failed to block user %s on limit reached: %s", user_id, e
                     )
 
-                # Delete the incoming message from the user
                 try:
                     await self.bot.client.delete_messages(
                         msg.chat.id, [msg.id], revoke=True
@@ -260,7 +238,6 @@ class PMGuard(module.Module):
                     except Exception:
                         pass
 
-                # Log pure message with button
                 log_text = (
                     "<b>Blocked User (PM Guard)</b>\n\n"
                     f"• <b>From:</b> {sender_mention}\n\n"
@@ -268,9 +245,6 @@ class PMGuard(module.Module):
                 )
                 await self._log_pm_activity(log_text, buttons=buttons)
 
-    # -------------------------------------------------------------------------
-    # Commands
-    # -------------------------------------------------------------------------
     @command.desc("Enable or disable PM Guard protection")
     @command.usage("[on | off?]", optional=True)
     @command.alias("pmguard")
@@ -358,7 +332,6 @@ class PMGuard(module.Module):
         if isinstance(target_id, int):
             self.approved_users.add(target_id)
             await self._save_settings()
-            # Reset warning counter for this user
             await self.db.delete_one({"_id": target_id})
             formatted = _format_target_html(target)
             return f"Approved {formatted} for private messages."

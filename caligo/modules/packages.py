@@ -10,25 +10,7 @@ from pyrogram.enums import ParseMode
 from caligo import command, module, util
 
 
-def _clean_url(url: Optional[str]) -> Optional[str]:
-    """Ensure URL is a valid HTTP/HTTPS/TG URL acceptable by Telegram buttons."""
-    if not url or not isinstance(url, str):
-        return None
-    url = url.strip()
-    if url.startswith("git+https://"):
-        url = url[4:]
-    elif url.startswith("git+http://"):
-        url = url[4:]
-    elif url.startswith("git://"):
-        url = "https://" + url[6:]
-    elif url.startswith("git@github.com:"):
-        url = "https://github.com/" + url[15:]
-    elif url.startswith("github.com/"):
-        url = "https://" + url
-
-    if not url.startswith(("http://", "https://", "tg://")):
-        return None
-    return url
+_clean_url = util.tg.clean_button_url
 
 
 class Packages(module.Module):
@@ -54,9 +36,6 @@ class Packages(module.Module):
             self.log.debug("HTTP GET error for %s: %s", url, e)
             return None
 
-    # -------------------------------------------------------------------------
-    # PyPI Lookup
-    # -------------------------------------------------------------------------
     async def _get_pypi_data(self, query: str) -> Optional[Tuple[str, List[List[types.InlineKeyboardButton]]]]:
         raw = query.strip().lower()
         candidates: List[str] = [
@@ -170,9 +149,6 @@ class Packages(module.Module):
         )
         return text, buttons
 
-    # -------------------------------------------------------------------------
-    # NPM Lookup
-    # -------------------------------------------------------------------------
     async def _get_npm_data(self, query: str) -> Optional[Tuple[str, List[List[types.InlineKeyboardButton]]]]:
         search_url = "https://registry.npmjs.org/-/v1/search"
         resp = await self._http_get(search_url, params={"text": query, "size": 5})
@@ -446,9 +422,6 @@ class Packages(module.Module):
         return None
 
 
-    # -------------------------------------------------------------------------
-    # Helper Dispatcher (Inline / Fallback)
-    # -------------------------------------------------------------------------
     async def _send_with_inline_or_respond(
         self,
         ctx: command.Context,
@@ -519,9 +492,6 @@ class Packages(module.Module):
             link_preview_options=types.LinkPreviewOptions(is_disabled=True),
         )
 
-    # -------------------------------------------------------------------------
-    # Commands
-    # -------------------------------------------------------------------------
     @command.desc("Search or inspect Python packages from PyPI")
     @command.alias("pypisearch", "pypifind", "pip")
     @command.usage("[package name or search query]")
@@ -567,9 +537,6 @@ class Packages(module.Module):
         text, buttons = result
         await self._send_with_inline_or_respond(ctx, f"gh {query}", text, buttons)
 
-    # -------------------------------------------------------------------------
-    # Inline Query Handler
-    # -------------------------------------------------------------------------
     async def on_inline_query(self, query: types.InlineQuery) -> None:
         q = (query.query or "").strip()
         if not q:

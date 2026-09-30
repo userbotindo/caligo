@@ -20,7 +20,6 @@ class Logging(module.Module):
     async def on_load(self) -> None:
         self.db = self.bot.db.get_collection(self.name.upper())
 
-        # Load configuration from database
         data = await self.db.find_one({"_id": 0}) or {}
         self.enabled = bool(data.get("enabled", False))
         self.chat_id = data.get("chat_id")
@@ -37,17 +36,10 @@ class Logging(module.Module):
             upsert=True,
         )
 
-    # -------------------------------------------------------------------------
-    # Helper Bot Group & Channel Management & Auto-Invite
-    # -------------------------------------------------------------------------
-    async def ensure_helper_in_group(self, chat_id: int) -> bool:
-        """Ensures helper bot is invited and promoted with required permissions in the group or channel."""
-        return await util.tg.ensure_helper_in_chat(self.bot, chat_id)
+    async def provision_helper(self, chat_id: int) -> bool:
+        """Invites and promotes helper bot with required permissions in the group or channel."""
+        return await util.tg.provision_helper(self.bot, chat_id)
 
-
-    # -------------------------------------------------------------------------
-    # Log Dispatcher
-    # -------------------------------------------------------------------------
     async def send_log(
         self,
         text: str,
@@ -59,15 +51,11 @@ class Logging(module.Module):
         if not self.enabled and not force:
             return False
 
-        # Redact any sensitive tokens/secrets
         text = self.bot.redact_message(text)
-
         target_chat = self.chat_id
         reply_markup = types.InlineKeyboardMarkup(buttons) if buttons else None
 
-        # Case A: Logging destination configured
         if target_chat is not None:
-            # Try sending via Helper Bot first
             if self.bot.helper_initialized and self.bot.client_helper.is_connected:
                 try:
                     await self.bot.client_helper.send_message(
@@ -94,8 +82,7 @@ class Logging(module.Module):
                             "Helper bot failed to send log to %s: %s", target_chat, e
                         )
                 except (errors.UserNotParticipant, errors.ChatAdminRequired, errors.ChannelPrivate):
-                    # Only ensure helper in log group if not joined / not admin
-                    if await self.ensure_helper_in_group(target_chat):
+                    if await self.provision_helper(target_chat):
                         try:
                             await self.bot.client_helper.send_message(
                                 target_chat,
@@ -114,7 +101,6 @@ class Logging(module.Module):
                         "Helper bot failed to send log to %s: %s", target_chat, e
                     )
 
-            # Fallback to Userbot Client sending to target_chat
             try:
                 await self.bot.client.send_message(
                     target_chat,
@@ -125,7 +111,7 @@ class Logging(module.Module):
                 )
                 return True
             except Exception as e:
-                # Retry without reply_markup in case userbot client can't send inline buttons
+                # Retry without reply_markup if user account cannot send inline buttons
                 try:
                     await self.bot.client.send_message(
                         target_chat,
@@ -141,11 +127,9 @@ class Logging(module.Module):
                         err,
                     )
 
-        # Case B: Destination not configured -> Fallback to Owner / PM Bot / Saved Messages
         fallback_sent = False
         owner_id = getattr(self.bot, "uid", None)
 
-        # Try Helper Bot sending to Owner PM
         if (
             self.bot.helper_initialized
             and self.bot.client_helper.is_connected
@@ -166,7 +150,6 @@ class Logging(module.Module):
         if fallback_sent:
             return True
 
-        # Fallback to Userbot sending to Saved Messages ("me")
         try:
             await self.bot.client.send_message(
                 "me",
@@ -179,9 +162,6 @@ class Logging(module.Module):
             self.log.error("Failed to send fallback log to Saved Messages: %s", e)
             return False
 
-    # -------------------------------------------------------------------------
-    # Event Listeners
-    # -------------------------------------------------------------------------
     async def on_message(self, msg: types.Message) -> None:
         """Monitors mentions in groups when logging is enabled."""
         if not self.enabled:
@@ -193,6 +173,13 @@ class Logging(module.Module):
         if not msg.chat or msg.chat.type in (ChatType.PRIVATE, ChatType.BOT):
             return
 
+        sender = getattr(msg, "from_user", None)
+        if sender and (
+            getattr(sender, "is_bot", False)
+            or getattr(sender, "id", None) == getattr(self.bot, "bot_uid", None)
+        ):
+            return
+
         owner_id = getattr(self.bot, "uid", None)
         owner_username = (
             getattr(self.bot.user, "username", None)
@@ -202,7 +189,6 @@ class Logging(module.Module):
 
         is_mentioned = False
 
-        # 1. Replied to owner message
         if (
             msg.reply_to_message
             and msg.reply_to_message.from_user
@@ -210,7 +196,6 @@ class Logging(module.Module):
         ):
             is_mentioned = True
 
-        # 2. Text entities (text_mention or mention)
         if not is_mentioned and msg.entities:
             for entity in msg.entities:
                 if (
@@ -232,7 +217,6 @@ class Logging(module.Module):
                         is_mentioned = True
                         break
 
-        # 3. Caption entities
         if not is_mentioned and msg.caption_entities:
             for entity in msg.caption_entities:
                 if (
@@ -257,8 +241,8 @@ class Logging(module.Module):
         if not is_mentioned:
             return
 
-        chat_title = html.escape(msg.chat.title or "Unknown Chat")
-        sender = msg.from_user
+        chat_title = html.escape(getattr(msg.chat, "title", None) or "Unknown Chat")
+        sender = getattr(msg, "from_user", None)
         sender_mention = util.tg.mention_user_html(sender) if sender else "Unknown"
         raw_content = msg.text or msg.caption or "[Media / Non-text Message]"
         escaped_content = html.escape(util.tg.truncate(raw_content))
@@ -278,12 +262,6 @@ class Logging(module.Module):
         if msg_link:
             btn_row.append(
                 types.InlineKeyboardButton("Open Message", url=msg_link)
-            )
-
-        chat_link = self._make_chat_link(msg.chat)
-        if chat_link:
-            btn_row.append(
-                types.InlineKeyboardButton("Open Chat", url=chat_link)
             )
 
         if sender:
@@ -306,12 +284,24 @@ class Logging(module.Module):
         if not msg.chat or msg.chat.type in (ChatType.PRIVATE, ChatType.BOT):
             return
 
-        chat_title = html.escape(msg.chat.title or "Unknown Chat")
+        sender = getattr(msg, "from_user", None)
+        if sender and (
+            getattr(sender, "is_bot", False)
+            or getattr(sender, "id", None) == getattr(self.bot, "bot_uid", None)
+        ):
+            return
+
+        chat_title = html.escape(getattr(msg.chat, "title", None) or "Unknown Chat")
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # 1. New chat members
         if msg.new_chat_members:
             for user in msg.new_chat_members:
+                if (
+                    getattr(user, "is_bot", False)
+                    or user.id == getattr(self.bot, "bot_uid", None)
+                ):
+                    continue
+
                 u_mention = util.tg.mention_user_html(user)
                 log_text = (
                     "<b>Member Joined</b>\n\n"
@@ -322,11 +312,6 @@ class Logging(module.Module):
 
                 buttons = []
                 btn_row = []
-                chat_link = self._make_chat_link(msg.chat)
-                if chat_link:
-                    btn_row.append(
-                        types.InlineKeyboardButton("Open Chat", url=chat_link)
-                    )
                 p_link = self._make_profile_link(user)
                 if p_link:
                     btn_row.append(
@@ -337,9 +322,14 @@ class Logging(module.Module):
 
                 await self.send_log(log_text, buttons=buttons)
 
-        # 2. Left chat member
         if msg.left_chat_member:
             user = msg.left_chat_member
+            if (
+                getattr(user, "is_bot", False)
+                or user.id == getattr(self.bot, "bot_uid", None)
+            ):
+                return
+
             u_mention = util.tg.mention_user_html(user)
             log_text = (
                 "<b>Member Left</b>\n\n"
@@ -350,11 +340,6 @@ class Logging(module.Module):
 
             buttons = []
             btn_row = []
-            chat_link = self._make_chat_link(msg.chat)
-            if chat_link:
-                btn_row.append(
-                    types.InlineKeyboardButton("Open Chat", url=chat_link)
-                )
             p_link = self._make_profile_link(user)
             if p_link:
                 btn_row.append(
@@ -365,23 +350,14 @@ class Logging(module.Module):
 
             await self.send_log(log_text, buttons=buttons)
 
-    # -------------------------------------------------------------------------
-    # URL Link Helpers
-    # -------------------------------------------------------------------------
     def _make_message_link(
         self, chat: types.Chat, message_id: int
     ) -> Optional[str]:
         return util.tg.get_message_link(chat, message_id)
 
-    def _make_chat_link(self, chat: types.Chat) -> Optional[str]:
-        return util.tg.get_chat_link(chat)
-
     def _make_profile_link(self, user: types.User) -> Optional[str]:
         return util.tg.get_profile_link(user)
 
-    # -------------------------------------------------------------------------
-    # Commands
-    # -------------------------------------------------------------------------
     @command.desc("Enable or disable sensitive activity logging")
     @command.usage("[on | off?]", optional=True)
     async def cmd_logging(self, ctx: command.Context) -> str:
@@ -414,11 +390,9 @@ class Logging(module.Module):
     async def cmd_setlog(self, ctx: command.Context) -> str:
         target_raw = ctx.input.strip() if ctx.input else ""
 
-        # If no arguments provided or "here", treat current chat as the chosen destination
         if not target_raw or target_raw.lower() == "here":
             chat = ctx.msg.chat
         else:
-            # Parse ID or username
             chat_target: Union[int, str]
             if (
                 target_raw.isdigit()
@@ -436,8 +410,10 @@ class Logging(module.Module):
             except Exception as e:
                 return f"<b>Error:</b> Failed to resolve chat: <code>{html.escape(str(e))}</code>"
 
-        # Check if chat is public (public username attached to channel/group)
-        is_direct_private = chat.type in (ChatType.PRIVATE, ChatType.BOT)
+        if chat.type == ChatType.BOT:
+            return "<b>Error:</b> Cannot set a bot chat as the log destination."
+
+        is_direct_private = chat.type == ChatType.PRIVATE
         is_private_channel_or_group = (
             chat.type in (ChatType.CHANNEL, ChatType.SUPERGROUP, ChatType.GROUP)
             and getattr(chat, "username", None) is None
@@ -450,13 +426,11 @@ class Logging(module.Module):
                 "Logs contain sensitive private data and must only be sent to a <b>private chat</b> or <b>private channel</b>."
             )
 
-        # Set or replace the logging chat (only one chat is configured at a time)
         self.chat_id = chat.id
         await self._save_config()
 
-        # If destination is a channel or group, immediately auto-invite and promote helper bot
         if chat.type in (ChatType.CHANNEL, ChatType.SUPERGROUP, ChatType.GROUP):
-            await self.ensure_helper_in_group(chat.id)
+            await self.provision_helper(chat.id)
 
         chat_name = html.escape(
             (

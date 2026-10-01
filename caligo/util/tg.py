@@ -15,7 +15,7 @@ from pyrogram import enums, errors, types
 from pyrogram.enums import ChatMemberStatus, ChatType
 from pyrogram.types import ChatPrivileges
 
-from . import media, misc, time
+from . import misc, time
 
 MESSAGE_CHAR_LIMIT = 4096
 TRUNCATION_SUFFIX = "... (truncated)"
@@ -500,22 +500,6 @@ async def provision_helper(bot: Any, chat_id: int) -> bool:
 
     return True
 
-
-# Media and progress utilities (re-exported from caligo.util.media)
-PHOTO_EXTS = media.PHOTO_EXTS
-VIDEO_EXTS = media.VIDEO_EXTS
-AUDIO_EXTS = media.AUDIO_EXTS
-STICKER_EXTS = media.STICKER_EXTS
-get_media_type = media.get_media_type
-send_media = media.send_media
-build_media_group = media.build_media_group
-PROGRESS_STYLES = media.PROGRESS_STYLES
-DEFAULT_PROGRESS_STYLE = media.DEFAULT_PROGRESS_STYLE
-render_progress_bar = media.render_progress_bar
-format_progress = media.format_progress
-report_progress = media.report_progress
-prog_func = media.prog_func
-create_progress_callback = media.create_progress_callback
 
 
 TELEGRAM_DCS: dict[int, tuple[str, int, str]] = {

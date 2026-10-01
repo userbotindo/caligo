@@ -98,19 +98,19 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tg.clean_target("123456789"), 123456789)
         self.assertEqual(tg.clean_target(987654321), 987654321)
 
-    def test_tg_render_progress_bar(self):
-        bar_bullet_0 = tg.render_progress_bar(0.0, length=10, style="bullet")
+    def test_media_render_progress_bar(self):
+        bar_bullet_0 = media.render_progress_bar(0.0, length=10, style="bullet")
         self.assertEqual(bar_bullet_0, "○○○○○○○○○○")
-        bar_bullet_50 = tg.render_progress_bar(0.5, length=10, style="bullet")
+        bar_bullet_50 = media.render_progress_bar(0.5, length=10, style="bullet")
         self.assertEqual(bar_bullet_50, "●●●●●○○○○○")
-        bar_bullet_100 = tg.render_progress_bar(1.0, length=10, style="bullet")
+        bar_bullet_100 = media.render_progress_bar(1.0, length=10, style="bullet")
         self.assertEqual(bar_bullet_100, "●●●●●●●●●●")
 
-        bar_block = tg.render_progress_bar(0.6, length=10, style="block")
+        bar_block = media.render_progress_bar(0.6, length=10, style="block")
         self.assertEqual(bar_block, "██████░░░░")
 
-    def test_tg_format_progress(self):
-        result = tg.format_progress(
+    def test_media_format_progress(self):
+        result = media.format_progress(
             file_name="test.mp4",
             status="Uploading",
             percent=0.5,
@@ -126,16 +126,13 @@ class TestCaligoCharacterization(unittest.IsolatedAsyncioTestCase):
         self.assertIn("5.00MiB of 10.00MiB @ 1.00MiB/s", result)
         self.assertIn("ETA: 5s", result)
 
-    def test_tg_get_media_type(self):
-        self.assertEqual(tg.get_media_type("photo.jpg"), "photo")
-        self.assertEqual(tg.get_media_type("image.png"), "photo")
-        self.assertEqual(tg.get_media_type("video.mp4"), "video")
-        self.assertEqual(tg.get_media_type("audio.mp3"), "audio")
-        self.assertEqual(tg.get_media_type("sticker.tgs"), "sticker")
-        self.assertEqual(tg.get_media_type("archive.zip"), "document")
+    def test_media_get_media_type(self):
         self.assertEqual(media.get_media_type("photo.jpg"), "photo")
+        self.assertEqual(media.get_media_type("image.png"), "photo")
         self.assertEqual(media.get_media_type("video.mp4"), "video")
-        self.assertEqual(media.render_progress_bar(0.5, length=10), tg.render_progress_bar(0.5, length=10))
+        self.assertEqual(media.get_media_type("audio.mp3"), "audio")
+        self.assertEqual(media.get_media_type("sticker.tgs"), "sticker")
+        self.assertEqual(media.get_media_type("archive.zip"), "document")
 
     def test_tg_truncate(self):
         short_text = "short text"

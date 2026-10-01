@@ -4,8 +4,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Any, Callable, Optional, Sequence, Union
 
-from pyrogram import errors, types
-from pyrogram.enums import ChatMemberStatus, ChatType
+from pyrogram import types
 from pyrogram.types import (
     InputMediaAudio,
     InputMediaDocument,

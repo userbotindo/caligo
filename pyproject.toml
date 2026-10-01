@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "caligo"
-version = "1.0.0"
+version = "0.1.4"
 description = "selfbot for Telegram."
 authors = ["Adek Maulana <adek@techdro.id>"]
 license = "MIT"

@@ -10,7 +10,7 @@ colorama==0.4.6 ; python_version >= "3.12" and python_version < "4.0" and sys_pl
 colorlog==6.9.0 ; python_version >= "3.12" and python_version < "4.0"
 dnspython==2.7.0 ; python_version >= "3.12" and python_version < "4.0"
 emoji==2.14.1 ; python_version >= "3.12" and python_version < "4.0"
-frozenlist==1.7.0 ; python_version >= "3.12" and python_version < "4.0"
+frozenlist==1.8.0 ; python_version >= "3.12" and python_version < "4.0"
 gitdb==4.0.12 ; python_version >= "3.12" and python_version < "4.0"
 gitpython==3.1.44 ; python_version >= "3.12" and python_version < "4.0"
 idna==3.10 ; python_version >= "3.12" and python_version < "4.0"

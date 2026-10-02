@@ -36,7 +36,7 @@ caligo = "caligo.main:main"
 python = ">=3.12,<4.0"
 
 httpx = "^0.28.1"
-aiorun = "^2023.7.2"
+aiorun = ">=2023.7.2,<2026.0.0"
 anyio = ">=4.0.0"
 beauty-print = "^0.6.1"
 certifi = {version = "^2023.7.22", platform = "windows"}
